@@ -1,0 +1,22 @@
+{
+  "name": "srs-network-intelligence-hub",
+  "version": "1.0.0",
+  "description": "SRS Network Intelligence Hub \u2013 managed network operations console (demo build, sample data). Operated by Movate.",
+  "scripts": {
+    "build": "node build.mjs",
+    "map": "node genmap.mjs"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "esbuild": "^0.28.2",
+    "lucide-react": "^1.59.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.19",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
+    "world-atlas": "^2.0.2"
+  },
+  "private": true
+}
