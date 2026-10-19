@@ -26,13 +26,14 @@ const SRCI = {
   carrier: ['On change', 'Carrier ticket status, loopback results, outage maps', 'Carrier portal (e-bonding where offered)'],
 };
 const OBS = new Set(['aruba', 'central', 'opsramp', 'newrelic', 'weather']);
-const GATE = { 'Runs on its own': 'auto', 'Runs unless stopped': 'stop', 'A person approves': 'approve' };
+const GATE = { Autonomous: 'auto', 'Human-on-the-loop': 'stop', 'Human-in-the-loop': 'approve' };
 const PEOPLE = { 'NOC Engineer': 'Priya S.', 'Network Engineer L3': 'Marcus L.', 'Security Lead': 'Omar N.', 'Major Incident Manager': 'Arjun M.' };
 const TGT = { fibercut: 'carrier', lte: 'carrier', storm: 'carrier', loop: 'central', drift: 'central', dhcp: 'git', eol: 'git', ups: 'field', capacity: 'aruba', power: 'field', notready: 'central' };
 const WORDS = { carrier: ['Ready', 'Opening case', 'Case open'], field: ['Ready', 'Matching technician', 'Work order out'], git: ['Ready', 'Commit in review', 'Merged and pushed'] };
 const AUX = { carrier: c => ['Case open', `${c} · evidence attached`], field: () => ['Work order out', 'technician matched'], git: () => ['Merged and pushed', 'main'] };
 const AUX_OVR = { failback: { carrier: ['Case closed', 'checked by Mova iO'] }, capacity: { carrier: ['Upgrade ordered', 'install in 12 days'] }, cutover: { field: ['Crew on site', 'cutover weekend'] }, eol: { field: ['Spares allocated', '6 depots'] }, drift: { git: ['Golden v41', 'used for the restore'] }, ec: { field: ['Technician dispatched', 'spare EC-XS · ETA 80 min'] }, cve: { git: ['Policy committed', 'fleet policy'] }, scanners: { git: ['Override merged', 'site file'] } };
 const BLAST = { cve: 'fleet policy, no client impact', eol: 'planning only, no device change', fw: 'canary group only (10 APs)', storm: 'no device change', cutover: 'one site, not trading', lte: 'no device change', fibercut: 'no device change', ups: 'one UPS, network on bypass', power: 'no device change', capacity: 'one branch' };
+const R_STOP = '5-minute';
 const PH = ['Detect', 'Correlate', 'Decide', 'Act', 'Verify', 'Record'];
 const pct = x => `${Math.round(x * 100)}%`;
 export const roleOf = (demo, sp) => { if (sp && sp.role) return sp.role; const st = (demo.steps || []).find(x => x.await); const m = st && st.await.label.match(/as (.+)$/); return m ? m[1].replace(/\s*\(.*\)$/, '') : 'NOC Engineer'; };
@@ -73,16 +74,16 @@ function buildRun(demo, sp, c) {
   t += pcs.length * 0.5;
   P(pre, t, { tkt: { state: 'In Progress', a: ['Change guard', '[PRE-CHECKS] ' + pcs.join(' · ')] } });
   t += 0.4;
-  const mode = kind === 'auto' ? 'runs now (gate passed)' : kind === 'stop' ? 'runs in 10 s unless stopped' : `needs approval: ${role}`;
+  const mode = kind === 'auto' ? 'autonomous: runs now, policy checks passed' : kind === 'stop' ? 'human-on-the-loop: runs unless stopped' : `human-in-the-loop: needs approval from ${role}`;
   P(pre, t, { log: ['DECIDE', `${sp.rb} ${sp.rbName} · risk ${sp.risk_} · ${mode}`] });
   t += 0.5; const gateT = t;
-  if (kind === 'auto') P(pre, gateT, { st: 'APPROVED BY POLICY', sys: { movaio: ['Runbook selected', sp.rb, 'info'] }, log: ['APPROVAL', `Runs on its own: ${sp.why}`], aud: 'Policy gate passed', con: ai >= 0 ? ['awaitStep'] : undefined });
-  if (kind === 'stop') P(pre, gateT, { st: 'STARTS IN', gate: true, sys: { movaio: ['Starts in 10 s', `${sp.rb} · approve`, 'info'] }, log: ['APPROVAL', 'Human-over-the-loop: executing in 10 seconds unless stopped'], term: [`# ${sp.rb} starts in 10 seconds unless someone stops it.`] });
+  if (kind === 'auto') P(pre, gateT, { st: 'APPROVED BY POLICY', sys: { movaio: ['Runbook selected', sp.rb, 'info'] }, log: ['APPROVAL', `Autonomous: ${sp.why}`], aud: 'Policy gate passed', con: ai >= 0 ? ['awaitStep'] : undefined });
+  if (kind === 'stop') P(pre, gateT, { st: 'STARTS IN', gate: true, sys: { movaio: ['Starts in 10 s', `${sp.rb} · approve`, 'info'] }, log: ['APPROVAL', `Human-on-the-loop: ${R_STOP} stop window open (shortened to 10 s for the demo)`], term: [`# ${sp.rb} starts in 10 seconds unless someone stops it.`] });
   if (kind === 'approve') P(pre, gateT, { st: 'WAITING FOR APPROVAL', gate: true, sys: { movaio: ['Waiting for approval', role, 'warn'] }, log: ['APPROVAL', `Waiting for ${role}: ${sp.why}`], term: [`# ${sp.rb} is waiting for approval from ${role}`], con: ai >= 0 ? ['awaitStep'] : undefined });
 
   // post: after the gate
   if (kind === 'approve') P(post, 0, { log: ['APPROVAL', `Approved by ${person} (${role})`], tkt: { a: [person, `Approved ${sp.rb}: ${sp.rbName}.`] }, aud: `Approved by ${person}`, con: ['await'] });
-  if (kind === 'stop') P(post, 0, { log: ['APPROVAL', 'No stop received: proceeding'], aud: 'No stop received' });
+  if (kind === 'stop') P(post, 0, { log: ['APPROVAL', 'Stop window closed with no objection: proceeding'], aud: 'Stop window closed, no objection', con: ['proceed'] });
   const cred = sp.cred !== false;
   P(post, 0.6, { ph: 3, st: 'REMEDIATING', sys: { movaio: ['Remediating', `${sp.rb} · act`, 'info', 0], [tgt]: [W[1], host, 'info'], ...(cred ? { vault: ['Checked out', sess, 'info'] } : {}) }, term: [`$ ${cmd}`], ...(cred ? { log: ['CREDENTIAL', `Vault: one-time credential checked out for ${host} · ${sess}`], aud: 'Credential checked out' } : {}) });
   const N = sp.tasks.length, T0 = 1.4, DT = 1.7;
@@ -238,6 +239,7 @@ function Stage({ demo }) {
         if (key.startsWith('pre:') || key.startsWith('post:')) { const st = steps[+key.split(':')[1]]; if (st) st.run(act, c, base + st.at * 1000); }
         else if (key === 'awaitStep') { const st = steps.find(x => x.await); if (st) st.run(act, c, Date.now()); }
         else if (key === 'await') { const st = steps.find(x => x.await); if (st) st.await.run(act, c); else act.audit(`Approved ${sp.rb}: ${sp.rbName}`, c.id || R.no, `${R.person} (${R.role})`); }
+        else if (key === 'proceed') { const st = steps.find(x => x.await); if (st && c.id) act.upd('incidents', c.id, { rbState: 'done' }); act.audit(`${sp.rb} ran after the stop window closed with no objection`, c.id || R.no, 'Mova iO'); }
         else if (key === 'decline') { if (c.id && s.incidents.some(i => i.id === c.id)) { act.upd('incidents', c.id, { assignee: R.person, state: 'In Progress' }); act.note(c.id, `${R.kind === 'stop' ? 'Stopped' : 'Declined'} ${sp.rb}; engineer takes over.`, R.person); } act.audit(`${R.kind === 'stop' ? 'Stopped' : 'Declined'} ${sp.rb}`, c.id || R.no, `${R.person} (${R.role})`); }
       } catch (err) { console.warn('demo step', key, err); }
     }));
@@ -252,7 +254,7 @@ function Stage({ demo }) {
       const target = vv.metric === 'base' ? m.base : vv.metric === 'bad' ? m.bad : m.after;
       const k = vv.done ? 0.55 : vv.metric === 'bad' ? 0.35 : vv.metric === 'base' ? 0.5 : 0.22;
       if (vv.mark && markRef.current == null) markRef.current = tickN.current;
-      setSamples(a => { const last = a[a.length - 1]; const nx = Math.max(0, last + (target - last) * k + jitter(m, tickN.current)); tickN.current++; return [...a.slice(1), nx]; });
+      setSamples(a => { const last = a[a.length - 1]; const nx = Math.min(m.unit === '%' ? 100 : Infinity, Math.max(0, last + (target - last) * k + jitter(m, tickN.current))); tickN.current++; return [...a.slice(1), nx]; });
     }, 400);
     return () => clearInterval(id);
   }, []);
@@ -289,7 +291,7 @@ function Stage({ demo }) {
         <div className="flex items-center gap-3 px-4 h-[58px] border-b border-line shrink-0">
           <span className="w-9 h-9 rounded-md border border-line flex items-center justify-center text-ink2"><I.Network size={18} /></span>
           <div className="min-w-0 flex-1"><div className="text-[16px] font-bold leading-tight truncate">{demo.title}</div><div className="text-[12px] text-ink3 truncate">{demo.area} · {sp.sub}</div></div>
-          <span className={cx('hidden md:inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[12px] font-bold border', R.kind === 'auto' ? 'text-ok border-ok/40 bg-ok/10' : R.kind === 'stop' ? 'text-info border-info/40 bg-info/10' : 'text-warn border-warn/40 bg-warn/10')}>{R.kind === 'auto' ? <I.Bot size={13} /> : R.kind === 'stop' ? <I.Timer size={13} /> : <I.Hand size={13} />}{demo.who}</span>
+          <span className={cx('hidden md:inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[12px] font-bold border', R.kind === 'auto' ? 'text-ok border-ok/40 bg-ok/10' : R.kind === 'stop' ? 'text-info border-info/40 bg-info/10' : 'text-warn border-warn/40 bg-warn/10')}>{R.kind === 'auto' ? <I.Bot size={13} /> : R.kind === 'stop' ? <I.Eye size={13} /> : <I.Hand size={13} />}{demo.who}</span>
           <span className="hidden md:inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[12px] font-bold bg-chip">{sp.engine === 'ansible' ? <I.ListChecks size={13} /> : <I.Braces size={13} />}{sp.engine === 'ansible' ? 'Ansible' : 'Python'}</span>
           <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-line"><span className={cx('w-2 h-2 rounded-full', v.done ? 'bg-ink3' : 'bg-ok animate-pulse')} /><span className="font-bold text-[14px] tabular">{`00:${String(Math.floor(elapsed)).padStart(2, '0')}`.replace(/^00:(\d{3,})/, (_, x) => `${Math.floor(x / 60)}:${String(x % 60).padStart(2, '0')}`)}</span><span className={cx('text-[12px] font-bold', v.done ? (v.declined ? 'text-warn' : 'text-ok') : waiting ? 'text-warn' : 'text-info')}>{st}</span></div>
           <button onClick={restart} className="h-9 px-3 rounded-md bg-brand text-white text-[13px] font-bold inline-flex items-center gap-1.5"><I.RotateCcw size={14} />{v.done ? 'Replay' : 'Restart'}</button>
@@ -321,15 +323,15 @@ function Stage({ demo }) {
         </div>
         {/* business strip */}
         <div className="grid md:grid-cols-4 gap-x-5 gap-y-1 px-4 py-2 border-b border-line shrink-0 text-[12.5px] leading-[17px]">
-          {[['The problem', demo.story.problem, 'text-info'], ['Impact', demo.story.impact, 'text-warn'], [v.done && !v.declined ? 'Protected' : 'At risk', sp.risk, v.done && !v.declined ? 'text-ok' : 'text-bad'], ['Result', sp.result, 'text-ok']].map(([k, t, tc]) => <div key={k} className="min-w-0"><div className={cx('text-[11px] font-bold uppercase tracking-wide', tc)}>{k}</div><div className="line-clamp-2 text-ink" title={t}>{t}</div></div>)}
+          {[['The problem', demo.story.problem, 'text-info'], ['Impact', demo.story.impact, 'text-warn'], [v.done && !v.declined ? 'Protected' : 'At risk', sp.risk, v.done && !v.declined ? 'text-ok' : 'text-bad'], [v.done && !v.declined ? 'Result' : 'Expected result', sp.result, 'text-ok']].map(([k, t, tc]) => <div key={k} className="min-w-0"><div className={cx('text-[11px] font-bold uppercase tracking-wide', tc)}>{k}</div><div className="line-clamp-2 text-ink" title={t}>{t}</div></div>)}
         </div>
         {/* gate bar */}
         {waiting && R.kind === 'approve' && <div className="flex items-center gap-3 px-4 py-2 bg-warn/10 border-b border-warn/40 shrink-0">
-          <I.Hand size={18} className="text-warn" /><div className="flex-1 text-[13px]"><span className="font-bold">Approval needed: {R.role}.</span> <span className="text-ink2">{sp.why} {/%/.test(sp.why) ? '' : `Confidence ${pct(sp.conf)} · `}Risk {sp.risk_} · undo: {sp.tech.undo}.</span></div>
+          <I.Hand size={18} className="text-warn" /><div className="flex-1 text-[13px]"><span className="font-bold">Human-in-the-loop: approval needed from {R.role}.</span> <span className="text-ink2">{sp.why} {/%/.test(sp.why) ? '' : `Confidence ${pct(sp.conf)} · `}Risk {sp.risk_} · undo: {sp.tech.undo}.</span></div>
           <button onClick={decline} className="h-8 px-3 rounded-md border border-line text-[13px] font-bold hover:bg-chip">Decline</button>
           <button onClick={approve} className="h-8 px-3 rounded-md bg-ok text-white text-[13px] font-bold inline-flex items-center gap-1.5"><I.Check size={14} />Approve as {R.role}</button></div>}
         {countdown != null && <div className="flex items-center gap-3 px-4 py-2 bg-info/10 border-b border-info/40 shrink-0">
-          <I.Timer size={18} className="text-info" /><div className="flex-1 text-[13px]">Mova iO runs this in <b>{countdown} s</b> unless someone stops it. <span className="text-ink2">{sp.why}</span></div>
+          <I.Timer size={18} className="text-info" /><div className="flex-1 text-[13px]"><b>Human-on-the-loop.</b> Mova iO runs this in <b>{countdown} s</b> unless someone stops it. <span className="text-ink2">{sp.why} In production the stop window is 5 minutes; the demo shortens it.</span></div>
           <button onClick={decline} className="h-8 px-3 rounded-md border border-bad/60 text-bad text-[13px] font-bold inline-flex items-center gap-1.5"><I.OctagonX size={14} />Stop</button></div>}
         {/* body */}
         <div className="flex-1 min-h-0 relative"><div className="h-full grid lg:grid-cols-[1.08fr_0.94fr_1.02fr] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
@@ -504,8 +506,9 @@ export function ExplainBody({ demo, sp, c, view, measured, inc }) {
       <div className="text-[12.5px] mt-1.5"><b>Undo:</b> {t.undo}.</div>
       <H5>5. How it is checked</H5>
       <ul className="space-y-1">{t.checks.map(x => <Li key={x}>{x}</Li>)}</ul>
-      <H5>6. Who decides</H5>
-      <div className="text-[12.5px] leading-[18px]">Rule for every runbook: it runs on its own only when confidence is 80% or more, the branch is closed or the device is already down, and no freeze window applies. Otherwise a person approves. <b>This run: {demo.who}{kind === 'approve' ? ` (${role})` : ''}.</b> {sp.why}</div>
+      <H5>6. Control mode</H5>
+      <div className="text-[12.5px] leading-[18px]"><b>This run: {demo.who}{kind === 'approve' ? ` (${role})` : ''}.</b> {sp.why}</div>
+      <ModeRules className="mt-2" />
       {t.note && <div className="text-[12px] text-ink3 mt-3">{t.note}</div>}
     </div>); }
   return (
@@ -523,7 +526,22 @@ export function ExplainBody({ demo, sp, c, view, measured, inc }) {
         <div className="rounded-md border border-line p-2.5"><div className="text-[12px] font-bold mb-1">How Mova iO knows</div><ul className="space-y-1">{sp.evidence.map(x => <li key={x} className="flex gap-2 text-[12px] leading-[16px]"><span className="w-1.5 h-1.5 rounded-full bg-ok mt-[5px] shrink-0" />{x}</li>)}</ul></div>
         <div className="rounded-md border border-line p-2.5"><div className="text-[12px] font-bold mb-1">What was ruled out</div><ul className="space-y-1">{sp.ruled.map(x => <li key={x} className="flex gap-2 text-[12px] leading-[16px]"><span className="w-1.5 h-1.5 rounded-full bg-ink3 mt-[5px] shrink-0" />{x}</li>)}</ul></div>
       </div>
-      <div className="text-[12px] text-ink2 mt-3">Runbook <b className="text-ink">{sp.rb}</b> · {sp.rbName} · risk {sp.risk_} · {demo.who}{kind === 'approve' ? ` (${role})` : ''} · undo: {sp.tech.undo}</div>
+      <div className="rounded-md border border-line p-2.5 mt-2 text-[12.5px] leading-[18px]"><b>Control mode: {demo.who}{kind === 'approve' ? ` (${role})` : ''}.</b> {MODE_TEXT[kind]} {sp.why}</div>
+      <div className="text-[12px] text-ink2 mt-3">Runbook <b className="text-ink">{sp.rb}</b> · {sp.rbName} · risk {sp.risk_} · undo: {sp.tech.undo}</div>
     </div>
   );
+}
+
+export const MODE_TEXT = {
+  auto: 'Mova iO acts on its own inside a policy that people set, and every action is logged for review. People stay over the loop: they own the policy and audit the results.',
+  stop: 'Mova iO starts the action on its own, but a person watches it live and can stop it during the stop window or roll it back afterwards.',
+  approve: 'Mova iO prepares the evidence and the plan, then waits. Nothing changes until a named person approves.',
+};
+export const MODE_RULES = [
+  ['Autonomous', 'auto', I.Bot, 'Low risk and easy to undo, confidence 80% or higher, no freeze window, and the branch is closed or the device is already down. Also anything that changes nothing on the network: correlation, evidence, carrier cases, messages.'],
+  ['Human-on-the-loop', 'stop', I.Eye, 'Standard, pre-approved change with confidence 80% or higher that should not wait, such as stopping a fault from spreading. A person is told at once and has a stop window (5 minutes in production).'],
+  ['Human-in-the-loop', 'approve', I.Hand, 'Confidence below 80%, the branch is trading and traffic or devices would change, security or fleet-wide changes, or anything that costs money (dispatch, parts, circuit orders).'],
+];
+export function ModeRules({ className }) {
+  return <div className={cx('space-y-1.5', className)}>{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; return <div key={n} className="flex gap-2 text-[12px] leading-[16px]"><Ic size={14} className={cx('shrink-0 mt-px', k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn')} /><span><b>{n}:</b> {t}</span></div>; })}</div>;
 }

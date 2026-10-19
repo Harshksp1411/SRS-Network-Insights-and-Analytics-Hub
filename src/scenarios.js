@@ -182,7 +182,9 @@ export const SCENARIOS = [
     id: 'storm', title: 'Storm-region surge (DFW)', icon: 'CloudLightning', sub: 'Severe weather hits many branches at once; they are grouped as one major incident',
     span: 40 * 60,
     setup(ctx) {
-      ctx.list = D.BRANCHES.filter(b => ['Dallas', 'Fort Worth', 'McKinney', 'Waxahachie'].includes(b.city)).slice(0, 12);
+      const dfw = D.BRANCHES.filter(b => ['Dallas', 'Fort Worth', 'McKinney', 'Waxahachie'].includes(b.city));
+      const spec = dfw.filter(b => D.CIR[b.wan[0]].carrier === 'Spectrum');
+      ctx.list = [...spec.slice(0, 5), ...dfw.filter(b => !spec.slice(0, 5).includes(b))].slice(0, 12);
       ctx.id = D.nextInc();
     },
     steps: [

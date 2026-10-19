@@ -5,6 +5,7 @@ import { SCENARIOS, baseInc, sig, step, addSignals, addStep } from './scenarios.
 import { MIN, HR, DAY } from './util.js';
 
 export const AREAS = ['SD-WAN and carriers', 'LAN and Wi-Fi', 'Security and lifecycle', 'Predict and prevent', 'StoreOps and field', 'Branch-in-a-Box'];
+const byName = n => D.BRANCHES.find(b => b.name === n);
 const pickB = (city, brand, k = 0) => (D.BRANCHES.filter(b => b.city === city && (!brand || b.brand === brand))[k]) || D.BRANCHES.find(b => b.city === city);
 
 function H(act, c, T) {
@@ -36,8 +37,8 @@ function mk(def) {
 
 const NEW = [
   mk({ id: 'failback', area: 'SD-WAN and carriers', title: 'Branch stuck on LTE after the circuit recovers', icon: 'Shuffle', who: 'A person approves', runbook: 'RB-102', systems: ['aruba', 'opsramp', 'servicenow', 'movaio'],
-    story: { problem: 'Phoenix #3 moved to LTE during a Cox fault this morning. The primary has been clean for 40 minutes but the branch is still on LTE.', impact: 'Roof Hub orders are 0.3 s slower and the pooled LTE plan is burning data at the busiest time of day.', resolution: 'The Runbook Agent proves the primary is stable, asks for approval because the branch is trading, moves traffic back and verifies POS and ERP.' },
-    branch: () => pickB('Phoenix', null, 2),
+    story: { problem: 'Phoenix #12 moved to LTE during a Cox fault this morning. The primary has been clean for 40 minutes but the branch is still on LTE.', impact: 'Roof Hub orders are 0.3 s slower and the pooled LTE plan is burning data at the busiest time of day.', resolution: 'The Runbook Agent proves the primary is stable, asks for approval because the branch is trading, moves traffic back and verifies POS and ERP.' },
+    branch: () => byName('Phoenix #12') || pickB('Phoenix', null, 2),
     steps: [
       [0, 'Orchestrator: wan1 clean for 40 min, branch still on wan2 (LTE)', h => { h.open({ pri: 'P4', cat: 'SD-WAN', title: 'Branch still on LTE after primary recovered', ci: h.b.wan[0], impact: ['Roof Hub slower on LTE', 'LTE pool data burn'] }); h.circ(0, { status: 'Up' }); h.health('degraded'); h.sig('Orchestrator', `${h.b.wan[0]} loss 0.02%, jitter 1.4 ms for 40 min; business intent override still pins POS/ERP to wan2`, 'Minor'); }],
       [40, 'Runbook Agent: RB-102 return to primary is eligible', h => { h.set({ state: 'In Progress', acked: h.T, assignee: 'Runbook Agent', runbook: 'RB-102', rbState: 'proposed', conf: 0.94, rca: [{ cause: 'Override left in place after carrier fix', conf: 0.94, ev: 'Carrier case closed 41 min ago; 40 clean minutes on wan1' }] }); h.agent('runbook', 'Checks pass: 40 clean minutes, carrier case closed, LTE healthy as fallback. Branch is open, so a person must approve.'); }],
@@ -46,8 +47,8 @@ const NEW = [
       [150, 'Resolved; LTE kept as hot standby', h => { h.agent('comms', 'Branch told: back on the main line, nothing to do.'); h.resolve('Auto-resolved (zero touch)'); }],
     ] }),
   mk({ id: 'fibercut', area: 'SD-WAN and carriers', title: 'Fibre cut: carrier case opened with proof, not a guess', icon: 'RadioTower', who: 'Runs on its own', runbook: 'RB-106', systems: ['aruba', 'opsramp', 'servicenow', 'movaio'],
-    story: { problem: 'The AT&T DIA at Atlanta #4 drops to 100% loss. The branch fails over to broadband in 4 seconds.', impact: 'No trading impact, but without proof the carrier often closes these as no trouble found (875 NTF tickets in the last 6 months).', resolution: 'The Carrier Agent attaches loss graphs, MTR from the EdgeConnect and a demarc loopback result before opening the case, so AT&T dispatches on the first call.' },
-    branch: () => pickB('Atlanta', null, 3),
+    story: { problem: 'The AT&T DIA circuit at Atlanta #3 drops to 100% loss. The branch fails over to its Comcast broadband line in 4 seconds.', impact: 'No trading impact, but without proof the carrier often closes these as no trouble found (875 NTF tickets in the last 6 months).', resolution: 'The Carrier Agent attaches loss graphs, MTR from the EdgeConnect and a demarc loopback result before opening the case, so AT&T dispatches on the first call.' },
+    branch: () => byName('Atlanta #3') || pickB('Atlanta', null, 3),
     steps: [
       [0, 'Orchestrator: wan1 loss 100%, failover to wan2 in 4 s', h => { h.open({ pri: 'P3', cat: 'Carrier / LEC', title: 'Primary circuit down – AT&T DIA, branch on broadband', ci: h.b.wan[0], impact: ['Trading normally on backup'] }); h.circ(0, { status: 'Down' }); h.health('degraded'); h.sig('Orchestrator', `${h.b.wan[0]} loss 100%, both directions; traffic on wan2`, 'Critical', 14, 12); }],
       [30, 'Diagnosis: fault is upstream of the demarc (91%)', h => { h.set({ state: 'In Progress', acked: h.T, assignee: 'Carrier Agent' }); h.rca([['Carrier fault upstream of demarc', 0.91, 'EC port up/up; NTE shows LOS on line side; 2 other AT&T circuits in the same CO alarmed'], ['Branch power / NTE power', 0.05, 'UPS normal']]); h.agent('diagnosis', 'Line-side loss of signal on the NTE; the branch side is clean.'); }],
@@ -56,8 +57,8 @@ const NEW = [
       [120, 'StoreOps told: trading normally on backup', h => { h.agent('comms', 'Branch manager: main line down, you are on the backup and everything works. We will tell you when it is fixed.'); }],
     ] }),
   mk({ id: 'lte', area: 'Predict and prevent', title: 'Weekly failover test finds a dead backup before it is needed', icon: 'ShieldAlert', who: 'Runs on its own', runbook: 'RB-106', systems: ['aruba', 'opsramp', 'servicenow', 'movaio'],
-    story: { problem: 'The Sunday night failover test at Tulsa #2 shows the Verizon LTE backup passes no traffic. The SIM was suspended after a plan change.', impact: 'If the primary fails this week the branch goes fully offline: no POS, ERP or delivery tracking.', resolution: 'The agent opens an account case (not a repair ticket) with the PDP reject code, the SIM is reactivated and the re-test passes, all before Monday 06:30.' },
-    branch: () => pickB('Tulsa', null, 1),
+    story: { problem: 'The Sunday night failover test at Tulsa #5 shows the Verizon LTE backup passes no traffic. The SIM was suspended after a plan change.', impact: 'If the primary fails this week the branch goes fully offline: no POS, ERP or delivery tracking.', resolution: 'The agent opens an account case (not a repair ticket) with the PDP reject code, the SIM is reactivated and the re-test passes, all before Monday 06:30.' },
+    branch: () => byName('Tulsa #5') || pickB('Tulsa', null, 1),
     steps: [
       [0, 'Synthetic failover test: wan2 passes no traffic', h => { h.open({ pri: 'P3', cat: 'Carrier / LEC', title: 'Backup LTE/5G not passing traffic – Verizon SIM suspended', ci: h.b.wan[1], impact: ['No failover path if the primary fails'] }); h.circ(1, { status: 'Down' }); h.health('degraded'); h.sig('Synthetic', 'Weekly failover test FAILED on wan2', 'Major'); }],
       [30, 'Diagnosis: PDP reject cause 33, line suspended on the account', h => { h.set({ state: 'In Progress', acked: h.T, assignee: 'Carrier Agent' }); h.rca([['SIM suspended on carrier account', 0.92, 'PDP reject cause 33; same modem firmware works at 212 branches'], ['Modem fault', 0.04, 'Modem responds on OOB']]); }],
@@ -170,5 +171,20 @@ const META = {
   cutover: { area: 'Branch-in-a-Box', who: 'A person approves', runbook: '13 cutover gates', systems: ['aruba', 'central', 'servicenow', 'movaio'], story: { problem: 'LS Building Products (acquired) moves onto the SRS standard over a weekend.', impact: 'The branch must open Monday 06:00 with POS, ERP, Roof Hub and delivery tracking working.', resolution: 'Thirteen timed gates with evidence; gate 9 fails on legacy handhelds, a site override is approved and the re-test passes, StoreOps signs off.' } },
   fw: { area: 'LAN and Wi-Fi', who: 'Runs on its own', runbook: 'CHG0031874', systems: ['central', 'servicenow', 'movaio'], story: { problem: 'The Florida AP firmware wave upgrades a canary group of 10 APs.', impact: 'Older handhelds start failing fast roaming; a full wave would hit 112 APs.', resolution: 'Change Validation stops the rollout on its own, the canary rolls back off-hours and a revised plan goes for approval.' } },
 };
-export const DEMOS = [...SCENARIOS.map(sc => ({ ...sc, ...META[sc.id] })), ...NEW];
+// Control modes (see the Live demos page for the rules):
+//   Autonomous         – runs on its own inside a policy people set and audit (human over the loop)
+//   Human-on-the-loop  – runs on its own; a person watches live and can stop it in the stop window
+//   Human-in-the-loop  – waits until a named person approves
+const MODE = { 'Runs on its own': 'Autonomous', 'Runs unless stopped': 'Human-on-the-loop', 'A person approves': 'Human-in-the-loop' };
+const MODE_OVR = { failback: 'Human-on-the-loop', fw: 'Human-on-the-loop' };
+const TITLE = {
+  mpls: 'MPLS jitter during trading hours', power: 'Utility power loss at a branch', ec: 'EdgeConnect hardware failure', storm: 'Severe weather across Dallas–Fort Worth',
+  cutover: 'Acquired branch cutover weekend', fw: 'Access point firmware wave stopped at canary', failback: 'Return to primary circuit after carrier repair',
+  fibercut: 'Primary circuit down: carrier fault', lte: 'Backup LTE fails the weekly failover test', yardap: 'Yard access point offline',
+  scanners: 'Handheld scanners dropping in the warehouse', loop: 'Broadcast storm from an unmanaged desk switch', drift: 'Unapproved local admin account on a switch',
+  dhcp: 'DHCP scope full after a handheld rollout', cve: 'Critical access point vulnerability (HPESBNW04712)', eol: 'Aruba 2530 end of support: refresh wave 1',
+  ups: 'UPS battery predicted to fail', capacity: 'WAN capacity forecast for hail season', notready: 'Branch fails its 05:30 readiness check',
+};
+export const MODES = ['Autonomous', 'Human-on-the-loop', 'Human-in-the-loop'];
+export const DEMOS = [...SCENARIOS.map(sc => ({ ...sc, ...META[sc.id] })), ...NEW].map(d => ({ ...d, title: TITLE[d.id] || d.title, who: MODE_OVR[d.id] || MODE[d.who] || d.who }));
 export const demoById = id => DEMOS.find(d => d.id === id);

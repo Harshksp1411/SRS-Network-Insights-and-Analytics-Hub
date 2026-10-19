@@ -43,7 +43,7 @@ const S = {
     ruled: ['wan1 still unstable: no flaps in 40 minutes', 'Policy error: the override was set by RB-101 as designed', 'LTE fault: LTE is healthy and stays as the fallback'],
     cause: 'Override left in place after the carrier fixed the main line', conf: 0.94,
     rb: 'RB-102', rbName: 'Return traffic to the primary path', risk_: 'Low', engine: 'python', file: 'rb102_return_to_primary.py',
-    why: 'The branch is trading, so moving its traffic needs a person.',
+    why: 'Returning to the primary is a standard, pre-approved change (94% confidence). The branch is trading, so the NOC engineer watches and can stop it.',
     tasks: [
       ['Check wan1 has been clean for 30 minutes', 'pass: loss 0.02%, jitter 1.4 ms for 40 min', ['s = orchestrator.path_stats(TARGET, "wan1", minutes=30)', 'assert s.loss < 0.1 and s.jitter < 5']],
       ['Check the carrier case is closed', 'pass: case closed 41 min ago', ['assert carrier.case_state(ctx.case) == "Closed"']],
@@ -189,7 +189,7 @@ const S = {
     ruled: ['Upstream loop: uplinks clean', 'Malware: traffic is ARP and broadcast, not a scan', 'Switch hardware: CPU normal once the port is blocked'],
     cause: 'An unmanaged desk switch plugged into two wall ports', conf: 0.88,
     rb: 'RB-103', rbName: 'Isolate the looped port', risk_: 'Low', engine: 'ansible', file: 'rb103_isolate_loop.yml',
-    why: 'Low risk and pre-approved: it runs in 10 seconds unless an engineer stops it.',
+    why: 'Isolating a looped port is a standard, pre-approved change (88% confidence). The storm is hurting the branch now, so it should not wait for an approval.',
     tasks: [
       ['Keep port 1/1/17 disabled', 'port shut and labelled with the incident', ['arubanetworks.aoscx.aoscx_config:', '  lines:', '    - shutdown', '    - description "LOOP - see incident"', '  parents: interface 1/1/17']],
       ['Ask the branch to unplug the desk switch', 'sent: please unplug the small switch under desk 4', ['mova.ops.teams_task:', '  to: branch_manager', '  task: unplug_desk_switch_desk4']],
@@ -238,7 +238,7 @@ const S = {
     ruled: ['RF interference: control group in the same branches is normal', 'RADIUS: authentication latency unchanged', 'Handheld firmware: no updates this week'],
     cause: 'AOS 10.7.1.0 fast-transition change breaks older handhelds', conf: 0.76,
     rb: 'CHG0031874', rbName: 'Stop the wave and roll back the canary', risk_: 'Low', engine: 'python', file: 'change_validation_fw_wave.py',
-    why: 'Stopping a change and its pre-approved rollback never need approval.',
+    why: 'Pausing a wave is always allowed. The canary rollback is pre-approved in the change, so it runs unless the change owner stops it.',
     tasks: [
       ['Stop the wave (stop is always allowed)', '102 APs held at 10.6.0.3', ['central.firmware_wave("CHG0031874").pause(reason="canary regression")']],
       ['Roll the canary back off-hours', '10 APs → 10.6.0.3 (rollback pre-approved in the change)', ['central.firmware_upgrade(ctx.canary, version="10.6.0.3")']],

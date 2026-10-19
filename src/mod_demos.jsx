@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import * as I from 'lucide-react';
 import { useApp } from './store.jsx';
-import { DEMOS, AREAS } from './demos.js';
+import { DEMOS, AREAS, MODES } from './demos.js';
 import { Card, Badge, Btn, cx, Logo, SearchBox, Select } from './ui.jsx';
 import { stageSpec } from './stagedata.js';
-import { ExplainBody, ViewToggle, SYS } from './stage.jsx';
+import { ExplainBody, ViewToggle, SYS, MODE_RULES } from './stage.jsx';
 
 const PREV = {};
 const previewCtx = d => PREV[d.id] || (PREV[d.id] = (() => { const c = {}; d.setup(c); c.preview = true; return c; })());
 
-const WHO_TONE = { 'Runs on its own': 'green', 'Runs unless stopped': 'blue', 'A person approves': 'amber' };
+const WHO_TONE = { Autonomous: 'green', 'Human-on-the-loop': 'blue', 'Human-in-the-loop': 'amber' };
 const MOD_OF = { 'SD-WAN and carriers': ['carriers', 'Carrier Management'], 'LAN and Wi-Fi': ['inventory', 'Device & Circuit Inventory'], 'Security and lifecycle': ['vuln', 'Lifecycle & Vulnerabilities'], 'Predict and prevent': ['predict', 'Predictive Watchlist'], 'StoreOps and field': ['readiness', 'Branch Readiness'], 'Branch-in-a-Box': ['biab', 'Branch-in-a-Box'] };
 
 export function LiveDemos() {
@@ -28,14 +28,20 @@ export function LiveDemos() {
   return (
     <div>
       <div className="flex items-end gap-3 mb-4 flex-wrap border-b border-line pb-3">
-        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1><p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch]">{DEMOS.length} real SRS branch situations. Each one replays into the live console: incidents, agents, approvals, carrier cases and work orders appear where an engineer would see them.</p></div>
+        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1><p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch]">{DEMOS.length} SRS branch situations. Each one replays into the live console: incidents, agents, approvals, carrier cases and work orders appear where an engineer would see them.</p></div>
         <Btn kind="brand" icon={I.PlayCircle} onClick={playAll}>Start guided demo</Btn>
       </div>
+      <div className="grid md:grid-cols-3 gap-2 mb-3">{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; const cnt = DEMOS.filter(x => x.who === n).length; const on = who === n; return (
+        <button key={n} onClick={() => setWho(on ? 'Anyone' : n)} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
+          <div className="flex items-center gap-2"><Ic size={16} className={k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn'} /><span className="font-bold text-[14px] text-ink flex-1">{n}</span><span className="text-[12px] font-bold text-ink2 bg-chip rounded px-1.5">{cnt} demos</span></div>
+          <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{{ auto: 'Acts on its own inside a policy people set and audit. People stay over the loop.', stop: 'Acts on its own; a person watches live and can stop it in the stop window.', approve: 'Prepares the plan and waits. Nothing changes until a named person approves.' }[k]}</div>
+          <div className="text-[11.5px] text-ink3 mt-1.5 leading-[15px]">Used when: {t}</div>
+        </button>); })}</div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {['All', ...AREAS].map(a => { const n = a === 'All' ? DEMOS.length : DEMOS.filter(x => x.area === a).length; return <button key={a} onClick={() => setArea(a)} className={cx('h-9 px-3 rounded-md border text-[13px] font-bold inline-flex items-center gap-2', area === a ? 'bg-ink text-canvas border-ink' : 'bg-panel text-ink border-line hover:bg-chip')}>{a}<span className={cx('text-[11px] font-bold rounded px-1.5', area === a ? 'bg-canvas/20' : 'bg-chip text-ink2')}>{n}</span></button>; })}
       </div>
       <div className="grid xl:grid-cols-[1.25fr_1fr] gap-3 items-start">
-        <Card pad={false} title={`${area === 'All' ? 'All' : area} demos`} right={<div className="flex gap-2"><Select value={who} onChange={setWho} options={['Anyone', 'Runs on its own', 'Runs unless stopped', 'A person approves'].map(v => ({ value: v, label: v === 'Anyone' ? 'Who decides: anyone' : v }))} /><SearchBox value={q} onChange={setQ} placeholder="Search" className="w-40" /></div>}>
+        <Card pad={false} title={`${area === 'All' ? 'All' : area} demos`} right={<div className="flex gap-2"><Select value={who} onChange={setWho} options={['Anyone', ...MODES].map(v => ({ value: v, label: v === 'Anyone' ? 'Control mode: all' : v }))} /><SearchBox value={q} onChange={setQ} placeholder="Search" className="w-40" /></div>}>
           <div>{list.map((x, k) => (
             <div key={x.id} onClick={() => setSel(x.id)} className={cx('flex gap-3 px-4 py-3 border-t border-line cursor-pointer', sel === x.id ? 'bg-brand/5' : 'hover:bg-chip/50')}>
               <span className="w-7 h-7 rounded-md bg-chip text-ink2 text-[12px] font-bold flex items-center justify-center shrink-0">{DEMOS.indexOf(x) + 1}</span>
@@ -54,7 +60,7 @@ export function LiveDemos() {
           <h2 className="text-[20px] font-bold text-ink leading-tight">{d.title}</h2>
           <div className="text-[12.5px] text-ink3 mt-0.5">{sp.sub}</div>
           <div className="grid grid-cols-3 gap-2 mt-3">
-            <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Who decides</div><Badge tone={WHO_TONE[d.who]} className="mt-1">{d.who}</Badge></div>
+            <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Control mode</div><Badge tone={WHO_TONE[d.who]} className="mt-1">{d.who}</Badge></div>
             <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Runbook</div><div className="text-[13px] font-bold text-ink mt-1 truncate">{sp.rb}</div></div>
             <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Runs as</div><div className="text-[13px] font-bold text-ink mt-1">{sp.engine === 'ansible' ? 'Ansible' : 'Python'}</div></div>
           </div>
