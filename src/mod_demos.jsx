@@ -3,10 +3,14 @@ import * as I from 'lucide-react';
 import { useApp } from './store.jsx';
 import { DEMOS, AREAS } from './demos.js';
 import { Card, Badge, Btn, cx, Logo, SearchBox, Select } from './ui.jsx';
+import { stageSpec } from './stagedata.js';
+import { ExplainBody, ViewToggle, SYS } from './stage.jsx';
+
+const PREV = {};
+const previewCtx = d => PREV[d.id] || (PREV[d.id] = (() => { const c = {}; d.setup(c); c.preview = true; return c; })());
 
 const WHO_TONE = { 'Runs on its own': 'green', 'Runs unless stopped': 'blue', 'A person approves': 'amber' };
 const MOD_OF = { 'SD-WAN and carriers': ['carriers', 'Carrier Management'], 'LAN and Wi-Fi': ['inventory', 'Device & Circuit Inventory'], 'Security and lifecycle': ['vuln', 'Lifecycle & Vulnerabilities'], 'Predict and prevent': ['predict', 'Predictive Watchlist'], 'StoreOps and field': ['readiness', 'Branch Readiness'], 'Branch-in-a-Box': ['biab', 'Branch-in-a-Box'] };
-const NAMES = { aruba: 'EdgeConnect Orchestrator', opsramp: 'HPE OpsRamp', central: 'Aruba Central', servicenow: 'ServiceNow', movaio: 'Mova iO', newrelic: 'New Relic' };
 
 export function LiveDemos() {
   const { s, act } = useApp();
@@ -14,8 +18,10 @@ export function LiveDemos() {
   const [who, setWho] = useState('Anyone');
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(DEMOS[0].id);
+  const [view, setView] = useState('biz');
   const list = DEMOS.filter(d => (area === 'All' || d.area === area) && (who === 'Anyone' || d.who === who) && (!q || `${d.title} ${d.story.problem}`.toLowerCase().includes(q.toLowerCase())));
   const d = DEMOS.find(x => x.id === sel) || DEMOS[0];
+  const pc = previewCtx(d); const sp = stageSpec(d, pc);
   const play = id => act.set({ scenario: { id, run: Date.now() } });
   const open = s.incidents.filter(i => i.state !== 'Resolved').length;
   const playAll = () => play(DEMOS[0].id);
@@ -46,15 +52,17 @@ export function LiveDemos() {
         <Card className="xl:sticky xl:top-[150px]">
           <div className="flex items-center gap-2 text-[12px] text-ink3 mb-1"><span>{d.area}</span><Badge>Demo {DEMOS.indexOf(d) + 1} of {DEMOS.length}</Badge></div>
           <h2 className="text-[20px] font-bold text-ink leading-tight">{d.title}</h2>
-          {[['Problem', d.story.problem], ['Impact', d.story.impact], ['Resolution', d.story.resolution]].map(([k, v]) => <div key={k} className="mt-3"><div className="text-[12.5px] font-bold text-brand dark:text-[#e8a3a5]">{k}</div><p className="text-[13.5px] text-ink leading-relaxed">{v}</p></div>)}
-          <div className="grid grid-cols-2 gap-2 mt-3">
+          <div className="text-[12.5px] text-ink3 mt-0.5">{sp.sub}</div>
+          <div className="grid grid-cols-3 gap-2 mt-3">
             <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Who decides</div><Badge tone={WHO_TONE[d.who]} className="mt-1">{d.who}</Badge></div>
-            <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Runbook or plan</div><div className="text-[13px] font-bold text-ink mt-1">{d.runbook}</div></div>
+            <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Runbook</div><div className="text-[13px] font-bold text-ink mt-1 truncate">{sp.rb}</div></div>
+            <div className="border border-line rounded-md p-2.5"><div className="text-[12px] text-ink3">Runs as</div><div className="text-[13px] font-bold text-ink mt-1">{sp.engine === 'ansible' ? 'Ansible' : 'Python'}</div></div>
           </div>
-          <div className="text-[12px] text-ink3 mt-3 mb-1">Systems involved</div>
-          <div className="flex flex-wrap gap-1.5">{(d.systems || []).map(k => <span key={k} className="inline-flex items-center gap-1.5 text-[12px] text-ink border border-line rounded px-1.5 py-1"><Logo k={k} h={11} className="!p-0 !border-0" />{NAMES[k]}</span>)}</div>
-          <div className="text-[12px] text-ink3 mt-3 mb-1">What you will see, {d.steps.length} steps</div>
-          <ol className="list-decimal pl-5 text-[12.5px] text-ink2 space-y-0.5">{d.steps.map((st, i) => <li key={i}>{st.label}</li>)}</ol>
+          <div className="text-[12px] text-ink3 mt-3 mb-1">On one screen while it plays</div>
+          <div className="flex flex-wrap gap-1.5">{sp.systems.map(k => <span key={k} className="inline-flex items-center gap-1.5 text-[12px] text-ink border border-line rounded px-1.5 py-1">{SYS[k].logo ? <Logo k={SYS[k].logo} h={11} className="!p-0 !border-0" /> : null}{k === 'carrier' && sp.carrier ? `${sp.carrier} portal` : SYS[k].n}</span>)}</div>
+          <div className="text-[12px] text-ink3 mt-2">Detect → Correlate → Decide → Act → Verify → Record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.</div>
+          <div className="mt-4 mb-2"><ViewToggle view={view} setView={setView} /></div>
+          <div className="max-h-[420px] overflow-y-auto pr-1"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div>
           <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn><Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn></div>
           <div className="text-[12px] text-ink3 mt-3">{open} incidents open in the console right now. A demo adds to them; it never resets your work.</div>
         </Card>

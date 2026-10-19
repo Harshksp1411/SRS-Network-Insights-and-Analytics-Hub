@@ -4,13 +4,13 @@ A single-file, offline web console for the SRS Distribution managed network serv
 
 **Everything runs in the browser with sample data.** Fleet totals match the SRS RFP inventory (900 branches, 933 EdgeConnect EC-XS, 4,075 devices, 1,800 circuits) and the 6-month ticket history. Per-branch placement, firmware, serials, schedules and trend histories are illustrative and are labelled as such on screen.
 
-> Confidential. Built for the SRS Managed Network Services RFP response. Do not share outside Movate and SRS without consent (RFP guideline 14).
+> Demonstration console. Fleet totals follow the RFP inventory; branch names, per-branch figures, incidents and runbook code are illustrative.
 
 ## What is in it
 
 | Area | Screens |
 |---|---|
-| Start here | Live Demos (19 scripted demos that replay into the live console) |
+| Start here | Live Demos: 19 scripted demos. Each plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation, and replays into the live console |
 | Operate | Operations Overview (all 900 branches on the map), Branch 360, Branch Readiness, Live Incidents, Network Graph |
 | Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch, Approvals & Changes |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
@@ -44,7 +44,9 @@ Open the HTML file directly in a browser. No server and no network calls are nee
 |---|---|
 | `src/data.js` | Branches, devices, circuits, incidents, carriers, SLA metrics, advisories and lifecycle |
 | `src/live.jsx`, `src/liveui.jsx` | Live engine: 2-second telemetry stream, incidents that arrive and resolve, live charts |
-| `src/scenarios.js`, `src/demos.js` | Scripted demos and their story cards |
+| `src/scenarios.js`, `src/demos.js` | Scripted demos, their story cards and console steps |
+| `src/stagedata.js` | Per-demo stage scripts: telemetry, alerts, evidence, runbook, checks, business and technical explanation |
+| `src/stage.jsx` | The demo stage player and the explanation panel |
 | `src/mod_*.jsx` | One file per screen |
 | `src/predict.js`, `src/viz.jsx` | Forecasts and predictive / preventive panels |
 | `src/charts.jsx`, `src/ui.jsx` | Chart and UI components |

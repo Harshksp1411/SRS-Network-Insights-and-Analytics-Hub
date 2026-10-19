@@ -3,6 +3,7 @@ import * as I from 'lucide-react';
 import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranches, cityKey } from './store.jsx';
 import * as D from './data.js';
 import { DEMOS as SCENARIOS } from './demos.js';
+import { DemoStage } from './stage.jsx';
 import { DEMOS } from './demos.js';
 import { LiveDemos } from './mod_demos.jsx';
 import { Branch360 } from './mod_b360.jsx';
@@ -231,68 +232,6 @@ function ScenarioPicker() {
   );
 }
 
-function ScenarioPlayer() {
-  const { s, act } = useApp();
-  const sc = s.scenario && SCENARIOS.find(x => x.id === s.scenario.id);
-  const [i, setI] = useState(0);
-  const [playing, setPlaying] = useState(true);
-  const [waiting, setWaiting] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [min, setMin] = useState(false);
-  const ctx = useRef({});
-  const base = useRef(0);
-  useEffect(() => {
-    if (!sc) return;
-    ctx.current = {}; sc.setup(ctx.current); base.current = Date.now() - sc.span * 1000; setI(0); setPlaying(true); setWaiting(false); setMin(false);
-    act.audit(`Scenario started: ${sc.title}`, '', 'Console');
-  }, [s.scenario && s.scenario.run]);
-  useEffect(() => {
-    if (!sc || !playing || waiting || i >= sc.steps.length) return;
-    const st = sc.steps[i];
-    const t = setTimeout(() => {
-      st.run(act, ctx.current, base.current + st.at * 1000);
-      if (i === 0 && sc.focus) { const f = sc.focus(ctx.current); act.set(prev => ({ ...f, tab: { ...prev.tab, ...(f.tab || {}) } })); }
-      if (st.await) { setWaiting(true); } else setI(i + 1);
-    }, i === 0 ? 400 : 1500 / speed);
-    return () => clearTimeout(t);
-  }, [sc, i, playing, waiting, speed]);
-  if (!sc) return null;
-  const done = i >= sc.steps.length;
-  const st = sc.steps[i];
-  const resolveAwait = () => { st.await.run(act, ctx.current); setWaiting(false); setI(i + 1); act.toast(st.await.label.replace(/^Approve/, 'Approved'), 'ok'); };
-  const skip = () => { let k = i; if (waiting) { st.await.run(act, ctx.current); k++; } for (; k < sc.steps.length; k++) { const x = sc.steps[k]; x.run(act, ctx.current, base.current + x.at * 1000); if (x.await) x.await.run(act, ctx.current); } setWaiting(false); setI(sc.steps.length); };
-  const tsOf = x => x.when || hhmmss(base.current + x.at * 1000);
-  return (
-    <div className={cx('fixed bottom-4 z-[60] bg-panel border border-line rounded-xl shadow-2xl', s.askOpen ? 'right-[456px]' : 'right-4', min ? 'w-72' : 'w-[400px]')}>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-line">
-        <span className={cx('w-2 h-2 rounded-full', done ? 'bg-ok' : waiting ? 'bg-warn animate-pulse' : 'bg-alert animate-pulse')} />
-        <div className="flex-1 min-w-0"><div className="text-[13px] font-bold text-ink truncate">{sc.title}</div><div className="text-[11px] text-ink3">{done ? 'Complete' : waiting ? 'Waiting for your decision' : `Step ${i + 1} of ${sc.steps.length}`}, replaying {Math.round(sc.span / 60)} min</div></div>
-        <Btn size="xs" kind="ghost" icon={min ? I.Maximize2 : I.Minimize2} onClick={() => setMin(m => !m)} />
-        <Btn size="xs" kind="ghost" icon={I.X} onClick={() => act.set({ scenario: null })} />
-      </div>
-      {!min && <>
-        <div className="max-h-[300px] overflow-y-auto px-3 py-2 space-y-1">
-          {sc.steps.map((x, k) => (
-            <div key={k} className={cx('flex gap-2 text-[12px] rounded px-1.5 py-1', k === i && !done && 'bg-chip')}>
-              <span className="font-mono text-ink3 w-[62px] shrink-0">{k <= i || done ? tsOf(x) : '··:··:··'}</span>
-              <span className="mt-[3px]">{k < i || done ? <I.CheckCircle2 size={13} className="text-ok" /> : k === i ? (waiting ? <I.Hand size={13} className="text-warn" /> : <I.Loader2 size={13} className="text-info animate-spin" />) : <I.Circle size={13} className="text-ink3" />}</span>
-              <span className={cx(k > i && !done ? 'text-ink3' : 'text-ink')}>{x.label}</span>
-            </div>
-          ))}
-        </div>
-        {waiting && <div className="mx-3 mb-2 p-2 rounded-md border border-warn/40 bg-warn/10 text-[12px]"><div className="font-semibold text-ink mb-1.5">Human in the loop</div><div className="flex gap-2"><Btn size="sm" kind="ok" icon={I.Check} onClick={resolveAwait}>{st.await.label}</Btn></div></div>}
-        <div className="flex items-center gap-1.5 px-3 py-2 border-t border-line">
-          <Btn size="sm" icon={playing ? I.Pause : I.Play} onClick={() => setPlaying(p => !p)} disabled={done || waiting}>{playing ? 'Pause' : 'Play'}</Btn>
-          <Btn size="sm" onClick={() => setSpeed(x => x === 1 ? 2 : x === 2 ? 4 : 1)}>{speed}×</Btn>
-          <Btn size="sm" icon={I.SkipForward} onClick={skip} disabled={done}>Skip to end</Btn>
-          <div className="flex-1" />
-          {sc.focus && <Btn size="sm" kind="brand" icon={I.ArrowRight} onClick={() => { const f = sc.focus(ctx.current); act.set(prev => ({ ...f, tab: { ...prev.tab, ...(f.tab || {}) } })); }}>Open</Btn>}
-        </div>
-      </>}
-    </div>
-  );
-}
-
 function Toasts() {
   const { s } = useApp();
   return (
@@ -367,7 +306,7 @@ export default function App() {
           <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
         </main>
       </div>
-      <AskPanel /><ScenarioPicker /><ScenarioPlayer /><Toasts /><Notifications /><BranchDrawer />
+      <AskPanel /><ScenarioPicker /><DemoStage /><Toasts /><Notifications /><BranchDrawer />
     </div>
   );
 }

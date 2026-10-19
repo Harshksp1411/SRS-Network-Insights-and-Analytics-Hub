@@ -42,3 +42,8 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 @keyframes tickerIn { 0% { opacity: 0; transform: translateX(16px); } 100% { opacity: 1; transform: none; } }
 .ticker-in { animation: tickerIn .45s ease-out; }
 @keyframes numFlash { 0% { color: rgb(var(--info)); } 100% { } }
+.force-light {
+  --bg: 240 241 242; --panel: 255 255 255; --chip: 236 238 240; --line: 219 222 226; --ink: 27 31 35; --ink2: 72 79 87; --ink3: 118 125 134;
+  --ok: 12 140 12; --warn: 196 127 0; --bad: 208 59 59; --alert: 224 47 47; --info: 42 120 214; --ai: 98 80 214; --brand: 118 33 35; --action: 166 25 46;
+  color-scheme: light;
+}
