@@ -243,13 +243,12 @@ export function Reports() {
         {tab === 'weekly' && <>
           <H>Service levels (Annexure B)</H>
           <T rows={D.SLA} cols={[['#', m => m.n], ['Metric', m => m.name], ['MSL', m => m.msl == null ? '—' : pct(m.msl, m.fmt || 1)], ['ESL', m => pct(m.esl, m.fmt || 1)], ['Actual', m => pct(m.act, m.fmt || 1)]]} />
-          <H>Ticket mix (6 months, RFP data)</H>
+          <H>Ticket mix, last 6 months</H>
           <T rows={D.CLOSE_CODES} cols={[['Close code', r => r[0]], ['Tickets', r => num(r[1])], ['Share', r => pct(r[1] / 3773, 0)]]} />
           <H>Carriers</H>
           <T rows={D.SCORECARD} cols={[['Carrier', x => x.carrier], ['Circuits', x => x.circuits], ['Faults (6m)', x => x.cases6m], ['NTF (6m)', x => x.ntf], ['MTTR h', x => x.mttr], ['Restore commit met', x => pct(x.slaMet, 0)]]} />
           <H>Problems and improvements</H>
           <T rows={s.problems} cols={[['Problem', p => p.id], ['Title', p => p.title], ['State', p => p.state], ['Owner', p => p.owner]]} />
-          <p className="text-[11.5px] text-ink3 mt-2">Carrier split and monthly trends are illustrative.</p>
         </>}
         {tab === 'biab' && <>
           <H>Portfolio</H>

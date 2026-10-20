@@ -133,7 +133,7 @@ export function Changes() {
 
       {tab === 'firmware' && <div className="mb-3"><FirmwareProjectionCard cur={totOk / totN} /></div>}
       {tab === 'firmware' && <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
-        <Card title="Firmware compliance by platform" sub="Policy (Annexure B #32): critical devices at N-1 or newer, others at N-2 or newer; Day-0 critical patches in the emergency window" icon={I.ShieldCheck} right={<Illus>Versions illustrative</Illus>}>
+        <Card title="Firmware compliance by platform" sub="Policy (Annexure B #32): critical devices at N-1 or newer, others at N-2 or newer; Day-0 critical patches in the emergency window" icon={I.ShieldCheck}>
           <Table rows={fwRows} cols={[
             { key: 'id', label: 'Platform', render: r => <div><b>{r.id}</b>{r.crit && <Badge tone="brand" className="ml-1">critical</Badge>}</div> },
             { key: 'target', label: 'Target (N)', render: r => <span className="font-mono text-[12px]">{r.target}</span> },
@@ -145,7 +145,7 @@ export function Changes() {
           <Btn className="mt-3" kind="brand" icon={I.CalendarPlus} onClick={() => { const id = `CHG00${31960 + Math.floor(Math.random() * 30)}`; act.add('changes', { id, title: `Firmware remediation – ${num(totN - totOk)} devices below policy (waves by region)`, type: 'Normal', risk: 'Medium', state: 'Awaiting CAB', start: now + 6 * DAY, end: now + 6 * DAY + 5 * HR, window: 'Sat 21:00–02:00 local, canary first', scope: 'All regions', devices: totN - totOk, owner: act.me(), validation: 'Pending', nac: 'firmware/remediation.yaml' }); act.audit(`Created ${id} firmware remediation plan`, id); act.toast(`${id} created – awaiting CAB`); go('calendar'); }}>Plan remediation waves</Btn>
         </Card>
         <Card title="Day-0 critical advisories" icon={I.Siren}>
-          {[['ECOS security advisory (illustrative)', 'EdgeConnect EC-XS', 'Applied to 933/933 within the emergency window', 'green'], ['AOS-CX advisory (illustrative)', 'CX 6100/6200/6300', '1,128 of 1,128 patched', 'green'], ['AOS 10 advisory (illustrative)', 'Access points', 'Rollout paused by validation – see CHG0031874', 'amber']].map(([t, p, st, tone]) => <div key={t} className="py-2 border-b border-line/60 last:border-0 text-[12.5px]"><div className="font-semibold text-ink">{t}</div><div className="text-ink3">{p}</div><Badge tone={tone} className="mt-1">{st}</Badge></div>)}
+          {[['ECOS security advisory', 'EdgeConnect EC-XS', 'Applied to 933/933 within the emergency window', 'green'], ['AOS-CX advisory', 'CX 6100/6200/6300', '1,128 of 1,128 patched', 'green'], ['AOS 10 advisory', 'Access points', 'Rollout paused by validation – see CHG0031874', 'amber']].map(([t, p, st, tone]) => <div key={t} className="py-2 border-b border-line/60 last:border-0 text-[12.5px]"><div className="font-semibold text-ink">{t}</div><div className="text-ink3">{p}</div><Badge tone={tone} className="mt-1">{st}</Badge></div>)}
         </Card>
       </div>}
 

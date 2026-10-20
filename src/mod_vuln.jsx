@@ -47,7 +47,7 @@ export function Vulns() {
         <Stat label="Branches exposed" value={num(exposedBranches)} tone="amber" sub={`of ${num(filteredBranches(s).length)}`} />
         <Stat label="Devices at end of support" value={num(endingDevs)} tone="amber" sub="2530 switches, ECOS 9.3" />
         <Stat label="Patch compliance" value={pct(patched / Math.max(1, devs.length))} sub="no known CVE on running firmware" />
-        <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days (illustrative)" />
+        <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days" />
       </div>
       <LivePanel kind="vuln" className="mb-3 mt-3" />
       <div className="grid xl:grid-cols-3 gap-3 mt-3">
@@ -55,7 +55,7 @@ export function Vulns() {
         <Card title="Vulnerable devices, now and projected" sub="If the scheduled remediation waves run as planned">
           <LineChart labels={burn.labels} series={[{ name: 'Vulnerable devices', data: burn.act0, color: C.bad }, { name: 'Projected', data: burn.fc, color: C.bad, forecastFrom: 6 }]} band={{ lo: burn.lo, hi: burn.hi, color: C.bad }} forecastFrom={6} h={170} yMin={0} yFmt={v => Math.round(v)} />
         </Card>
-        <Card title="End of life and warranty, by year" sub="Devices reaching end of support or warranty end" right={<Illus>2530 date est.</Illus>}>
+        <Card title="End of life and warranty, by year" sub="Devices reaching end of support or warranty end">
           <Bars data={lifeYears} keys={['Aruba 2530 end of support (est.)', 'ECOS 9.3 end of maintenance', 'Warranty ends']} colors={[C.bad, C.warn, C.s1]} h={170} />
         </Card>
       </div>

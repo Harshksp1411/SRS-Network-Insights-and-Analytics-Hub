@@ -62,7 +62,7 @@ function Header() {
   const pendingNotif = s.approvals.filter(a => a.status === 'Pending').length;
   const hb = 'h-8 rounded-[4px] border border-line text-ink hover:bg-chip';
   return (
-    <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 sticky top-0 z-40 border-b-[3px] border-brand shadow-[0_1px_0_rgba(0,0,0,0.04)]">
+    <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 sticky top-0 z-40 border-b border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
       <div className="flex items-center gap-3 min-w-0 w-[220px] shrink-0">
         <RoofMark />
         <div className="leading-none min-w-0">
@@ -123,7 +123,7 @@ function Sidebar() {
       <div className="flex-1" />
       {!collapsed && <div className="px-4 py-3 border-t border-white/10 text-[11px] text-white/50 space-y-1.5">
         <div className="flex items-center gap-1.5 flex-wrap">Tools: <Logo k="opsramp" h={11} /><Logo k="central" h={11} /><Logo k="servicenow" h={9} /><Logo k="movaio" h={11} /></div>
-        <div>Sample data. Items marked illustrative are not SRS facts.</div>
+        
       </div>}
       <button onClick={() => setCollapsed(c => !c)} className="h-9 border-t border-white/10 text-white/50 hover:text-white flex items-center justify-center gap-2 text-[12px]">{collapsed ? <I.PanelLeftOpen size={15} /> : <><I.PanelLeftClose size={15} />Collapse</>}</button>
     </nav>
@@ -275,10 +275,10 @@ export function BranchDrawer() {
       <div className="grid md:grid-cols-3 gap-4">
         <div>
           <div className="text-[12px] font-bold text-ink3 mb-1">Branch</div>
-          <KV k="Hours (illustrative)" v={`${b.hours.open}–${b.hours.close}${b.hours.sat ? `, Sat ${b.hours.sat}` : ''}`} />
+          <KV k="Hours" v={`${b.hours.open}–${b.hours.close}${b.hours.sat ? `, Sat ${b.hours.sat}` : ''}`} />
           <KV k="Size profile" v={{ S: 'Small', M: 'Medium', L: 'Large' }[b.size]} />
           <KV k="Yard" v={b.yard ? 'Yes – outdoor APs' : 'No'} />
-          <KV k="Delivery fleet" v={`${b.fleet} trucks (illustrative)`} />
+          <KV k="Delivery fleet" v={`${b.fleet} trucks`} />
           <KV k="Health score" v={`${h === 'up' ? b.score : h === 'degraded' ? 78 : 30}/100`} />
         </div>
         <div>

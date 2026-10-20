@@ -8,7 +8,7 @@ import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from '
 import { useLive } from './live.jsx';
 import { LiveBadge, LiveFeed, EventFlowCard, ExperienceCard, AlertsPerMinCard, AppsLive, LivePanel } from './liveui.jsx';
 import { IncidentForecastCard, PreventiveCard, ReadinessTrendCard, OpeningRiskCard } from './viz.jsx';
-import { ServiceTiles, ErrorBudgets, TopBranches, UnifiedTimeline, MapFlows } from './viz2.jsx';
+import { ErrorBudgets, TopBranches, UnifiedTimeline, MapFlows } from './viz2.jsx';
 import { useReadiness, branchChecks, COLS, PreopenBanner, ReadinessSummary, OpenByTimezone, OpeningSchedule, ReadinessTable, PreopenStream, FixedOvernight } from './readiness.jsx';
 
 const sevColor = h => ({ up: C.ok, degraded: C.warn, down: C.bad }[h]);
@@ -49,7 +49,7 @@ export function Overview() {
     <div>
       <PageHead icon={I.LayoutDashboard} title={bm ? `My branch – ${list[0].name}` : 'Operations Overview'} sub={bm ? `${list[0].brand}, ${list[0].city}, ${list[0].state}. What the NOC sees for your branch, in plain terms.` : 'Live state of the in-scope SRS branch network. Filter by region, brand or branch from the bar above.'}
         right={<><LiveBadge /><Btn icon={I.PlayCircle} onClick={() => act.set({ scenarioPicker: true })}>Run a scenario</Btn><ExportBtn onClick={() => exportCSV('srs-branch-health.csv', list, [{ label: 'Branch ID', key: 'id' }, { label: 'Branch', key: 'name' }, { label: 'Brand', key: 'brand' }, { label: 'City', key: 'city' }, { label: 'State', key: 'state' }, { label: 'Region', key: 'region' }, { label: 'Health', get: b => healthOf(s, b) }, { label: 'Primary', get: b => { const c = circuitOf(s, b.wan[0]); return `${c.carrier} ${c.type} ${c.status}`; } }, { label: 'Backup', get: b => { const c = circuitOf(s, b.wan[1]); return `${c.carrier} ${c.type} ${c.status}`; } }])} /></>} />
-      <div className="kpi-strip grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-7">
+      <div className="kpi-strip grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
         <Stat label="Branches open now" icon={I.Store} value={num(openNow)} sub={`of ${num(list.length)}, local hours`} />
         <Stat label="Healthy / degraded / down" icon={I.HeartPulse} value={<span><span className="text-ok">{num(health.up)}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{health.degraded}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{health.down}</span></span>}>
           <div className="flex h-1.5 rounded-full overflow-hidden mt-2.5 bg-chip"><span className="bg-ok" style={{ width: `${health.up / list.length * 100}%` }} /><span className="bg-warn" style={{ width: `${health.degraded / list.length * 100}%` }} /><span className="bg-bad" style={{ width: `${health.down / list.length * 100}%` }} /></div>
@@ -62,9 +62,6 @@ export function Overview() {
         <Stat label="Alerts suppressed today" icon={I.BellOff} value={num(suppressed)} sub={`${Math.round(L.series.raw.at(-1))} events/min now, 71% cut`}><Spark data={L.series.raw.slice(-60)} color={C.info} w={150} h={22} className="mt-1.5" /></Stat>
         <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
       </div>
-
-      <div className="flex items-center gap-2 mt-4 mb-2"><h2 className="text-[15px] font-bold text-ink">Business services</h2><span className="text-[12px] text-ink3">what branches feel right now</span><span className="ml-auto"><LiveBadge /></span></div>
-      <ServiceTiles />
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
         <Card title="Branch health map" sub={`All 900 branches. Each dot is one branch, coloured by health; pick a region or city above to zoom. Click a branch for Branch 360.`} icon={I.Map} right={<Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} />}>
@@ -129,7 +126,7 @@ export function Overview() {
             {!circDown.length && !circDeg.length && <div className="text-ink3 text-[13px]">All circuits clean.</div>}
           </div>
         </Card>
-        <Card title="Ticket mix – last 6 months" sub="From the RFP ticket history (3,773 tickets)" icon={I.PieChart}>
+        <Card title="Ticket mix – last 6 months" sub="3,773 tickets, last 6 months" icon={I.PieChart}>
           {[['After-hours mended', D.FACTS.tickets6m.afterHours, C.info], ['No trouble found (NTF)', D.FACTS.tickets6m.ntf, C.warn], ['Carrier / LEC', D.FACTS.tickets6m.carrier, C.brand], ['Customer-caused', D.FACTS.tickets6m.customer, C.ai], ['Reboot etc.', D.FACTS.tickets6m.reboot, C.grey]].map(([l, n, c]) => (
             <div key={l} className="py-1"><div className="flex text-[12.5px]"><span className="text-ink flex-1">{l}</span><b className="text-ink">{num(n)}</b><span className="text-ink3 w-12 text-right">{pct(n / D.FACTS.tickets6m.total, 0)}</span></div><div className="h-1.5 bg-chip rounded-full mt-1"><div className="h-full rounded-full" style={{ width: `${n / D.FACTS.tickets6m.total * 100}%`, background: c }} /></div></div>))}
         </Card>
@@ -193,12 +190,12 @@ export function Readiness() {
 
   const R = useReadiness(list);
   const raise2 = b => { const ch = branchChecks(s, b); const fails = Object.entries(ch.c).filter(([, x]) => x.st !== 'pass').map(([id, x]) => ({ id, ...x, name: COLS.find(c => c.id === id).label })); if (!fails.length) { act.toast(`${b.name}: all checks pass, nothing to raise`, 'info'); return; } const id = D.nextInc();
-    act.add('incidents', { id, kind: 'readiness', pri: fails.some(f => ['wan1', 'ec', 'pos', 'erp'].includes(f.id) && f.st === 'fail') ? 'P2' : 'P3', title: `Readiness check failed before opening: ${fails.map(f => f.name).join(', ')}`, cat: 'Branch readiness', branchId: b.id, ci: `${b.code}-ec01`, opened: Date.now(), acked: null, state: 'New', group: 'Movate NOC – L2 Network', assignee: null, signals: fails.map(f => ({ t: Date.now(), src: 'Synthetic', msg: `${f.name}: ${f.detail}`, sev: f.st === 'fail' ? 'Major' : 'Minor' })), corr: fails.length, suppressed: 0, rca: [], conf: 0, agentSteps: [], runbook: null, rbState: 'proposed', impact: fails.map(f => f.detail), verify: [], notes: [], carrierCase: null, workOrder: null, major: false, children: [] });
+    act.add('incidents', { id, kind: 'readiness', pri: fails.some(f => ['wan1', 'ec', 'tun', 'pos'].includes(f.id) && f.st === 'fail') ? 'P2' : 'P3', title: `Readiness check failed before opening: ${fails.map(f => f.name).join(', ')}`, cat: 'Branch readiness', branchId: b.id, ci: `${b.code}-ec01`, opened: Date.now(), acked: null, state: 'New', group: 'Movate NOC – L2 Network', assignee: null, signals: fails.map(f => ({ t: Date.now(), src: 'Synthetic', msg: `${f.name}: ${f.detail}`, sev: f.st === 'fail' ? 'Major' : 'Minor' })), corr: fails.length, suppressed: 0, rca: [], conf: 0, agentSteps: [], runbook: null, rbState: 'proposed', impact: fails.map(f => f.detail), verify: [], notes: [], carrierCase: null, workOrder: null, major: false, children: [] });
     act.audit(`Raised ${id} from readiness check`, b.id); act.toast(`${id} raised for ${b.name}`); };
   const rerun2 = b => { setRunning(x => ({ ...x, [b.id]: true })); setTimeout(() => { setRunning(x => ({ ...x, [b.id]: false })); const ch = branchChecks(s, b); act.audit(`Readiness re-run: ${b.name}`, b.id); act.toast(`${b.name}: ${ch.result === 'Ready' || ch.result === 'Fixed overnight' ? 'all checks pass' : ch.result.toLowerCase()}`, ch.result === 'Not ready' ? 'bad' : ch.result === 'Needs attention' ? 'warn' : 'ok'); }, 1800); };
   return (
     <div>
-      <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Pre-opening checks run at 05:30 local for every branch: primary and backup internet, EdgeConnect, switches, Wi-Fi, POS, ERP, Roof Hub, scanners, printers, truck tablets and UPS. Issues are fixed overnight or given an owner before opening."
+      <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Network checks run at 05:30 local for every branch: primary and backup internet, EdgeConnect, tunnels, switches, Wi-Fi, DHCP pools, config compliance and the POS and ERP paths. Issues are fixed overnight or given an owner before opening."
         right={<><Btn icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
       <PreopenBanner rows={R} />
       <div className="mt-3"><ReadinessSummary rows={R} /></div>

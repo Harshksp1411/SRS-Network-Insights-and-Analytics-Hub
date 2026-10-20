@@ -10,7 +10,7 @@ import { C, useWidth } from './charts.jsx';
 // Topology: branches (left) → carrier networks → hosting (DC / cloud) → business applications (right).
 // Each branch shows its LAN, EdgeConnect and both WAN ports; links carry live status and moving traffic.
 const HOSTS = [
-  { id: 'dc:primary', label: 'Primary data centre', sub: 'ERP, pricing (illustrative)', apps: ['erp', 'pricing'], kind: 'dc' },
+  { id: 'dc:primary', label: 'Primary data centre', sub: 'ERP, pricing', apps: ['erp', 'pricing'], kind: 'dc' },
   { id: 'dc:azure', label: 'Azure (SRS tenant)', sub: 'Roof Hub, dispatch, Mova iO', apps: ['roofhub', 'dispatch'], kind: 'cloud' },
   { id: 'dc:pci', label: 'Payment processor', sub: 'PCI segment only', apps: ['pos'], kind: 'dc' },
   { id: 'dc:saas', label: 'SaaS breakout', sub: 'Microsoft 365, voice', apps: ['m365', 'voice'], kind: 'cloud' },
@@ -136,7 +136,7 @@ export function NetGraph() {
                   <g key={id} opacity={dim ? 0.1 : 1} onMouseEnter={() => setHover({ id, c, b })} onMouseLeave={() => setHover(null)} onClick={() => pick(`c:${id}`)} className="cursor-pointer">
                     <path d={d} fill="none" stroke="transparent" strokeWidth="10" />
                     <path d={d} fill="none" stroke={col} strokeWidth={strong ? 2 : k === 0 ? 1.3 : 1.1} strokeDasharray={st === 'down' ? '2 4' : k === 1 ? '5 4' : undefined} opacity={strong ? 1 : k === 0 ? 0.55 : 0.4} />
-                    {mode === 'status' && st !== 'down' && k === 0 && !dim && <circle r="2.2" fill={st === 'degraded' ? C.warn : C.brand} opacity=".85"><animateMotion dur={`${st === 'degraded' ? 5 : 3 + (i % 5) * 0.3}s`} begin={`${(i * 0.37) % 3}s`} repeatCount="indefinite" path={d} /></circle>}
+                    {mode === 'status' && st !== 'down' && k === 0 && !dim && <circle r="2.2" fill={st === 'degraded' ? C.warn : C.s1} opacity=".85"><animateMotion dur={`${st === 'degraded' ? 5 : 3 + (i % 5) * 0.3}s`} begin={`${(i * 0.37) % 3}s`} repeatCount="indefinite" path={d} /></circle>}
                   </g>);
               }))}
 
@@ -148,12 +148,12 @@ export function NetGraph() {
                 const rh = rowH - 10;
                 return (
                   <g key={b.id} transform={`translate(${bx},${y})`} opacity={dim ? 0.3 : 1}>
-                    <rect width={bw} height={rh} rx="3" fill="rgb(var(--panel))" stroke={bc} strokeWidth={imp || sel === `b:${b.id}` ? 2 : 1} />
-                    {flash && <rect width={bw} height={rh} rx="3" fill="none" stroke={C.brand} strokeWidth="2"><animate attributeName="opacity" values=".8;0" dur="1.8s" repeatCount="1" fill="freeze" /></rect>}
-                    <rect width="4" height={rh} fill={mode === 'risk' ? riskColor(risk('branch', b)) : ST(h)} />
+                    <rect width={bw} height={rh} rx="6" fill="rgb(var(--panel))" stroke={bc} strokeWidth={imp || sel === `b:${b.id}` ? 2 : 1} />
+                    {flash && <rect width={bw} height={rh} rx="3" fill="none" stroke={C.s1} strokeWidth="2"><animate attributeName="opacity" values=".8;0" dur="1.8s" repeatCount="1" fill="freeze" /></rect>}
+                    <circle cx="11" cy="16" r="3.5" fill={mode === 'risk' ? riskColor(risk('branch', b)) : ST(h)} />
                     <g onClick={() => pick(`b:${b.id}`)} className="cursor-pointer">
-                      <text x="13" y="20" fontSize="12.5" fontWeight="700" fill="rgb(var(--ink))">{b.name}</text>
-                      <text x="13" y="36" fontSize="10.5" fill="rgb(var(--ink3))">{cut(b.brand, 22)}</text>
+                      <text x="20" y="20" fontSize="12.5" fontWeight="700" fill="rgb(var(--ink))">{b.name}</text>
+                      <text x="20" y="36" fontSize="10.5" fill="rgb(var(--ink3))">{cut(b.brand, 20)}</text>
                     </g>
                     <g transform="translate(146,8)" onClick={() => pick(`l:${b.id}`)} className="cursor-pointer">
                       <rect width="64" height="36" rx="2" fill="rgb(var(--chip))" stroke={sel === `l:${b.id}` ? 'rgb(var(--ink))' : 'none'} />
@@ -180,16 +180,16 @@ export function NetGraph() {
                 const n = branches.reduce((a, b) => a + b.wan.filter(id => circuitOf(s, id).carrier === k).length, 0); const acc = mode === 'risk' ? riskColor(risk('car', k)) : cs === 'up' ? 'rgb(var(--ink2))' : ST(cs);
                 return (
                   <g key={k} transform={`translate(${carX - 70},${y - 24})`} opacity={dim ? 0.3 : 1} onClick={() => pick(`k:${k}`)} className="cursor-pointer">
-                    <rect width="140" height="48" rx="3" fill="rgb(var(--panel))" stroke={sel === `k:${k}` ? 'rgb(var(--ink))' : 'rgb(var(--line))'} strokeWidth={sel === `k:${k}` ? 2 : 1} />
-                    <rect width="4" height="48" fill={acc} />
-                    <text x="14" y="20" fontSize="12.5" fontWeight="700" fill="rgb(var(--ink))">{k}</text>
-                    <text x="14" y="36" fontSize="10" fill="rgb(var(--ink3))">{n} line{n === 1 ? '' : 's'}{sc ? ` · restore SLA ${Math.round(sc.slaMet * 100)}%` : ''}</text>
+                    <rect width="140" height="48" rx="6" fill="rgb(var(--panel))" stroke={sel === `k:${k}` ? 'rgb(var(--ink))' : 'rgb(var(--line))'} strokeWidth={sel === `k:${k}` ? 2 : 1} />
+                    <circle cx="128" cy="15" r="3.5" fill={acc} />
+                    <text x="12" y="20" fontSize="12.5" fontWeight="700" fill="rgb(var(--ink))">{k}</text>
+                    <text x="12" y="36" fontSize="10" fill="rgb(var(--ink3))">{n} line{n === 1 ? '' : 's'}{sc ? ` · restore SLA ${Math.round(sc.slaMet * 100)}%` : ''}</text>
                   </g>); })}
 
               {/* hosting */}
               {HOSTS.map(h => { const y = hy[h.id]; const dim = blast && !blast.hl.has(h.id); return (
                 <g key={h.id} transform={`translate(${hostX - 90},${y - 24})`} opacity={dim ? 0.3 : 1} onClick={() => pick(h.id)} className="cursor-pointer">
-                  <rect width="180" height="48" rx="3" fill="rgb(var(--panel))" stroke={sel === h.id ? 'rgb(var(--ink))' : 'rgb(var(--line))'} strokeWidth={sel === h.id ? 2 : 1} />
+                  <rect width="180" height="48" rx="6" fill="rgb(var(--panel))" stroke={sel === h.id ? 'rgb(var(--ink))' : 'rgb(var(--line))'} strokeWidth={sel === h.id ? 2 : 1} />
                   {h.kind === 'dc' ? <g transform="translate(11,15)">{[0, 1, 2].map(r => <rect key={r} y={r * 6.5} width="15" height="4.5" rx="1" fill="rgb(var(--ink2))" />)}</g>
                     : <g transform="translate(9,16)"><path d="M4,14 a4,4 0 0 1 0,-8 a6,6 0 0 1 11,-2 a4.5,4.5 0 0 1 4,10 z" fill="none" stroke="rgb(var(--ink2))" strokeWidth="1.5" /></g>}
                   <text x="36" y="21" fontSize="11.5" fontWeight="700" fill="rgb(var(--ink))">{cut(h.label, 22)}</text>
@@ -207,7 +207,6 @@ export function NetGraph() {
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 border-t border-line text-[12px] text-ink2">
             {mode === 'status' ? <><span className="inline-flex items-center gap-1.5"><span className="w-6 h-0.5 bg-ink3" />Line up (moving dots show traffic)</span><span className="inline-flex items-center gap-1.5"><span className="w-6 h-0.5" style={{ background: C.warn }} />Degraded</span><span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dotted" style={{ borderColor: C.bad }} />Down</span><span className="inline-flex items-center gap-1.5"><span className="w-6 border-t-2 border-dashed border-ink3" />wan2 (backup)</span></>
               : <><span className="inline-flex items-center gap-1.5"><Dot tone="red" />High 30-day risk</span><span className="inline-flex items-center gap-1.5"><Dot tone="amber" />Elevated</span><span className="inline-flex items-center gap-1.5"><Dot tone="gray" />Normal</span><span className="text-ink3">Blends 90-day tickets, open predictions, carrier restore record and single points of failure.</span></>}
-            <span className="ml-auto text-ink3">Hosting locations are <Illus /></span>
           </div>
         </Card>
         <div className="grid md:grid-cols-2 2xl:grid-cols-1 gap-3">

@@ -128,10 +128,10 @@ export function answer(s, q, now) {
     return { title: /unassigned/.test(t) ? `${mine.length} unassigned work orders` : `${me.name}: ${mine.length} job(s)`, lines: mine.length ? mine.map(w => ({ k: w.id, v: `${bl(D.BR[w.branchId])} – ${w.task} (${w.window})` })) : ['No jobs assigned yet.'], src: 'ServiceNow work orders', links: [L('Field dispatch', 'dispatch')] };
   }
   if (/spares|depot/.test(t)) {
-    return { title: 'Depot spares', lines: s.depots.slice(0, 6).map(d => ({ k: d.city, v: Object.entries(d.spares).map(([k, v]) => `${k} ${v}`).join(', ') })), src: 'Depot stock (illustrative)', links: [L('Depot spares', 'dispatch', { tab: { dispatch: 'depots' } })] };
+    return { title: 'Depot spares', lines: s.depots.slice(0, 6).map(d => ({ k: d.city, v: Object.entries(d.spares).map(([k, v]) => `${k} ${v}`).join(', ') })), src: 'Depot stock', links: [L('Depot spares', 'dispatch', { tab: { dispatch: 'depots' } })] };
   }
   if (/branch hours|limit my visits/.test(t)) {
-    return { title: 'Branch hours that shape visits', lines: ['Roofing branches open 06:30–17:00 local weekdays; ~45% also Saturday 07:00–12:00.', 'Pool branches 07:00–17:00, most open Saturday 08:00–12:00.', 'Changes and reboots: only outside hours unless the device is already down (P1/P2).', 'Yard work with a lift: avoid 07:00–09:00 truck loading.'], src: 'Branch profiles (illustrative hours)', links: [L('Field dispatch', 'dispatch')] };
+    return { title: 'Branch hours that shape visits', lines: ['Roofing branches open 06:30–17:00 local weekdays; ~45% also Saturday 07:00–12:00.', 'Pool branches 07:00–17:00, most open Saturday 08:00–12:00.', 'Changes and reboots: only outside hours unless the device is already down (P1/P2).', 'Yard work with a lift: avoid 07:00–09:00 truck loading.'], src: 'Branch profiles', links: [L('Field dispatch', 'dispatch')] };
   }
   if (/pci/.test(t)) {
     return { title: 'PCI segment at LS Building Products cutover site', lines: [{ k: 'VLAN 20', v: 'POS / payments, own policy; no routes to VLAN 10/30/50/60' }, { k: 'Gate 8', v: 'POS / payment test – must pass before StoreOps sign-off' }, { k: 'Legacy POS', v: 'Replaced with SRS standard; old units recycled with data destruction certificate' }], src: 'NaC site file sites/ls-building-products/il-01.yaml', links: [L('Kit & VLANs', 'biab', { tab: { biab: 'kit' } })] };

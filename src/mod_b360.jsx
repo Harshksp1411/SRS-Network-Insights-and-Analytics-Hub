@@ -119,7 +119,7 @@ function DepGraph({ s, b, x }) {
     ['Applications', D.APPS.map(a => [a.short, a.host, x.down ? 'down' : (a.id === 'pos' && x.cur.pos > 400) ? 'degraded' : 'up'])],
     ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['POS terminals + PIN pads', 'VLAN 20 (PCI)', x.down ? 'down' : 'up'], ['Handhelds + printers', 'VLAN 30', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up'], ['Truck tablets', `${b.fleet} trucks`, x.down ? 'down' : 'up']]],
     ['Connectivity', [[`${b.code}-ec01`, b.dev.ec === 2 ? 'EdgeConnect HA pair' : 'EdgeConnect EC-XS', x.down ? 'down' : 'up'], [b.wan[0], `${x.p.carrier} ${x.p.type}, ${x.onBackup ? 'standby' : 'active'}`, x.p.status === 'Up' ? 'up' : x.p.status === 'Degraded' ? 'degraded' : 'down'], [b.wan[1], `${x.sc.carrier} ${x.sc.type}, ${x.onBackup ? 'active' : 'standby'}`, x.sc.status === 'Up' ? 'up' : 'down']]],
-    ['Core', [['Orchestrator overlay', 'business intent policies', 'up'], ['Primary DC hub', 'illustrative', 'up'], ['Azure (SRS tenant)', 'Roof Hub, dispatch', 'up']]],
+    ['Core', [['Orchestrator overlay', 'business intent policies', 'up'], ['Primary DC hub', 'ERP and pricing', 'up'], ['Azure (SRS tenant)', 'Roof Hub, dispatch', 'up']]],
     ['Destinations', [['ERP / pricing', 'Primary DC', 'up'], ['Payment processor', 'PCI path only', 'up'], ['Roof Hub + delivery', 'Azure', 'up'], ['Internet / M365', 'local breakout', 'up']]],
   ];
   const [wref, mw] = useWidth(1100);
@@ -130,7 +130,7 @@ function DepGraph({ s, b, x }) {
     <div ref={wref} className="overflow-x-auto"><svg width={W} height={H} className="block">
       {cols.map(([t], ci) => <text key={t} x={ci * colW + 14} y={16} fontSize="12" fontWeight="700" className="fill-ink3">{t}</text>)}
       {pos.slice(0, -1).map((ps, ci) => ps.map((a, i) => pos[ci + 1].map((bb, j) => (cols[ci + 1][1].length <= 3 || cols[ci][1].length <= 3 || (i + j) % 3 === 0) && <path key={`${ci}-${i}-${j}`} d={`M${a.x + colW - 34},${a.y} C${a.x + colW - 10},${a.y} ${bb.x - 14},${bb.y} ${bb.x},${bb.y}`} fill="none" className="stroke-line" strokeWidth="1" />)))}
-      {cols.map(([, items], ci) => items.map(([n, sub, st], k) => { const p = pos[ci][k]; return <g key={n} transform={`translate(${p.x},${p.y - 15})`}><rect width={colW - 34} height="30" rx="3" className="fill-panel stroke-line" /><rect width="4" height="30" fill={col(st)} /><text x="11" y="13" fontSize="11.5" fontWeight="700" className="fill-ink">{n.length > 26 ? n.slice(0, 25) + '…' : n}</text><text x="11" y="25" fontSize="10" className="fill-ink3">{sub.length > 30 ? sub.slice(0, 29) + '…' : sub}</text></g>; }))}
+      {cols.map(([, items], ci) => items.map(([n, sub, st], k) => { const p = pos[ci][k]; return <g key={n} transform={`translate(${p.x},${p.y - 15})`}><rect width={colW - 34} height="30" rx="6" className="fill-panel stroke-line" /><circle cx={colW - 45} cy="9" r="3" fill={col(st)} /><text x="10" y="13" fontSize="11.5" fontWeight="700" className="fill-ink">{n.length > 26 ? n.slice(0, 25) + '…' : n}</text><text x="10" y="25" fontSize="10" className="fill-ink3">{sub.length > 30 ? sub.slice(0, 29) + '…' : sub}</text></g>; }))}
     </svg></div>
   );
 }
@@ -247,8 +247,8 @@ export function Branch360() {
         <Card title="Applications" sub="As this branch sees them">
           {[['ERP (order, inventory, invoicing)', `${(1.1 + hashOf(b) * 0.4).toFixed(1)} s login`, 'Primary DC'], ['POS and card payments', `${Math.round(x.cur.pos)} ms`, 'PCI segment'], ['Pricing and quoting', `${(0.7 + hashOf(b) * 0.3).toFixed(1)} s`, 'Primary DC'], ['Roof Hub order flow', `${x.cur.roof.toFixed(2)} s p95`, 'Azure'], ['Delivery tracking', `${b.fleet} trucks reporting`, 'Azure'], ['Handheld scanners', x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'drops in aisles' : 'all checked in', 'VLAN 30'], ['Voice', 'MOS 4.3', 'Cloud voice'], ['Microsoft 365', '86 ms', 'Local breakout']].map(([n, v, w], i) => { const bad = x.down || (i === 1 && x.cur.pos > 400) || (i === 5 && /drops/.test(v)); return <div key={n} className="flex items-center gap-2 py-1 border-b border-line/60 last:border-0 text-[12.5px]"><Dot tone={bad ? (x.down ? 'red' : 'amber') : 'green'} /><span className="flex-1 text-ink">{n}</span><span className="text-ink2">{x.down ? 'unreachable' : v}</span><span className="text-ink3 w-24 text-right text-[11.5px]">{w}</span></div>; })}
         </Card>
-        <Card title="Branch today" sub="From ERP, Roof Hub and delivery tracking" right={<Illus />}>
-          <div className="grid grid-cols-2 gap-2">{[['Staff on site', 6 + (b.num % 9) + (b.size === 'L' ? 8 : 0)], ['Trucks out', `${Math.max(1, b.fleet - 1)} of ${b.fleet}`], ['Deliveries today', 14 + (b.num % 23) + (b.size === 'L' ? 20 : 0)], ['Roof Hub orders', 9 + (b.num % 17)], ['POS transactions', 40 + (b.num % 60) + (b.size === 'L' ? 70 : 0)], ['Handhelds online', `${8 + (b.num % 8)}`]].map(([k, v]) => <div key={k} className="bg-chip/60 rounded-md p-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[19px] font-bold text-ink">{v}</div></div>)}</div>
+        <Card title="Network today" sub="Traffic and clients at this branch since opening">
+          <div className="grid grid-cols-2 gap-2">{[['WAN use, peak', `${38 + (b.num % 41)}%`], ['Data through EdgeConnect', `${(4 + (b.num % 17) * 0.6).toFixed(1)} GB`], ['Wi-Fi clients now', 12 + (b.num % 30) + (b.size === 'L' ? 25 : 0)], ['Path changes today', (b.num % 4)], ['Switch ports in use', `${60 + (b.num % 33)}%`], ['Config backup', '02:00, matches golden']].map(([k, v]) => <div key={k} className="bg-chip/60 rounded-md px-2.5 py-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[16px] font-bold text-ink tabular-nums">{v}</div></div>)}</div>
           <div className="text-[12px] text-ink2 mt-2">Branch manager: {['Rick D.', 'Maria G.', 'Tom W.', 'Angela P.', 'Luis F.'][b.num % 5]}, yard {b.yard ? 'with outdoor APs' : 'none'}</div>
         </Card>
       </div>
@@ -292,7 +292,7 @@ export function Branch360() {
             </Card>
             <Card title="Make and model mix">
               {Object.entries(devs.reduce((m, d) => { m[d.desc] = (m[d.desc] || 0) + 1; return m; }, {})).map(([k, n]) => <div key={k} className="flex justify-between text-[12.5px] py-0.5"><span className="text-ink">{k}</span><b className="text-ink">{n}</b></div>)}
-              <div className="text-[11.5px] text-ink3 mt-2">All devices are HPE Aruba Networking. Per-branch placement, serials and firmware are illustrative; fleet totals match the RFP inventory.</div>
+              <div className="text-[11.5px] text-ink3 mt-2">All devices are HPE Aruba Networking.</div>
             </Card>
           </div>
         </div>}
@@ -304,7 +304,7 @@ export function Branch360() {
             <div className="text-[12.5px]"><span className="text-ink3">Fix:</span> {a.fixed}. <span className="text-ink3">Mitigation now:</span> {a.mitigation}</div>
             <div className="flex gap-2 mt-2"><Btn size="sm" kind="brand" icon={I.CalendarPlus} onClick={() => { const cid = `CHG00${32100 + Math.floor(Math.random() * 800)}`; act.add('changes', { id: cid, title: `${a.id} remediation at ${b.name} (${ds.length} device${ds.length > 1 ? 's' : ''})`, type: 'Normal', risk: 'Low', state: 'Scheduled', start: now + DAY, end: now + DAY + 2 * HR, window: `After ${b.hours.close} local`, scope: b.region, devices: ds.length, owner: act.me(), validation: 'Pending', nac: `sites/${b.code}/firmware.yaml` }); act.audit(`Scheduled ${a.id} remediation at ${b.name}: ${cid}`, cid); act.toast(`${cid} scheduled after branch close`); }}>Schedule fix after close</Btn><Btn size="sm" icon={I.ShieldCheck} onClick={() => { act.audit(`Mitigation applied for ${a.id} at ${b.name}: ${a.mitigation}`, b.id); act.toast('Mitigation pushed from Network-as-Code (management ACL)'); }}>Apply mitigation</Btn></div>
           </div>) : <div className="text-[12.5px] text-ok flex items-center gap-1.5"><I.ShieldCheck size={15} />No known vulnerabilities or lifecycle risks on this branch's devices.</div>}
-          <div className="text-[11.5px] text-ink3 mt-2">Sources: {Object.values(D.SRC).join('; ')}. Firmware placement per device is illustrative.</div>
+          <div className="text-[11.5px] text-ink3 mt-2">Sources: {Object.values(D.SRC).join('; ')}.</div>
         </Card>}
         {tab === 'work' && <div className="grid xl:grid-cols-2 gap-3">
           <Card title="History, last 30 days" right={<Legend items={[['Incidents', C.s2], ['Auto-resolved', C.s1]]} />}>

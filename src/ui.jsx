@@ -6,7 +6,7 @@ export const cx = (...a) => a.filter(Boolean).join(' ');
 
 export function Card({ title, sub, icon: I, right, children, className, pad = true, onClick, flush }) {
   return (
-    <section onClick={onClick} className={cx('bg-panel border border-line rounded-[4px]', onClick && 'cursor-pointer hover:border-ink3', className)}>
+    <section onClick={onClick} className={cx('card bg-panel border border-line rounded-lg', onClick && 'cursor-pointer hover:border-ink3', className)}>
       {(title || right) && (
         <header className="flex items-start gap-3 px-4 pt-3 pb-2">
           <div className="min-w-0 flex-1">
@@ -56,7 +56,7 @@ export function Btn({ kind = 'secondary', size = 'md', icon: I, children, classN
     dark: 'bg-ink text-canvas border-ink hover:opacity-90',
   }[kind];
   const sz = size === 'sm' ? 'h-7 px-2 text-[12px] gap-1' : size === 'xs' ? 'h-6 px-1.5 text-[11px] gap-1' : 'h-8 px-3 text-[13px] gap-1.5';
-  return <button {...p} className={cx('inline-flex items-center justify-center rounded-[4px] border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap', k, sz, className)}>{I && <I size={size === 'md' ? 15 : 13} />}{children}</button>;
+  return <button {...p} className={cx('inline-flex items-center justify-center rounded-md border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap', k, sz, className)}>{I && <I size={size === 'md' ? 15 : 13} />}{children}</button>;
 }
 
 export function Tabs({ tabs, value, onChange, className, size = 'md' }) {
@@ -75,7 +75,7 @@ export function Stat({ label, value, sub, tone, icon: I, onClick, children, clas
   const vt = { red: 'text-bad', amber: 'text-warn', green: 'text-ok', alert: 'text-alert', brand: 'text-brand dark:text-[#e8a3a5]' }[tone] || 'text-ink';
   const up = delta != null && delta > 0;
   return (
-    <div onClick={onClick} className={cx('bg-panel border border-line rounded-md px-4 py-3 flex flex-col min-w-0', onClick && 'cursor-pointer hover:bg-chip/50', className)}>
+    <div onClick={onClick} className={cx('bg-panel border border-line rounded-lg px-4 py-3 flex flex-col min-w-0', onClick && 'cursor-pointer hover:bg-chip/50', className)}>
       <div className="text-[12.5px] text-ink2 font-medium truncate">{label}</div>
       <div className="flex items-baseline gap-2 mt-1">
         <div className={cx('font-display text-[30px] font-semibold leading-none whitespace-nowrap', vt)}>{value}</div>
@@ -211,7 +211,7 @@ export function Empty({ icon: I, title, sub, children }) {
 }
 export function PageHead({ icon: I, title, sub, right, children }) {
   return (
-    <div className="flex items-end gap-3 mb-4 flex-wrap border-b border-line pb-3">
+    <div className="flex items-end gap-3 mb-4 flex-wrap pb-1">
       <div className="flex-1 min-w-[260px]"><h1 className="font-display text-[28px] font-bold text-ink leading-none">{title}</h1>{sub && <p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch] leading-snug">{sub}</p>}</div>
       <div className="flex items-center gap-2 flex-wrap">{right}</div>
       {children}

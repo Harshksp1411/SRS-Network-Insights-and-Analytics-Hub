@@ -11,7 +11,7 @@ const walk = (p, t, v, lo, hi) => Math.max(lo, Math.min(hi, p + (t - p) * 0.2 + 
 
 export const AREAS = [
   { id: 'wan', label: 'SD-WAN and circuits', metric: 'Packet loss, fleet median', unit: '%', base: 0.18, vol: 0.03, lo: 0, hi: 3, dec: 2 },
-  { id: 'apps', label: 'Applications', metric: 'Roof Hub p95 from branches', unit: ' s', base: 0.78, vol: 0.04, lo: 0.3, hi: 4, dec: 2 },
+  { id: 'apps', label: 'Path to data centre', metric: 'POS and ERP path latency', unit: ' ms', base: 24, vol: 1.2, lo: 8, hi: 400, dec: 0 },
   { id: 'lan', label: 'LAN and Wi-Fi', metric: 'Access points down', unit: '', base: 9, vol: 0.8, lo: 0, hi: 80, dec: 0 },
   { id: 'power', label: 'Power and facilities', metric: 'Branches on UPS battery', unit: '', base: 1, vol: 0.3, lo: 0, hi: 40, dec: 0 },
   { id: 'sec', label: 'Security', metric: 'Failed admin logins per 5 min', unit: '', base: 4, vol: 0.9, lo: 0, hi: 60, dec: 0 },
@@ -52,7 +52,7 @@ export const MONITOR_SRC = new Set(['Orchestrator', 'OpsRamp', 'Aruba Central', 
 export function seedX(now) {
   const R = rng(4242);
   const lanes = {};
-  AREAS.forEach((a, k) => { let v = a.base; const s = []; for (let i = 0; i < 60; i++) { const step = (k === 0 && i > 34 && i < 47) ? a.base * 2.4 : (k === 2 && i > 18 && i < 25) ? a.base * 1.8 : (k === 5 && i > 40) ? a.base + 2 : a.base; v = Math.max(a.lo, v + (step - v) * 0.25 + (R() - 0.5) * a.vol * 2.4); s.push(+v.toFixed(a.dec + 1)); } lanes[a.id] = s; });
+  AREAS.forEach((a, k) => { let v = a.base; const s = []; for (let i = 0; i < 60; i++) { const step = (k === 0 && i > 34 && i < 47) ? a.base * 2.4 : (k === 1 && i > 34 && i < 47) ? a.base * 1.5 : (k === 2 && i > 18 && i < 25) ? a.base * 1.8 : (k === 5 && i > 40) ? a.base + 2 : a.base; v = Math.max(a.lo, v + (step - v) * 0.25 + (R() - 0.5) * a.vol * 2.4); s.push(+v.toFixed(a.dec + 1)); } lanes[a.id] = s; });
   const markers = []; for (let i = 0; i < 14; i++) markers.push({ t: now - Math.floor(R() * 58 * MIN) - MIN, kind: ['inc', 'inc', 'res', 'res', 'run', 'run', 'chg'][Math.floor(R() * 7)], area: AREAS[Math.floor(R() * AREAS.length)].id });
   const dots = []; for (let i = 0; i < 230; i++) { const lane = TL_LANES[Math.floor(R() * TL_LANES.length)].id; const t = now - Math.floor(Math.pow(R(), 0.8) * 4 * HR); dots.push({ t, lane, kind: R() < 0.08 ? 'inc' : R() < 0.1 ? 'chg' : 'ev' }); }
   const agents = {}; AGENT_DEF.forEach((a, i) => { agents[a.id] = { today: Math.floor(20 + R() * 300), ok: 0.93 + R() * 0.069, last: a.acts(D.BRANCHES[(i * 37) % 900])[0], lastT: now - Math.floor(R() * 20 * MIN) }; });
@@ -75,7 +75,7 @@ export function tickX(Lc, st, now) {
   // area lanes: last point walks every tick, a new minute starts every 30 ticks (60 s)
   AREAS.forEach(a => {
     const s = X.lanes[a.id];
-    const tgt = a.id === 'wan' ? a.base * (storm ? 4 : 1) + Lc.flaps.length * 0.05 : a.id === 'lan' ? a.base + open.filter(i => i.kind === 'apdown').length * 2 : a.id === 'power' ? a.base + open.filter(i => i.cat === 'Power').length * 3 : a.id === 'apps' ? a.base + (open.some(i => /POS|jitter/i.test(i.title)) ? 0.25 : 0) : a.base;
+    const tgt = a.id === 'wan' ? a.base * (storm ? 4 : 1) + Lc.flaps.length * 0.05 : a.id === 'lan' ? a.base + open.filter(i => i.kind === 'apdown').length * 2 : a.id === 'power' ? a.base + open.filter(i => i.cat === 'Power').length * 3 : a.id === 'apps' ? a.base + (open.some(i => /POS|jitter/i.test(i.title)) ? 9 : 0) : a.base;
     s[s.length - 1] = +walk(s[s.length - 1], tgt, a.vol * 0.6, a.lo, a.hi).toFixed(a.dec + 1);
   });
   if (now - X.minute >= MIN) { X.minute = now; AREAS.forEach(a => { const s = X.lanes[a.id]; X.lanes[a.id] = [...s.slice(1), s[s.length - 1]]; }); X.agentSeries = X.agentSeries.map(s => [...s.slice(1), 0]); }

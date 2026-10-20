@@ -77,7 +77,7 @@ function Portfolio({ track, setTrack, onOpen, now }) {
       <Bars data={data} keys={['Greenfield', 'Acquired']} colors={[C.info, C.ai]} h={150} />
     </Card>
     <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mt-3"><ThroughputCard /><SlipCard /></div>
-    <div className="flex items-center gap-2 mt-3 mb-2"><Tabs size="sm" value={track} onChange={setTrack} tabs={[{ id: 'All', label: 'Both tracks', count: s.projects.length }, { id: 'Greenfield', label: 'Greenfield', count: s.projects.filter(p => p.track === 'Greenfield').length }, { id: 'Acquired', label: 'Acquired', count: s.projects.filter(p => p.track === 'Acquired').length }]} /><span className="text-[12px] text-ink3">Schedules and greenfield sites are <Illus />. Acquisitions are SRS public announcements.</span></div>
+    <div className="flex items-center gap-2 mt-3 mb-2"><Tabs size="sm" value={track} onChange={setTrack} tabs={[{ id: 'All', label: 'Both tracks', count: s.projects.length }, { id: 'Greenfield', label: 'Greenfield', count: s.projects.filter(p => p.track === 'Greenfield').length }, { id: 'Acquired', label: 'Acquired', count: s.projects.filter(p => p.track === 'Acquired').length }]} /></div>
     <div className="grid grid-flow-col auto-cols-[minmax(156px,1fr)] gap-2 overflow-x-auto pb-2">
       {D.STAGES.map(st => { const list = P.filter(p => p.stage === st); return (
         <div key={st} className="bg-chip/60 border border-line rounded-md p-2 min-h-[200px]">
@@ -131,7 +131,7 @@ function FloorPlan() {
   const vl = id => D.VLANS.find(v => v.id === id);
   const apDots = { counter: [[200, 115]], office: [[95, 245]], warehouse: [[340, 110], [420, 200], [510, 110]], docks: [[640, 170]], yard: [[130, 390], [430, 390]], trucks: [[610, 360]] };
   return (<div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
-    <Card title="Standard branch floor plan (medium profile)" sub="Click a zone to see devices, drops and VLANs. Layout is a template, not a specific SRS site." icon={I.Map} right={<Illus>Template</Illus>}>
+    <Card title="Standard branch floor plan (medium profile)" sub="Click a zone to see devices, drops and VLANs. Layout is a template, not a specific SRS site." icon={I.Map}>
       <svg viewBox="0 0 760 470" className="w-full">
         <rect x="10" y="10" width="740" height="450" rx="8" className="fill-chip stroke-line" />
         {D.ZONES.map(zz => <g key={zz.id} onClick={() => setZ(zz.id)} className="cursor-pointer">

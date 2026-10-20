@@ -20,7 +20,7 @@ export function LiveKpis({ items, cols = 3 }) {
   return (
     <div className={cx('grid gap-3', cols === 3 ? 'md:grid-cols-3' : cols === 4 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3 xl:grid-cols-5')}>
       {items.map(it => { const Ic = it.icon || I.Activity; return (
-        <div key={it.label} className="bg-panel border border-line rounded-[4px] px-4 py-3 min-w-0">
+        <div key={it.label} className="card bg-panel border border-line rounded-lg px-4 py-3 min-w-0">
           <div className="flex items-center gap-1.5 text-[12.5px] text-ink2"><Ic size={14} className="text-ink3" /><span className="truncate flex-1">{it.label}</span><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" /></div>
           <div className="flex items-end justify-between gap-3 mt-1">
             <div className="min-w-0"><div key={L.last} className={cx('text-[28px] font-bold leading-none tabular-nums num-flash whitespace-nowrap', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}>{it.value}{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</div><div className="text-[12px] text-ink3 mt-1 truncate">{it.sub}</div></div>
@@ -50,7 +50,7 @@ export function ServiceTiles() {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       {tiles.map(([name, sub, ser, f, key, thr]) => { const n = hits(key); const v = ser.at(-1); const warn = n > 0 || (thr != null && v > thr); return (
-        <div key={name} className={cx('bg-panel border border-line rounded-[4px] p-3 min-w-0 border-l-[3px]', warn ? 'border-l-warn' : 'border-l-ok')}>
+        <div key={name} className={cx('card bg-panel border border-line rounded-lg p-3 min-w-0 border-l-[3px]', warn ? 'border-l-warn' : 'border-l-ok')}>
           <div className="flex items-center gap-1.5 text-[12.5px]"><Dot tone={warn ? 'amber' : 'green'} /><span className="font-bold text-ink truncate flex-1">{name}</span><span className={cx('text-[11px] font-semibold whitespace-nowrap', warn ? 'text-warn' : 'text-ok')}>{n ? `${n} branch${n > 1 ? 'es' : ''}` : 'Healthy'}</span></div>
           <div className="flex items-end justify-between gap-2 mt-1"><div><div key={L.last} className="text-[20px] font-bold text-ink tabular-nums num-flash leading-tight">{f(v)}</div><div className="text-[11.5px] text-ink3">{sub}</div></div><Spark data={ser.slice(-60)} color={warn ? C.warn : C.ok} w={120} h={34} /></div>
         </div>); })}
@@ -70,7 +70,7 @@ export function ErrorBudgets() {
     <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
       {L.x.budgets.map(b => { const left = b.series.at(-1); const recent = (b.series.at(-6) - left) / 5; const avg = (1 - left) / 30; const rate = avg > 0 ? recent / avg : 0; const burning = rate > 1.5 || left < 0.2; const col = left < 0.2 ? C.bad : burning ? C.warn : C.ok; const mins = Math.round(left * (100 - b.target) / 100 * 30 * 24 * 60);
         return (
-          <div key={b.name} className="bg-panel border border-line rounded-[4px] p-3 min-w-0">
+          <div key={b.name} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
             <div className="flex items-start gap-2"><div className="text-[13px] font-bold text-ink flex-1 leading-tight">{b.name}</div><Badge tone={left < 0.2 ? 'red' : burning ? 'amber' : 'green'}>{burning ? `Burning ${Math.max(1.5, rate).toFixed(1)}×` : 'On track'}</Badge></div>
             <div className="flex items-baseline gap-2 mt-1"><span className="text-[22px] font-bold text-ink tabular-nums">{b.actual.toFixed(b.actual > 99.9 ? 3 : 2)}%</span><span className="text-[11.5px] text-ink3">target {b.target}% · 30 days</span></div>
             <div className="h-1.5 bg-chip rounded mt-1.5 overflow-hidden"><div className="h-full rounded transition-all duration-700" style={{ width: `${left * 100}%`, background: col }} /></div>
@@ -355,8 +355,8 @@ export function AgentCards() {
   return (
     <div className="grid md:grid-cols-2 gap-3">
       {AGENT_DEF.map((a, i) => { const g = L.x.agents[a.id]; const working = now - g.lastT < 4000; return (
-        <div key={a.id} className={cx('bg-panel border rounded-[4px] p-3 min-w-0 transition-colors', working ? 'border-brand shadow-[0_0_0_1px_rgb(var(--brand))]' : 'border-line')}>
-          <div className="flex items-start gap-2"><span className="w-8 h-8 rounded-[4px] bg-chip flex items-center justify-center text-brand shrink-0"><I.Bot size={16} /></span><div className="flex-1 min-w-0"><div className="text-[13.5px] font-bold text-ink">{a.name} <span className="text-ink3 font-normal text-[11.5px]">#{i + 1}</span></div><div className="text-[11.5px] text-ink3 leading-tight">{a.does}</div></div>
+        <div key={a.id} className={cx('bg-panel border rounded-lg p-3 min-w-0 transition-colors', working ? 'border-brand shadow-[0_0_0_1px_rgb(var(--brand))]' : 'border-line')}>
+          <div className="flex items-start gap-2"><span className="w-8 h-8 rounded-lg bg-chip flex items-center justify-center text-brand shrink-0"><I.Bot size={16} /></span><div className="flex-1 min-w-0"><div className="text-[13.5px] font-bold text-ink">{a.name} <span className="text-ink3 font-normal text-[11.5px]">#{i + 1}</span></div><div className="text-[11.5px] text-ink3 leading-tight">{a.does}</div></div>
             <Badge tone={working ? 'brand' : 'gray'} className="shrink-0">{working ? <><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />Working</> : 'Idle'}</Badge></div>
           <div className="grid grid-cols-2 gap-2 mt-2"><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Actions today</div><div key={g.today} className="text-[18px] font-bold text-ink tabular-nums num-flash">{num(g.today)}</div></div><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Success rate</div><div className="text-[18px] font-bold text-ink tabular-nums">{(g.ok * 100).toFixed(1)}%</div></div></div>
           <div className="text-[12px] text-ink2 mt-2 truncate" title={g.last}><span className="text-ink3">Last:</span> {g.last}</div>
@@ -384,7 +384,7 @@ export function ToolsStrip({ only }) {
   return (
     <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3">
       {list.map((t, k) => { const ser = L.x.tools[t.id]; const mx = Math.max(...ser); return (
-        <div key={t.id} className="bg-panel border border-line rounded-[4px] p-3 min-w-0">
+        <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
           <div className="flex items-center gap-1.5">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="text-[12px] font-bold text-ink truncate flex-1">{t.name}</span><span className="w-2 h-2 rounded-full bg-ok" /></div>
           <div className="text-[14px] font-bold text-ink mt-1.5 truncate">{head[t.id][0]}</div><div className="text-[11px] text-ink3 truncate">{head[t.id][1]}</div>
           <div className="text-[11px] text-ink2 mt-1"><b className="text-ink tabular-nums">{ser.at(-1)}</b> events/min · synced {(Math.floor(now / 1000) + k) % 6 + 1}s ago</div>
@@ -420,7 +420,7 @@ export function CalendarHeat() {
   const mx = Math.max(...days.map(d => d.v)); const tot = days.reduce((a, d) => a + d.v, 0);
   const [hv, setHv] = useState(null);
   return (
-    <Card title="Incidents per day, last 12 weeks" sub={`${num(tot)} incidents, about ${Math.round(tot / 84)} a day; the RFP history averages 21. Weekends are quieter; the dark run is the hail storms.`}>
+    <Card title="Incidents per day, last 12 weeks" sub={`${num(tot)} incidents, about ${Math.round(tot / 84)} a day. Weekends are quieter; the dark run is the hail storms.`}>
       <div className="flex gap-2"><div className="grid grid-rows-7 gap-[3px] text-[10px] text-ink3 pt-[1px]">{['Sun', '', 'Tue', '', 'Thu', '', 'Sat'].map((d, i) => <span key={i} className="h-[15px] leading-[15px]">{d}</span>)}</div>
         <div className="grid grid-flow-col grid-rows-7 gap-[3px]">{Array.from({ length: new Date(days[0].t).getDay() }).map((_, i) => <span key={`p${i}`} />)}{days.map(d => <span key={d.t} onMouseEnter={() => setHv(d)} onMouseLeave={() => setHv(null)} className="w-[15px] h-[15px] rounded-[2px]" style={{ background: SEQ[Math.min(7, Math.floor(d.v / mx * 7.99))] }} />)}</div></div>
       <div className="flex items-center gap-1 mt-2 text-[11px] text-ink3"><span className="mr-1">Fewer</span>{SEQ.map(c => <span key={c} className="w-3.5 h-2.5 rounded-[2px]" style={{ background: c }} />)}<span className="ml-1">More</span>{hv && <span className="ml-auto text-ink2">{new Date(hv.t).toDateString().slice(0, 10)}: <b className="text-ink">{hv.v}</b></span>}</div>

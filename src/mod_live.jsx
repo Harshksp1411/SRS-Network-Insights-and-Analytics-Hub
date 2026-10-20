@@ -24,7 +24,7 @@ export function LiveOps() {
         { label: 'Readings per minute', value: num(dp), sub: '4,075 devices reporting to OpsRamp and Central', series: S.raw.map(v => v * 40 + 112000), color: C.s4, icon: I.Activity },
         { label: 'Fleet latency to DC', value: Math.round(S.wan.at(-1)), unit: ' ms', sub: `${list.filter(b => healthOf(s, b) === 'down').length} branches offline`, series: S.wan, color: C.s1, icon: I.Network },
         { label: 'POS path p95', value: Math.round(S.pos.at(-1)), unit: ' ms', sub: 'synthetic card-payment test, every branch', series: S.pos, color: C.s1, icon: I.CreditCard, tone: S.pos.at(-1) > 400 ? 'bad' : undefined },
-        { label: 'Roof Hub p95', value: S.roofhub.at(-1).toFixed(2), unit: ' s', sub: 'New Relic, from branches', series: S.roofhub, color: C.s4, icon: I.AppWindow },
+        { label: 'Packet loss, fleet average', value: S.loss.at(-1).toFixed(2), unit: '%', sub: 'all primary paths, Orchestrator', series: S.loss, color: C.s4, icon: I.Activity },
         { label: 'SD-WAN tunnels up', value: num(Math.round(S.tunnels.at(-1))), sub: 'of 1,866 (933 EdgeConnects, two paths)', series: S.tunnels, color: C.ok, icon: I.Cable },
         { label: 'Alerts, last 5 minutes', value: Math.round(S.raw.slice(-150).reduce((a, b) => a + b, 0) / 150 * 5 * 0.29), sub: `${open.length} open incidents in this view`, series: S.corr, color: C.warn, icon: I.Bell, tone: 'warn' },
       ]} />
@@ -68,7 +68,7 @@ export function Correlation() {
       <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><AreaHourHeat /><CorrMatrix /></div>
       <Card className="mt-3" title="Correlation methods" sub="How signals were grouped today, by rule">
         <div className="grid md:grid-cols-5 gap-3">{[['Topology', 'Signals on the same path: device, switch, EdgeConnect, circuit, carrier.', I.Network, 0.42], ['Time window', 'Same branch inside 10 minutes; same carrier and region inside 15.', I.Clock, 0.22], ['Change', 'A change on a related device in the previous 60 minutes.', I.GitPullRequest, 0.08], ['Carrier and location', 'Branches sharing a carrier segment, central office or storm area.', I.MapPin, 0.18], ['Similarity', 'Matches a known pattern from resolved incidents.', I.Copy, 0.1]].map(([n, d, Ic, f]) => (
-          <div key={n} className="border border-line rounded-[4px] p-3"><div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b><span className="text-[18px] font-bold text-ink tabular-nums">{Math.max(1, Math.round(open.length * f * 3))}</span></div><div className="text-[12px] text-ink2 mt-1 leading-snug">{d}</div><div className="h-1.5 bg-chip rounded mt-2"><div className="h-full bg-brand rounded" style={{ width: `${f * 100 / 0.42}%` }} /></div></div>))}</div>
+          <div key={n} className="border border-line rounded-lg p-3"><div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b><span className="text-[18px] font-bold text-ink tabular-nums">{Math.max(1, Math.round(open.length * f * 3))}</span></div><div className="text-[12px] text-ink2 mt-1 leading-snug">{d}</div><div className="h-1.5 bg-chip rounded mt-2"><div className="h-full bg-brand rounded" style={{ width: `${f * 100 / 0.42}%` }} /></div></div>))}</div>
       </Card>
     </div>
   );

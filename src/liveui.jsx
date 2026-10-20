@@ -68,7 +68,7 @@ export function EventFlowCard() {
   return (
     <Card title="Event flow" sub="Raw events per minute vs what is left after correlation, suppression and de-dup" icon={I.Filter} right={<Tabs size="sm" value={r} onChange={setR} tabs={[{ id: 'live', label: 'Live 5 m' }, { id: '1h', label: '1 h' }, { id: '24h', label: '24 h' }]} />}>
       <div className="flex gap-5 mb-1 text-[12px]"><div><div className="text-[22px] font-extrabold text-ink leading-none">{Math.round(data.raw.at(-1))}</div><div className="text-ink3">raw / min</div></div><div><div className="text-[22px] font-extrabold text-info leading-none">{Math.round(data.corr.at(-1))}</div><div className="text-ink3">after correlation</div></div><div><div className="text-[22px] font-extrabold text-ok leading-none">{Math.round(cut * 100)}%</div><div className="text-ink3">noise removed (KPI ≥ 50%)</div></div></div>
-      <LineChart series={[{ name: 'Raw events / min', data: data.raw, color: '#a8a8a8' }, { name: 'After correlation', data: data.corr, color: C.info }]} labels={data.labels} h={170} yFmt={v => Math.round(v)} yMin={0} />
+      <LineChart series={[{ name: 'Raw events / min', data: data.raw, color: C.grey }, { name: 'After correlation', data: data.corr, color: C.info }]} labels={data.labels} h={170} yFmt={v => Math.round(v)} yMin={0} />
     </Card>
   );
 }
@@ -78,14 +78,14 @@ export function ExperienceCard() {
   const S = L.series;
   const tiles = [
     ['POS path p95', `${Math.round(S.pos.at(-1))} ms`, S.pos, S.pos.at(-1) > 400 ? C.bad : S.pos.at(-1) > 260 ? C.warn : C.ok],
-    ['Roof Hub API p95', `${S.roofhub.at(-1).toFixed(2)} s`, S.roofhub, S.roofhub.at(-1) > 1.2 ? C.warn : C.ok],
+    ['Packet loss, fleet', `${S.loss.at(-1).toFixed(2)}%`, S.loss, S.loss.at(-1) > 1 ? C.warn : C.ok],
     ['SD-WAN tunnels up', `${num(Math.round(S.tunnels.at(-1)))} / 1,866`, S.tunnels, C.info],
     ['Fleet WAN latency', `${Math.round(S.wan.at(-1))} ms`, S.wan, S.wan.at(-1) > 32 ? C.warn : C.ok],
   ];
   return (
     <Card title="Branch experience – live" sub="Synthetic probes from every EdgeConnect, 2-second refresh" icon={I.Activity}>
       <div className="grid grid-cols-2 gap-2 mb-2">{tiles.map(([l, v, ser, c]) => <div key={l} className="border border-line rounded-md p-2"><div className="text-[11.5px] text-ink3 font-semibold">{l}</div><div className="flex items-end justify-between gap-2"><div className="text-[17px] font-extrabold text-ink leading-tight tabular-nums">{v}</div><Spark data={ser.slice(-60)} color={c} w={90} h={26} /></div></div>)}</div>
-      <LineChart series={[{ name: 'POS path p95 (ms)', data: S.pos, color: C.brand }]} labels={L.ts.map(t => hhmmss(t))} h={120} yFmt={v => Math.round(v)} refLines={[{ v: 400, label: 'POS threshold 400 ms', color: C.bad }]} yMin={100} />
+      <LineChart series={[{ name: 'POS path p95 (ms)', data: S.pos, color: C.s1 }]} labels={L.ts.map(t => hhmmss(t))} h={120} yFmt={v => Math.round(v)} refLines={[{ v: 400, label: 'POS threshold 400 ms', color: C.bad }]} yMin={100} />
     </Card>
   );
 }
@@ -95,8 +95,8 @@ export function AlertsPerMinCard() {
   const S = L.series;
   const data = Array.from({ length: 30 }, (_, k) => { const i = S.crit.length - 30 + k; return { label: k % 5 === 0 ? hhmmss(L.ts[i]).slice(0, 5) : '', Critical: Math.round(S.crit[i]), Major: Math.round(S.major[i]), Minor: Math.round(S.minor[i]) }; });
   return (
-    <Card title="Alerts per minute – live" sub="After correlation, by severity" icon={I.BarChart3} right={<Legend items={[['Critical', C.bad], ['Major', C.warn], ['Minor', '#a8a8a8']]} />}>
-      <Bars data={data} keys={['Critical', 'Major', 'Minor']} colors={[C.bad, C.warn, '#a8a8a8']} h={170} />
+    <Card title="Alerts per minute – live" sub="After correlation, by severity" icon={I.BarChart3} right={<Legend items={[['Critical', C.bad], ['Major', C.warn], ['Minor', C.minor]]} />}>
+      <Bars data={data} keys={['Critical', 'Major', 'Minor']} colors={[C.bad, C.warn, C.minor]} h={170} />
     </Card>
   );
 }
@@ -116,19 +116,19 @@ export function AppsLive({ open }) {
 // Module live panel: a moving chart, three live figures and the module's own event stream.
 const P = {
   readiness: { title: 'Pre-opening probes – live', sub: 'Synthetic checks from every EdgeConnect: POS path, ERP login, printers, handhelds', cats: ['readiness'], chart: [['probes', 'Probes passing (%)', C.ok]], yMin: 95,
-    stats: [['Probes passing', 'probes', v => `${v.toFixed(1)}%`, C.ok], ['POS path p95', 'pos', v => `${Math.round(v)} ms`, C.brand], ['ERP login', 'erp', v => `${v.toFixed(2)} s`, C.info]] },
+    stats: [['Probes passing', 'probes', v => `${v.toFixed(1)}%`, C.ok], ['POS path p95', 'pos', v => `${Math.round(v)} ms`, C.s1], ['ERP login', 'erp', v => `${v.toFixed(2)} s`, C.info]] },
   inventory: { title: 'Device telemetry – live', sub: 'Aruba Central and OpsRamp: devices reporting, clients, backups', cats: ['inventory'], chart: [['clients', 'Wi-Fi clients connected', C.info]],
     stats: [['Devices reporting', 'reporting', v => `${v.toFixed(1)}%`, C.ok], ['Wi-Fi clients', 'clients', v => num(Math.round(v)), C.info], ['Config backups OK', 'backups', v => `${v.toFixed(1)}%`, C.ok]] },
-  carriers: { title: 'Circuit quality – live', sub: 'EdgeConnect Orchestrator path statistics and carrier case updates', cats: ['carriers'], chart: [['wan', 'Fleet WAN latency (ms)', C.brand]],
-    stats: [['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.brand], ['Average loss', 'loss', v => `${v.toFixed(2)}%`, C.warn], ['Tunnels up of 1,866', 'tunnels', v => num(Math.round(v)), C.ok]] },
-  dispatch: { title: 'Field activity – live', sub: 'Status updates from the technicians\' field app: en route, on site, visit closed', cats: ['dispatch'], chart: [['enroute', 'Field app updates per minute', C.brand]], yMin: 0,
+  carriers: { title: 'Circuit quality – live', sub: 'EdgeConnect Orchestrator path statistics and carrier case updates', cats: ['carriers'], chart: [['wan', 'Fleet WAN latency (ms)', C.s1]],
+    stats: [['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.s1], ['Average loss', 'loss', v => `${v.toFixed(2)}%`, C.warn], ['Tunnels up of 1,866', 'tunnels', v => num(Math.round(v)), C.ok]] },
+  dispatch: { title: 'Field activity – live', sub: 'Status updates from the technicians\' field app: en route, on site, visit closed', cats: ['dispatch'], chart: [['enroute', 'Field app updates per minute', C.s1]], yMin: 0,
     stats: [['En route', null, (_, S, L, st) => st.workOrders.filter(w => w.status === 'En route').length, C.info], ['On site', null, (_, S, L, st) => st.workOrders.filter(w => w.status === 'On site').length, C.ok], ['Unassigned', null, (_, S, L, st) => st.workOrders.filter(w => !w.tech).length, C.warn]] },
   changes: { title: 'Change activity – live', sub: 'Validation results from the Network-as-Code pipeline and ServiceNow change records', cats: ['changes', 'automation'], chart: [['chg', 'Change validations per minute', C.ai]], yMin: 0,
     stats: [['Validations / min', 'chg', v => v.toFixed(1), C.ai], ['Runbook success', 'success', v => `${v.toFixed(1)}%`, C.ok], ['Runbook runs / min', 'runs', v => v.toFixed(1), C.info]] },
   vuln: { title: 'Firmware and advisory checks – live', sub: 'Aruba Central firmware inventory and Mova iO matching against HPE Aruba Networking bulletins. Patching runs in after-close windows.', cats: ['vuln'], chart: [['exposed', 'Devices checked per minute', C.info]], yMin: 0,
     stats: [['Devices checked / min', 'exposed', v => num(Math.round(v)), C.info], ['Devices reporting', 'reporting', v => `${v.toFixed(1)}%`, C.ok], ['Next patch window', null, () => '22:00 local', C.ok]] },
   predict: { title: 'Risk signals – live', sub: 'Inputs the prediction models are reading now: errors, PoE, temperature, UPS self-tests', cats: ['predict'], chart: [['risk', 'Fleet risk index', C.warn]],
-    stats: [['Fleet risk index', 'risk', v => Math.round(v), C.warn], ['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.brand], ['Scanner roam failures', 'scan', v => `${v.toFixed(1)}/min`, C.info]] },
+    stats: [['Fleet risk index', 'risk', v => Math.round(v), C.warn], ['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.s1], ['Scanner roam failures', 'scan', v => `${v.toFixed(1)}/min`, C.info]] },
   knowledge: { title: 'Knowledge in use – live', sub: 'Articles suggested to engineers on open tickets, and whether they helped', cats: ['knowledge'], chart: [['kbhits', 'Articles suggested per minute', C.ai]], yMin: 0,
     stats: [['Suggested / min', 'kbhits', v => v.toFixed(1), C.ai], ['Runbook runs / min', 'runs', v => v.toFixed(1), C.info], ['Runbook success', 'success', v => `${v.toFixed(1)}%`, C.ok]] },
   automation: { title: 'Runbook runs – live', sub: 'Every run by Mova iO, with its result', cats: ['automation'], chart: [['runs', 'Runs per minute', C.info]], yMin: 0,
@@ -138,7 +138,7 @@ const P = {
   biab: { title: 'Project activity – live', sub: 'Kit staging, surveys, circuit orders and config generation', cats: ['biab'], chart: [['staged', 'Kit devices pre-staged (%)', C.ok]], yMin: 50,
     stats: [['Kit pre-staged', 'staged', v => `${Math.round(v)}%`, C.ok], ['Field techs on site', 'onsite', v => Math.round(v), C.info], ['Probes passing', 'probes', v => `${v.toFixed(1)}%`, C.ok]] },
   graph: { title: 'Network activity – live', sub: 'Events from every layer of the graph: branches, circuits, devices', cats: ['carriers', 'inventory', 'incidents'], chart: [['raw', 'Events per minute', '#a8a8a8'], ['corr', 'After correlation', C.info]], yMin: 0,
-    stats: [['Events / min', 'raw', v => Math.round(v), C.ai], ['Tunnels up of 1,866', 'tunnels', v => num(Math.round(v)), C.ok], ['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.brand]] },
+    stats: [['Events / min', 'raw', v => Math.round(v), C.ai], ['Tunnels up of 1,866', 'tunnels', v => num(Math.round(v)), C.ok], ['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.s1]] },
 };
 export function LivePanel({ kind, className }) {
   const { L } = useLive(); const { s, act } = useApp();

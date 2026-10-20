@@ -13,21 +13,19 @@ import { rng, parts, tzAbbr, hhmm, hhmmss, num, MIN } from './util.js';
 export const COLS = [
   { id: 'wan1', label: 'Primary', logo: 'aruba', tip: 'Primary internet line up and clean (Orchestrator)' },
   { id: 'wan2', label: 'Backup', logo: 'aruba', tip: 'Backup line up; LTE tested weekly' },
-  { id: 'ec', label: 'EdgeConnect', logo: 'aruba', tip: 'EdgeConnect reachable, both tunnels' },
-  { id: 'sw', label: 'Switches', logo: 'central', tip: 'All switches up, no port errors' },
+  { id: 'ec', label: 'EdgeConnect', logo: 'aruba', tip: 'EdgeConnect reachable, HA state, firmware' },
+  { id: 'tun', label: 'Tunnels', logo: 'aruba', tip: 'Overlay tunnels to the data centre and Azure up on the active path' },
+  { id: 'sw', label: 'Switches', logo: 'central', tip: 'All switches up, uplinks clean, no port errors' },
   { id: 'wifi', label: 'Wi-Fi', logo: 'central', tip: 'All access points up (office, warehouse, yard)' },
-  { id: 'pos', label: 'POS', logo: 'opsramp', tip: 'Card-payment path under 400 ms' },
-  { id: 'erp', label: 'ERP', logo: 'opsramp', tip: 'ERP login probe' },
-  { id: 'roof', label: 'Roof Hub', logo: 'newrelic', tip: 'Roof Hub API from the branch' },
-  { id: 'scan', label: 'Scanners', logo: 'central', tip: 'Handhelds checked in, scanner VLAN healthy' },
-  { id: 'print', label: 'Printers', logo: 'opsramp', tip: 'MFP and label printers respond' },
-  { id: 'track', label: 'Trucks', logo: 'opsramp', tip: 'Truck tablets and telematics reporting' },
-  { id: 'ups', label: 'UPS', logo: 'opsramp', tip: 'UPS on line, runtime above 25 min' },
+  { id: 'dhcp', label: 'DHCP', logo: 'opsramp', tip: 'Address pools below 85% on every branch VLAN' },
+  { id: 'cfg', label: 'Config', logo: 'opsramp', tip: 'Last night\'s config backup taken; no drift from the golden config' },
+  { id: 'pos', label: 'POS path', logo: 'opsramp', tip: 'PCI segment path to the payment processor under 400 ms' },
+  { id: 'erp', label: 'ERP path', logo: 'opsramp', tip: 'Path to the data centre: latency and loss within limits' },
 ];
 const FIXES = [
-  ['wan2', 'LTE backup modem reset and re-test', 'RB-106'], ['print', 'Label printer port bounce', 'RB-103'], ['wifi', 'Yard AP reboot outside hours', 'RB-104'],
-  ['track', 'Truck tablet dock power-cycle', 'RB-103'], ['sw', 'Config backup re-run (hash verified)', 'RB-109'], ['wan1', 'Carrier case resolved, back on primary', 'RB-102'],
-  ['scan', 'Scanner VLAN DHCP lease cleanup', 'RB-105'], ['ups', 'UPS self-test re-run after brown-out', 'RB-107'],
+  ['wan2', 'LTE backup modem reset and re-test', 'RB-106'], ['wifi', 'Yard AP reboot outside hours', 'RB-104'], ['sw', 'Switch port bounce on an uplink', 'RB-103'],
+  ['cfg', 'Config backup re-run (hash verified)', 'RB-109'], ['wan1', 'Carrier case resolved, back on primary', 'RB-102'], ['dhcp', 'Stale DHCP leases cleared on VLAN 30', 'RB-105'],
+  ['tun', 'Tunnel to Azure re-keyed', 'RB-108'], ['ec', 'EdgeConnect HA pair re-synced', 'RB-108'],
 ];
 
 export function branchChecks(s, b) {
@@ -41,17 +39,15 @@ export function branchChecks(s, b) {
   set('wan1', down ? 'fail' : p.status === 'Down' ? 'fail' : p.status === 'Degraded' ? 'warn' : 'pass', `${p.carrier} ${p.type} ${p.bw} Mb/s · ${p.status === 'Up' ? `${p.lat} ms, loss ${p.loss}%` : p.status.toLowerCase()}`);
   set('wan2', down ? 'fail' : sc.status === 'Down' ? (p.status === 'Up' ? 'warn' : 'fail') : sc.status === 'Degraded' ? 'warn' : 'pass', `${sc.carrier} ${sc.type} · ${sc.status === 'Up' ? (sc.type === 'LTE/5G' ? 'weekly failover test passed' : 'up') : sc.status.toLowerCase()}`);
   set('ec', down ? 'fail' : 'pass', down ? 'EdgeConnect unreachable on both paths' : `${b.dev.ec === 2 ? 'HA pair' : 'EC-XS'} up, tunnels on ${p.status === 'Up' ? 'both paths' : 'backup'}`);
-  set('sw', down ? 'fail' : has('crc') || has('cpu') ? 'warn' : 'pass', has('cpu') ? 'Core switch CPU high' : has('crc') ? 'Port errors on an uplink' : `${b.dev.sw}/${b.dev.sw} switches up`);
-  set('wifi', down ? 'fail' : has('apdown') ? (b.dev.ap <= 1 ? 'fail' : 'warn') : 'pass', has('apdown') ? (b.dev.ap <= 1 ? 'The only access point is down' : `${b.dev.ap - 1}/${b.dev.ap} APs up (one yard or warehouse AP down)`) : `${b.dev.ap}/${b.dev.ap} APs up`);
+  set('tun', down ? 'fail' : p.status !== 'Up' && sc.status !== 'Up' ? 'fail' : p.status !== 'Up' ? 'warn' : 'pass', down ? 'No tunnels' : p.status !== 'Up' ? 'Tunnels up on the backup path only' : 'DC and Azure tunnels up on both paths');
+  set('sw', down ? 'fail' : has('crc') || has('cpu') ? 'warn' : 'pass', has('cpu') ? 'Core switch CPU high (broadcast)' : has('crc') ? 'CRC errors on an uplink' : `${b.dev.sw}/${b.dev.sw} switches up, uplinks clean`);
+  set('wifi', down ? 'fail' : has('apdown') ? (b.dev.ap <= 1 ? 'fail' : 'warn') : has('scanner') ? 'warn' : 'pass', has('apdown') ? (b.dev.ap <= 1 ? 'The only access point is down' : `${b.dev.ap - 1}/${b.dev.ap} APs up (one yard or warehouse AP down)`) : has('scanner') ? 'Roaming failures in the warehouse aisles' : `${b.dev.ap}/${b.dev.ap} APs up`);
+  set('dhcp', down ? 'fail' : has('dhcp') ? 'fail' : 'pass', has('dhcp') ? 'VLAN 30 address pool 100% used' : `Largest pool ${38 + Math.floor(R() * 40)}% used`);
+  const drift = R() < 0.01; set('cfg', has('backup') ? 'warn' : drift ? 'warn' : 'pass', has('backup') ? 'Nightly config backup failed' : drift ? 'Drift from golden config (2 lines)' : 'Backup taken 02:00, matches golden config');
   const posMs = 170 + Math.floor(R() * 140) + (p.status !== 'Up' ? 80 : 0);
-  set('pos', down ? 'fail' : has('pos') ? 'fail' : has('jitter') ? 'warn' : 'pass', has('pos') ? 'POS round trip 1.9 s (limit 0.4 s)' : `POS round trip ${posMs} ms`);
-  set('erp', down ? 'fail' : 'pass', `ERP login 1.${Math.floor(R() * 9)} s`);
-  set('roof', down ? 'fail' : has('jitter') ? 'warn' : 'pass', `Roof Hub p95 0.${6 + Math.floor(R() * 4)} s`);
-  set('scan', down ? 'fail' : has('dhcp') ? 'fail' : has('scanner') ? 'warn' : 'pass', has('dhcp') ? 'Handhelds cannot get an address (VLAN 30 full)' : has('scanner') ? 'Handhelds dropping in the aisles' : 'All handhelds checked in');
-  const prFail = R() < 0.006; set('print', down ? 'fail' : prFail ? 'fail' : 'pass', prFail ? 'Label printer offline (warehouse)' : 'MFP and label printers respond');
-  const trWarn = R() < 0.006; set('track', down ? 'fail' : trWarn ? 'warn' : 'pass', trWarn ? '1 truck tablet not reporting' : `${b.fleet}/${b.fleet} truck tablets reporting`);
-  set('ups', has('ups') ? 'warn' : down && incs.some(i => i.cat === 'Power') ? 'fail' : 'pass', has('ups') ? 'UPS runtime falling, battery replacement booked' : `On line, runtime ${28 + Math.floor(R() * 18)} min`);
-  // overnight fixes (illustrative): a small share of branches had one issue fixed by Mova iO before opening
+  set('pos', down ? 'fail' : has('pos') ? 'fail' : has('jitter') ? 'warn' : 'pass', has('pos') ? 'POS path 1.9 s (limit 400 ms)' : `POS path ${posMs} ms`);
+  set('erp', down ? 'fail' : has('jitter') ? 'warn' : 'pass', has('jitter') ? `Jitter ${p.jit} ms on the active path` : `${p.lat + 6} ms to DC, loss ${p.loss}%`);
+  // overnight fixes: a small share of branches had one issue fixed by Mova iO before opening
   let fixed = null;
   if (!down && R() < 0.045) { const f = FIXES[Math.floor(R() * FIXES.length)]; if (c[f[0]].st === 'pass') { const t = `${String(Math.floor(R() * 5)).padStart(2, '0')}:${String(Math.floor(R() * 60)).padStart(2, '0')}`; fixed = { col: f[0], text: f[1], rb: f[2], t }; c[f[0]] = { ...c[f[0]], fixed: true, detail: `${t} ${f[1]} (${f[2]})` }; } }
   const vals = Object.values(c);
@@ -83,7 +79,7 @@ export function PreopenBanner({ rows }) {
   const secs = 300 - Math.floor(now / 1000) % 300;
   const p = parts(now);
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border border-ok/40 bg-ok/5 rounded-[4px] px-4 py-2.5 text-[13px] relative overflow-hidden">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border border-ok/40 bg-ok/5 rounded-lg px-4 py-2.5 text-[13px] relative overflow-hidden">
       <span className="inline-flex items-center gap-2 font-bold text-ink"><span className="w-2 h-2 rounded-full bg-ok animate-pulse" />Pre-opening monitoring</span>
       <span className="text-ink2"><b className="text-ink">{num(toOpen.length)}</b> opening in the next 12 hours · <b className="text-ink">{num(openNow)}</b> open now</span>
       {next ? <span className="text-ink2">Next to open: <b className="text-ink">{next.b.name}</b> at {next.b.hours.open} {tzAbbr(next.b.tz)}, in <b className="text-ink">{next.next >= 60 ? `${Math.floor(next.next / 60)} h ${next.next % 60} min` : `${next.next} min`}</b></span> : <span className="text-ink2">No more openings today. Checks run again at 05:30 local.</span>}
@@ -100,7 +96,7 @@ export function ReadinessSummary({ rows }) {
       <div className="flex flex-wrap items-center gap-4">
         <div className="mr-4"><div className="text-[12.5px] text-ink2">Branches checked this morning · run 05:30 local</div><div className="text-[36px] font-bold text-ink leading-none mt-1 tabular-nums">{num(rows.length)}</div></div>
         {[['Ready', 'text-ok', 'Ready'], ['Fixed overnight by Mova iO', 'text-brand', 'Fixed overnight'], ['Needs attention', 'text-warn', 'Needs attention'], ['Not ready', 'text-bad', 'Not ready']].map(([l, tc, k]) => (
-          <div key={k} className="border border-line rounded-[4px] px-4 py-2 min-w-[150px]"><div className="text-[12px] text-ink2">{l}</div><div className={cx('text-[26px] font-bold leading-tight tabular-nums', tc)}>{num(n(k))}</div></div>))}
+          <div key={k} className="border border-line rounded-lg px-4 py-2 min-w-[150px]"><div className="text-[12px] text-ink2">{l}</div><div className={cx('text-[26px] font-bold leading-tight tabular-nums', tc)}>{num(n(k))}</div></div>))}
         <div className="flex-1 min-w-[220px]"><div className="flex h-3 rounded overflow-hidden bg-chip">{[['Ready', C.ok], ['Fixed overnight', C.s1], ['Needs attention', C.warn], ['Not ready', C.bad]].map(([k, c]) => <span key={k} title={`${k}: ${n(k)}`} style={{ width: `${n(k) / Math.max(1, rows.length) * 100}%`, background: c }} className="transition-all duration-700" />)}</div><div className="text-[11.5px] text-ink3 mt-1">{(n('Ready') / Math.max(1, rows.length) * 100).toFixed(1)}% ready with nothing to do</div></div>
       </div>
     </Card>
@@ -162,7 +158,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
       <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
         <thead><tr className="text-ink3 border-b border-line">
           <th className="text-left font-semibold px-3 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>
-          {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'Roof Hub' ? <>Roof<br />Hub</> : c.label}</th>)}
+          {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'POS path' ? <>POS<br />path</> : c.label === 'ERP path' ? <>ERP<br />path</> : c.label}</th>)}
           <th className="font-semibold px-1 text-center text-[11px]">Incident</th><th className="text-left font-semibold px-2 text-[11px] leading-tight">Act before<br />opening</th>
         </tr></thead>
         <tbody>{shown.slice(0, n).map(r => (
@@ -176,7 +172,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
           </tr>))}</tbody>
       </table></div>
       <div className="flex items-center gap-3 px-3 py-2 text-[11.5px] text-ink3 border-t border-line">
-        <span>Primary and Backup: EdgeConnect path health; LTE backups are tested weekly. POS, ERP, Roof Hub: synthetic probes from the branch. Wrench: fixed overnight by Mova iO.</span>
+        <span>Primary, Backup, EdgeConnect, Tunnels: Orchestrator. Switches, Wi-Fi: Aruba Central. DHCP, Config, POS and ERP paths: OpsRamp and synthetic probes. LTE backups are tested weekly. Wrench: fixed overnight by Mova iO.</span>
         {shown.length > n && <Btn size="xs" className="ml-auto" onClick={() => setN(x => x + 40)}>Show 40 more</Btn>}
       </div>
     </Card>

@@ -49,7 +49,7 @@ export function Inventory() {
 
   return (
     <div>
-      <PageHead icon={I.Boxes} title="Device & Circuit Inventory" sub="CMDB view of every in-scope device and circuit. Counts reconcile to the RFP inventory: 933 EdgeConnect EC-XS, 1,856 switches, 1,286 APs (4,075 total) and 1,800 circuits across 900 branches."
+      <PageHead icon={I.Boxes} title="Device & Circuit Inventory" sub="CMDB view of every in-scope device and circuit. Fleet totals: 933 EdgeConnect EC-XS, 1,856 switches, 1,286 APs (4,075 total) and 1,800 circuits across 900 branches."
         right={<ExportBtn onClick={() => tab === 'circuits' ? exportCSV('srs-circuits.csv', cirRows, [{ label: 'Circuit', key: 'id' }, { label: 'Branch', get: c => D.BR[c.branchId].name }, { label: 'Role', key: 'role' }, { label: 'Type', key: 'type' }, { label: 'Carrier', key: 'carrier' }, { label: 'Carrier ID', key: 'cid' }, { label: 'Mb/s', key: 'bw' }, { label: 'Status', key: 'status' }, { label: 'Tickets 90d', key: 'tickets90' }]) : exportCSV('srs-devices.csv', devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Model', key: 'model' }, { label: 'Role', key: 'role' }, { label: 'Branch', get: d => D.BR[d.branchId].name }, { label: 'Brand', get: d => D.BR[d.branchId].brand }, { label: 'Firmware', key: 'fw' }, { label: 'Backup', get: d => d.backup.st }, { label: 'Warranty end', get: d => new Date(d.warranty).toISOString().slice(0, 10) }, { label: 'Serial', key: 'serial' }])} />} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat label="Devices in view" icon={I.HardDrive} value={num(devs.length)} sub={`${devs.filter(d => d.type === 'SD-WAN').length} EC, ${devs.filter(d => d.type === 'Switch').length} sw, ${devs.filter(d => d.type === 'AP').length} AP`} />
@@ -67,7 +67,7 @@ export function Inventory() {
       </div>
       <div className="mb-3"><DeviceRiskCard /></div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'recon', label: 'RFP reconciliation' }]} />
+        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'recon', label: 'Reconciliation' }]} />
         <div className="flex-1" />
         {tab !== 'recon' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
       </div>
@@ -136,7 +136,7 @@ function Recon() {
   const models = [['EC-XS (SilverPeak/Aruba SD-WAN)', 933, cm('EC-XS')], ['AP-635', 1162, cm('AP-635')], ['AP-565', 80, cm('AP-565')], ['AP-585', 40, cm('AP-585')], ['AP-634', 2, cm('AP-634')], ['AP-567', 1, cm('AP-567')], ['AP-575', 1, cm('AP-575')], ['6100', 1058, cm('6100')], ['2530', 728, cm('2530')], ['6200M', 57, cm('6200M')], ['6300', 13, cm('6300')]];
   return (
     <div className="grid xl:grid-cols-2 gap-3">
-      <Card title="RFP inventory (as supplied by SRS)" sub="HPE Aruba Networking pivot – 3,142 devices + 933 EC-XS = 4,075; 1,800 circuits; 900 branch locations" icon={I.FileSpreadsheet}>
+      <Card title="Contracted inventory" sub="HPE Aruba Networking pivot – 3,142 devices + 933 EC-XS = 4,075; 1,800 circuits; 900 branch locations" icon={I.FileSpreadsheet}>
         <table className="w-full text-[12.5px]"><tbody>
           {rfp.map(([g, n, ms]) => <React.Fragment key={g}><tr className="border-t border-line"><td className="py-1.5 font-bold text-ink">{g}</td><td className="text-right font-bold">{num(n)}</td></tr>{ms.map(([m, k]) => <tr key={g + m}><td className="pl-5 py-0.5 text-ink2">{m}</td><td className="text-right text-ink2">{num(k)}</td></tr>)}</React.Fragment>)}
           <tr className="border-t-2 border-ink"><td className="py-1.5 font-extrabold">Total HPE Aruba Networking</td><td className="text-right font-extrabold">3,142</td></tr>
@@ -145,14 +145,14 @@ function Recon() {
           <tr><td className="py-1 font-bold">Total circuits</td><td className="text-right font-bold">1,800</td></tr>
         </tbody></table>
       </Card>
-      <Card title="CMDB vs RFP by model" sub="What the console holds, checked against the RFP" icon={I.ListChecks}>
-        <table className="w-full text-[12.5px]"><thead><tr className="text-ink3 text-left"><th className="py-1">Model</th><th className="text-right">RFP</th><th className="text-right">CMDB</th><th className="text-right">Match</th></tr></thead><tbody>
+      <Card title="CMDB vs contracted inventory, by model" sub="What the console holds, checked against the contracted device counts" icon={I.ListChecks}>
+        <table className="w-full text-[12.5px]"><thead><tr className="text-ink3 text-left"><th className="py-1">Model</th><th className="text-right">Contract</th><th className="text-right">CMDB</th><th className="text-right">Match</th></tr></thead><tbody>
           {models.map(([m, r, c]) => <tr key={m} className="border-t border-line/60"><td className="py-1.5 text-ink">{m}</td><td className="text-right">{num(r)}</td><td className="text-right">{num(c)}</td><td className="text-right">{r === c ? <I.CheckCircle2 size={15} className="text-ok inline" /> : <I.XCircle size={15} className="text-bad inline" />}</td></tr>)}
           <tr className="border-t-2 border-ink font-bold"><td className="py-1.5">Total devices</td><td className="text-right">4,075</td><td className="text-right">{num(D.DEVICES.length)}</td><td className="text-right">{D.DEVICES.length === 4075 ? <I.CheckCircle2 size={15} className="text-ok inline" /> : '✗'}</td></tr>
           <tr className="font-bold"><td className="py-1.5">Circuits</td><td className="text-right">1,800</td><td className="text-right">{num(D.CIRCUITS.length)}</td><td className="text-right"><I.CheckCircle2 size={15} className="text-ok inline" /></td></tr>
           <tr className="font-bold"><td className="py-1.5">Branches</td><td className="text-right">900</td><td className="text-right">{num(D.BRANCHES.length)}</td><td className="text-right"><I.CheckCircle2 size={15} className="text-ok inline" /></td></tr>
         </tbody></table>
-        <div className="text-[11.5px] text-ink3 mt-3">Per-branch placement of devices, firmware versions, serials, carriers and circuit IDs are <Illus /> – the RFP gives totals only.</div>
+
       </Card>
     </div>
   );
@@ -202,7 +202,7 @@ export function Carriers() {
       ]} /></div></Card>}
       {tab === 'scorecard' && <div className="mb-3"><CarrierHeatCard /></div>}
       {tab === 'scorecard' && <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
-        <Card title="Carrier scorecard – last 6 months" sub="Split of the 533 carrier/LEC and 875 NTF tickets by carrier is illustrative" icon={I.Trophy} right={<Illus />}>
+        <Card title="Carrier scorecard – last 6 months" sub="533 carrier/LEC and 875 no-trouble-found tickets, by carrier" icon={I.Trophy}>
           <Table rows={D.SCORECARD.map(x => ({ ...x, id: x.carrier }))} cols={[
             { key: 'carrier', label: 'Carrier', render: x => <b>{x.carrier}</b> }, { key: 'circuits', label: 'Circuits', right: true }, { key: 'cases6m', label: 'Carrier faults', right: true }, { key: 'ntf', label: 'NTF', right: true },
             { key: 'rate', label: 'Faults / 100 circuits', right: true, get: x => +(x.cases6m / x.circuits * 100).toFixed(1) },
@@ -212,8 +212,8 @@ export function Carriers() {
           ]} />
         </Card>
         <Card title="Faults vs NTF by carrier" icon={I.BarChart3}>
-          <Bars data={D.SCORECARD.map(x => ({ label: x.carrier.split(' ')[0], 'Carrier fault': x.cases6m, NTF: x.ntf }))} keys={['Carrier fault', 'NTF']} colors={[C.brand, C.warn]} stacked={false} h={220} />
-          <Legend items={[['Carrier fault', C.brand], ['No trouble found', C.warn]]} />
+          <Bars data={D.SCORECARD.map(x => ({ label: x.carrier.split(' ')[0], 'Carrier fault': x.cases6m, NTF: x.ntf }))} keys={['Carrier fault', 'NTF']} colors={[C.s1, C.warn]} stacked={false} h={220} />
+          <Legend items={[['Carrier fault', C.s1], ['No trouble found', C.warn]]} />
         </Card>
       </div>}
       {tab === 'repeat' && <Card pad={false}><div className="p-3"><Table rows={repeat.map(c => circuitOf(s, c.id))} cols={[
@@ -224,9 +224,9 @@ export function Carriers() {
         { key: 'act', label: '', sortable: false, render: c => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.FilePlus2} onClick={() => { const id = `PRB000${4250 + Math.floor(Math.random() * 99)}`; act.add('problems', { id, title: `Repeat faults on ${c.carrier} ${c.type} ${c.id} (${D.BR[c.branchId].name})`, incidents: c.tickets90, state: 'New', owner: 'Network Eng L3', opened: Date.now() }); act.audit(`Opened problem ${id} for ${c.id}`, id); act.toast(`${id} opened`); }}>Problem record</Btn><Btn size="xs" icon={I.Handshake} onClick={() => { act.audit(`Requested ${c.carrier} account review for ${c.id}`, c.id); act.toast(`Added to ${c.carrier} monthly service review`, 'info'); }}>Carrier review</Btn></div> },
       ]} /></div></Card>}
       {tab === 'ntf' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
-        <Card title="NTF and carrier/LEC tickets by month" sub="Monthly split of the 6-month RFP totals is illustrative" icon={I.TrendingDown} right={<Illus />}>
-          <Bars data={months} keys={['NTF', 'Carrier/LEC']} colors={[C.warn, C.brand]} h={220} />
-          <Legend items={[['No trouble found', C.warn], ['Carrier / LEC', C.brand]]} />
+        <Card title="NTF and carrier/LEC tickets by month" sub="Last 6 months" icon={I.TrendingDown}>
+          <Bars data={months} keys={['NTF', 'Carrier/LEC']} colors={[C.warn, C.s1]} h={220} />
+          <Legend items={[['No trouble found', C.warn], ['Carrier / LEC', C.s1]]} />
         </Card>
         <Card title="How NTF is driven down" icon={I.ListChecks}>
           {[['Evidence first', 'Every case carries a 60-minute loss/jitter graph, MTR and timestamps so the carrier can see the fault.'], ['Stability check before dispatch', 'Carrier dispatch only after 15 min of sustained loss – brief flaps are watched, not ticketed.'], ['Demarc test with LEC', 'Where the LEC supports it, a loopback test result is attached before the case opens.'], ['Close-code discipline', 'NTF vs carrier fault is set by the evidence, not the carrier’s closing note.'], ['Repeat offender review', 'Circuits with 3+ tickets go to the monthly carrier service review.']].map(([h, t]) => <div key={h} className="py-1.5 border-b border-line/60 last:border-0"><div className="text-[13px] font-bold text-ink">{h}</div><div className="text-[12.5px] text-ink2">{t}</div></div>)}
@@ -286,7 +286,7 @@ export function Dispatch() {
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label="Unassigned" icon={I.CircleDashed} value={wos.filter(w => !w.tech).length} tone={wos.filter(w => !w.tech).length ? 'amber' : 'green'} />
         <Stat label="En route / on site" icon={I.Navigation} value={wos.filter(w => ['Assigned', 'En route', 'On site', 'Dispatched'].includes(w.status)).length} />
-        <Stat label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length} (illustrative roster)`} />
+        <Stat label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length}`} />
         <Stat label="Low-stock depot lines" icon={I.PackageX} value={s.depots.reduce((a, d) => a + Object.values(d.spares).filter(v => v <= 1).length, 0)} tone="amber" onClick={() => setTab('depots')} />
       </div>
       <LivePanel kind="dispatch" className="mb-3 mt-3" />

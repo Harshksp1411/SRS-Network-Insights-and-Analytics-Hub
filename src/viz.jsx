@@ -57,7 +57,7 @@ export function PreventiveCard() {
 export function RegionHourHeat() {
   const v = useMemo(() => P.regionHourHeat(), []);
   return (
-    <Card title="When incidents happen" sub="New incidents by region and hour of day (CT), last 7 days. Evenings and early mornings dominate, matching the after-hours share in the RFP ticket history.">
+    <Card title="When incidents happen" sub="New incidents by region and hour of day (CT), last 7 days. Evenings and early mornings dominate – most incidents are fixed after hours.">
       <Heatmap rows={D.REGIONS} cols={Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))} values={v} colLabelEvery={3} cell={22} rowW={150} fmt={x => `${x} incidents`} />
     </Card>
   );
