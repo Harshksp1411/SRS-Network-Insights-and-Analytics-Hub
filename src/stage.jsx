@@ -538,9 +538,9 @@ export const MODE_TEXT = {
   approve: 'Mova iO prepares the evidence and the plan, then waits. Nothing changes until a named person approves.',
 };
 export const MODE_RULES = [
-  ['Autonomous', 'auto', I.Bot, 'Act tier of the action catalog: pre-approved, low risk and easy to undo, confidence 80% or higher, no freeze. For example steering traffic to a backup path already tested healthy, bouncing the port of an AP that is already down, re-running a backup, or any change while the branch is closed. Also anything that changes nothing on the network: correlation, evidence, carrier cases, holds, messages.'],
-  ['Human-on-the-loop', 'stop', I.Eye, 'Act and notify tier: a standard, pre-approved change that should not wait, such as a monthly patch wave inside its window or a port activation from the catalog. It runs on its own, a person is told at once and can stop it (5-minute stop window in production).'],
-  ['Human-in-the-loop', 'approve', I.Hand, 'Stage tier: confidence below 80%, a change on a trading branch outside the Act tier, firmware, routing, QoS or security changes, fleet-wide changes, or anything that costs money (dispatch, parts, circuit orders). Mova iO prepares the plan and evidence; a named person approves.'],
+  ['Autonomous', 'auto', I.Bot, 'Safe, tested fixes that are easy to undo, such as switching to a healthy backup line, restarting an access point that is already down, or re-running a failed backup.'],
+  ['Human-on-the-loop', 'stop', I.Eye, 'Routine changes that are already approved, such as the monthly patch wave or turning on a switch port from the catalog.'],
+  ['Human-in-the-loop', 'approve', I.Hand, 'An unsure diagnosis, firmware or security changes, work on a branch that is trading, or anything that costs money, such as sending a technician.'],
 ];
 export function ModeRules({ className }) {
   return <div className={cx('space-y-1.5', className)}>{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; return <div key={n} className="flex gap-2 text-[12px] leading-[16px]"><Ic size={14} className={cx('shrink-0 mt-px', k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn')} /><span><b>{n}:</b> {t}</span></div>; })}</div>;
