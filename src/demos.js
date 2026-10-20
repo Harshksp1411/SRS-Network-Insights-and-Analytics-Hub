@@ -315,7 +315,7 @@ const NEW = [
     steps: [
       [0, 'Security review cleared; discovery over a temporary VPN starts', (h, act) => { act.audit('Security review cleared for Mingledorff\'s wave 2; discovery started over a temporary VPN', 'BIB-0138', 'Security Lead'); }],
       [40, 'Discovery: 10 SD-WAN appliances, 27 APs, 20 switches, 20 circuits', (h, act) => { act.upd('projects', 'BIB-0138', x => ({ blockers: [] , steps: { ...x.steps, discovery: 'done' } })); act.audit('Discovery complete: 10 SD-WAN appliances, 27 APs, 20 switches, 20 circuits', 'BIB-0138', 'Mova iO'); }],
-      [80, 'Decision: approve day-1 monitoring and interim service levels', () => {}, ['Approve as M&A Integration Lead', (h, act) => { act.audit('Approved day-1 monitoring and interim service levels for wave 2', 'BIB-0138', 'Elena G. (M&A Integration Lead)'); }]],
+      [80, 'Decision: approve day-1 monitoring and interim service levels', () => {}, ['Approve as M&A Integration Lead', (h, act) => { act.audit('Approved day-1 monitoring and interim service levels for wave 2', 'BIB-0138', 'Alicia R. (M&A Integration Lead)'); }]],
       [120, 'Monitoring live: templates applied, CIs created, notify-only runbooks', (h, act) => { act.upd('projects', 'BIB-0138', x => ({ steps: { ...x.steps, onboard: 'active' } })); act.audit('OpsRamp templates applied to 77 devices; 77 CIs created in ServiceNow; runbooks notify-only until cutover', 'BIB-0138', 'Mova iO'); }],
       [150, '10 branches monitored with hypercare thresholds; first alert routed in 4 minutes', (h, act) => { act.audit('Wave 2 visible to the NOC: hypercare thresholds on; first alert routed in 4 minutes', 'BIB-0138', 'Mova iO'); }],
     ] }),

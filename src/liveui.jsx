@@ -4,7 +4,7 @@ import * as D from './data.js';
 import { useApp, useNow, inScope } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo, SRC_LOGO, Dot } from './ui.jsx';
-import { LineChart, Bars, Legend, Spark, C } from './charts.jsx';
+import { LineChart, Bars, Legend, Spark, C, TweenNum } from './charts.jsx';
 import { hhmmss, hhmm, num, rng, HR, MIN } from './util.js';
 
 const outTone = o => /New incident/.test(o) ? 'red' : /Auto-res|Auto-heal|Recovered/.test(o) ? 'green' : /Suppress|Duplicate/.test(o) ? 'gray' : /Watch/.test(o) ? 'amber' : 'blue';
@@ -67,7 +67,7 @@ export function EventFlowCard() {
   const cut = 1 - data.corr.at(-1) / Math.max(1, data.raw.at(-1));
   return (
     <Card title="Event flow" sub="Raw events per minute vs what is left after correlation, suppression and de-dup" icon={I.Filter} right={<Tabs size="sm" value={r} onChange={setR} tabs={[{ id: 'live', label: 'Live 5 m' }, { id: '1h', label: '1 h' }, { id: '24h', label: '24 h' }]} />}>
-      <div className="flex gap-5 mb-1 text-[12px]"><div><div className="text-[22px] font-extrabold text-ink leading-none">{Math.round(data.raw.at(-1))}</div><div className="text-ink3">raw / min</div></div><div><div className="text-[22px] font-extrabold text-info leading-none">{Math.round(data.corr.at(-1))}</div><div className="text-ink3">after correlation</div></div><div><div className="text-[22px] font-extrabold text-ok leading-none">{Math.round(cut * 100)}%</div><div className="text-ink3">noise removed (KPI ≥ 50%)</div></div></div>
+      <div className="flex gap-5 mb-1 text-[12px]"><div><div className="text-[22px] font-extrabold text-ink leading-none"><TweenNum value={Math.round(data.raw.at(-1))} /></div><div className="text-ink3">raw / min</div></div><div><div className="text-[22px] font-extrabold text-info leading-none"><TweenNum value={Math.round(data.corr.at(-1))} /></div><div className="text-ink3">after correlation</div></div><div><div className="text-[22px] font-extrabold text-ok leading-none"><TweenNum value={`${Math.round(cut * 100)}%`} /></div><div className="text-ink3">noise removed (KPI ≥ 50%)</div></div></div>
       <LineChart series={[{ name: 'Raw events / min', data: data.raw, color: C.grey }, { name: 'After correlation', data: data.corr, color: C.info }]} labels={data.labels} h={170} yFmt={v => Math.round(v)} yMin={0} />
     </Card>
   );
@@ -84,7 +84,7 @@ export function ExperienceCard() {
   ];
   return (
     <Card title="Branch experience – live" sub="Synthetic probes from every EdgeConnect, 2-second refresh" icon={I.Activity}>
-      <div className="grid grid-cols-2 gap-2 mb-2">{tiles.map(([l, v, ser, c]) => <div key={l} className="border border-line rounded-md p-2"><div className="text-[11.5px] text-ink3 font-semibold">{l}</div><div className="flex items-end justify-between gap-2"><div className="text-[17px] font-extrabold text-ink leading-tight tabular-nums">{v}</div><Spark data={ser.slice(-60)} color={c} w={90} h={26} /></div></div>)}</div>
+      <div className="grid grid-cols-2 gap-2 mb-2">{tiles.map(([l, v, ser, c]) => <div key={l} className="border border-line rounded-md p-2"><div className="text-[11.5px] text-ink3 font-semibold">{l}</div><div className="flex items-end justify-between gap-2"><div className="text-[17px] font-extrabold text-ink leading-tight tabular-nums"><TweenNum value={v} /></div><Spark data={ser.slice(-60)} color={c} w={90} h={26} /></div></div>)}</div>
       <LineChart series={[{ name: 'POS path p95 (ms)', data: S.pos, color: C.s1 }]} labels={L.ts.map(t => hhmmss(t))} h={120} yFmt={v => Math.round(v)} refLines={[{ v: 400, label: 'POS threshold 400 ms', color: C.bad }]} yMin={100} />
     </Card>
   );
@@ -153,7 +153,7 @@ export function LivePanel({ kind, className }) {
         <div className="min-w-0">
           <div className="grid grid-cols-3 gap-2 mb-2">{cfg.stats.map(([l, k, f, c]) => { const ser = k ? S[k] : S.raw; return (
             <div key={l} className="border border-line rounded-md px-2.5 py-2 min-w-0"><div className="text-[11.5px] text-ink3 font-semibold truncate">{l}</div>
-              <div className="flex items-end justify-between gap-2"><div key={L.last} className="text-[17px] font-bold text-ink leading-tight tabular-nums num-flash whitespace-nowrap">{f(k ? ser.at(-1) : 0, S, L, s)}</div>{k && <Spark data={ser.slice(-60)} color={c} w={84} h={24} />}</div></div>); })}</div>
+              <div className="flex items-end justify-between gap-2"><div className="text-[17px] font-bold text-ink leading-tight tabular-nums whitespace-nowrap"><TweenNum value={f(k ? ser.at(-1) : 0, S, L, s)} /></div>{k && <Spark data={ser.slice(-60)} color={c} w={84} h={24} />}</div></div>); })}</div>
           <LineChart series={cfg.chart.map(([k, n, c]) => ({ name: n, data: S[k].slice(-90), color: c }))} labels={labels} h={150} yMin={cfg.yMin} yFmt={v => (Math.abs(v) >= 100 ? Math.round(v) : +v.toFixed(1))} />
         </div>
         <div className="min-w-0">

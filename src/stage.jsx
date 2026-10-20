@@ -27,7 +27,7 @@ const SRCI = {
 };
 const OBS = new Set(['aruba', 'central', 'opsramp', 'newrelic', 'weather']);
 const GATE = { Autonomous: 'auto', 'Human-on-the-loop': 'stop', 'Human-in-the-loop': 'approve' };
-const PEOPLE = { 'NOC Engineer': 'Priya S.', 'Network Engineer L3': 'Marcus L.', 'Security Lead': 'Omar N.', 'Major Incident Manager': 'Arjun M.', 'Change Manager': 'Dana W.', 'M&A Integration Lead': 'Elena G.' };
+const PEOPLE = { 'NOC Engineer': 'Priya S.', 'Network Engineer L3': 'Marcus L.', 'Security Lead': 'Omar N.', 'Major Incident Manager': 'Arjun M.', 'Change Manager': 'Dana W.', 'M&A Integration Lead': 'Alicia R.' };
 const TGT = { fibercut: 'carrier', lte: 'carrier', storm: 'carrier', loop: 'central', drift: 'central', dhcp: 'git', eol: 'git', capacity: 'aruba', notready: 'aruba', hardown: 'aruba', crc: 'central', day0: 'aruba', patch: 'central', backup: 'opsramp', catalog: 'central', predcircuit: 'carrier', sitehold: 'carrier', major: 'central', compliance: 'central', errbudget: 'servicenow', central: 'central', chronic: 'carrier', failedauto: 'central', toil: 'git', day1: 'opsramp' };
 const WORDS = { servicenow: ['Ready', 'Rescheduling', 'Change moved'], carrier: ['Ready', 'Opening case', 'Case open'], field: ['Ready', 'Matching technician', 'Work order out'], git: ['Ready', 'Commit in review', 'Merged and pushed'] };
 const AUX = { carrier: c => ['Case open', `${c} · evidence attached`], field: () => ['Work order out', 'technician matched'], git: () => ['Merged and pushed', 'main'] };
@@ -145,7 +145,7 @@ function fold(evs) {
 // ── chart ────────────────────────────────────────────────────────────
 function StageChart({ data, m, markIdx, markLabel, bad }) {
   const [ref, W] = useWidth(560);
-  const H = 196, L = 40, R = 10, T = 14, B = 18;
+  const H = typeof window !== 'undefined' && window.innerHeight < 860 ? 150 : 196, L = 40, R = 10, T = 14, B = 18;
   const hi = Math.max(m.base, m.bad, m.after, m.thr || 0) * 1.12 || 1;
   const x = i => L + (i / Math.max(1, data.length - 1)) * (W - L - R), y = v => T + (1 - v / hi) * (H - T - B);
   const pts = data.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
@@ -336,7 +336,7 @@ function Stage({ demo }) {
         {/* body */}
         <div className="flex-1 min-h-0 relative"><div className="h-full grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_minmax(0,1.02fr)] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
           {/* left: telemetry */}
-          <div className="flex flex-col gap-3 min-h-0 min-w-0">
+          <div className="flex flex-col gap-3 min-h-0 min-w-0 lg:overflow-y-auto stage-col">
             <div className="rounded-lg border border-line bg-panel p-3">
               <div className="flex items-center gap-2 text-[12.5px] mb-1 min-w-0"><SysIcon k={sp.src} /><span className="font-bold whitespace-nowrap">{SYS[sp.src].n}</span><span className="text-ink3 truncate">live · {(SRCI[sp.src] || ['live'])[0].toLowerCase()}</span><span className="flex-1" /><span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok whitespace-nowrap"><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />LIVE</span></div>
               <div className="flex items-center text-[13px] font-bold mt-1"><span className="flex-1">{sp.panel}</span><span className="text-[11px] text-ink3 font-normal">last 36 s</span></div>
@@ -351,12 +351,12 @@ function Stage({ demo }) {
             <AlertList sp={sp} v={v} shown={shownAlerts} no={R.no} />
           </div>
           {/* middle: runbook + terminal */}
-          <div className="flex flex-col gap-3 min-h-0 min-w-0">
+          <div className="flex flex-col gap-3 min-h-0 min-w-0 lg:overflow-y-auto stage-col">
             <CodePanel sp={sp} v={v} running={v.ph === 3} />
             <Terminal lines={v.term} />
           </div>
           {/* right: decisions + ticket */}
-          <div className="flex flex-col gap-3 min-h-0 min-w-0">
+          <div className="flex flex-col gap-3 min-h-0 min-w-0 lg:overflow-y-auto stage-col">
             <Decisions logs={v.logs} start={startWall.current} />
             <TicketCard no={R.no} kind={(sp.ticket && sp.ticket.kind) || 'Incident'} title={demo.title} pri={pri} group={group} assignee={v.declined ? R.person : 'Mova iO'} ci={sp.host} tkt={v.tkt} start={startWall.current} onOpen={c.id ? openConsole : null} />
           </div>
@@ -398,7 +398,7 @@ function AlertList({ sp, v, shown, no }) {
   const rows = Array.from({ length: Math.min(shown, 26) }, (_, i) => { const a = sp.alerts[i % sp.alerts.length]; const k = Math.floor(i / sp.alerts.length); return { a, inst: sp.n > sp.alerts.length ? k + 1 : null }; });
   const cleared = v.alerts && v.alerts.st === 'cleared', grouped = v.alerts && v.alerts.st !== 'stream';
   return (
-    <div className="rounded-lg border border-line bg-panel flex flex-col min-h-[180px] flex-1 overflow-hidden">
+    <div className="rounded-lg border border-line bg-panel flex flex-col min-h-[112px] flex-1 overflow-hidden">
       <div className="flex items-center gap-2 px-3 h-9 border-b border-line text-[12.5px] shrink-0"><span className="font-bold">{SYS[sp.src].n} alerts</span><span className="text-ink3">· {rows.length} shown of {sp.n}</span><span className="flex-1" />{grouped && <span className="text-[11px] font-bold text-ai bg-ai/15 rounded px-1.5 py-0.5">→ {no}</span>}</div>
       <div className="flex-1 overflow-y-auto">
         {!rows.length && <div className="p-4 text-[12.5px] text-ink3">No alerts yet. Signals arrive when the demo starts.</div>}
@@ -446,7 +446,7 @@ function Terminal({ lines }) {
   const box = useRef(null);
   useEffect(() => { if (box.current) box.current.scrollTop = box.current.scrollHeight; }, [lines.length]);
   return (
-    <div className="rounded-lg border border-line bg-[#0b0c0d] flex flex-col min-h-[170px] flex-1 overflow-hidden">
+    <div className="rounded-lg border border-line bg-[#0b0c0d] flex flex-col min-h-[110px] flex-1 overflow-hidden">
       <div className="flex items-center gap-1.5 px-3 h-8 border-b border-line text-[11.5px] text-ink3 shrink-0"><span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" /><span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" /><span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" /><code className="ml-2">mova@runner-dc1:~/runbooks</code></div>
       <div ref={box} className="flex-1 overflow-y-auto px-3 py-2"><pre className="text-[12px] leading-[18px] whitespace-pre-wrap">{lines.map((l, i) => <div key={i} className={l.startsWith('$') ? 'text-white' : l.startsWith('#') ? 'text-[#8b949e]' : l.startsWith('TASK') || l.startsWith('[') ? 'text-[#79c0ff]' : l.startsWith('changed') || l.startsWith('  ->') ? 'text-[#e3b341]' : l.startsWith('verify') ? 'text-[#56d364]' : 'text-[#c9d1d9]'}>{l}</div>)}<span className="inline-block w-2 h-3.5 bg-[#79c0ff] align-middle animate-pulse" /></pre></div>
     </div>

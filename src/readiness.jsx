@@ -134,7 +134,7 @@ export function OpeningSchedule({ rows }) {
       <div ref={ref}><svg width={W} height={H} className="block">
         {[0, 0.5, 1].map(f => <g key={f}><line x1={L} x2={W} y1={(H - B) * (1 - f) + 4} y2={(H - B) * (1 - f) + 4} stroke="rgb(var(--line))" /><text x={L - 5} y={(H - B) * (1 - f) + 8} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">{Math.round(mx * f)}</text></g>)}
         {bins.map((b, i) => { let y = H - B + 4; return <g key={i}>{TZS.map(z => { const v = b[z] || 0; if (!v) return null; const h = v / mx * (H - B - 8); y -= h; const past = nowX != null && L + (i + 1) * bw < nowX; return <rect key={z} x={L + i * bw + bw * 0.18} y={y} width={bw * 0.64} height={Math.max(1, h - 1)} fill={TZC[z]} opacity={past ? 0.45 : 1}><title>{`${z} ${hhmmFromMin(start + i * step)} CT: ${v}`}</title></rect>; })}</g>; })}
-        {Array.from({ length: 8 }, (_, i) => <text key={i} x={L + (i * 4) * bw} y={H - 4} fontSize="10.5" fill="rgb(var(--ink3))" textAnchor="middle">{hhmmFromMin(start + i * 60)}</text>)}
+        {Array.from({ length: 8 }, (_, i) => <text key={i} x={Math.min(W - 1, L + (i * 4) * bw)} y={H - 4} fontSize="10.5" fill="rgb(var(--ink3))" textAnchor={i === 0 ? 'start' : L + (i * 4) * bw + 16 > W ? 'end' : 'middle'}>{hhmmFromMin(start + i * 60)}</text>)}
         {nowX != null && <g><line x1={nowX} x2={nowX} y1={4} y2={H - B + 4} stroke="rgb(var(--ink))" strokeDasharray="3 3" /><text x={nowX + 4} y={14} fontSize="10.5" fontWeight="700" fill="rgb(var(--ink))">now</text></g>}
       </svg></div>
       {nowX == null && <div className="text-[11.5px] text-ink3">Shows the next opening wave. Checks start at 05:30 local in each time zone.</div>}
@@ -157,13 +157,13 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
       right={<Tabs size="sm" value={tab} onChange={t => { setTab(t); setN(40); }} tabs={[{ id: 'look', label: 'Needs a look', count: rows.length - cnt('Ready') }, { id: 'not', label: 'Not ready', count: cnt('Not ready') }, { id: 'att', label: 'Attention', count: cnt('Needs attention') }, { id: 'fix', label: 'Fixed overnight', count: cnt('Fixed overnight') }, { id: 'all', label: 'All', count: rows.length }]} />}>
       <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
         <thead><tr className="text-ink3 border-b border-line">
-          <th className="text-left font-semibold px-3 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>
+          <th className="text-left font-semibold px-2 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>
           {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'POS path' ? <>POS<br />path</> : c.label === 'ERP path' ? <>ERP<br />path</> : c.label}</th>)}
           <th className="font-semibold px-1 text-center text-[11px]">Incident</th><th className="text-left font-semibold px-2 text-[11px] leading-tight">Act before<br />opening</th>
         </tr></thead>
         <tbody>{shown.slice(0, n).map(r => (
           <tr key={r.id} className="border-b border-line/70 hover:bg-chip/40">
-            <td className="px-3 py-1.5"><button onClick={() => act.openBranch(r.b.id)} className="text-left"><div className="font-semibold text-ink hover:underline whitespace-nowrap">{r.b.name}</div><div className="text-[11.5px] text-ink2 truncate max-w-[230px]" title={`${r.b.brand}. ${first(r)}`}>{first(r)}</div></button></td>
+            <td className="px-3 py-1.5"><button onClick={() => act.openBranch(r.b.id)} className="text-left"><div className="font-semibold text-ink hover:underline whitespace-nowrap">{r.b.name}</div><div className="text-[11.5px] text-ink2 truncate max-w-[180px]" title={`${r.b.brand}. ${first(r)}`}>{first(r)}</div></button></td>
             <td className="px-2 whitespace-nowrap"><div className="text-ink">{r.clk.opens || r.b.hours.open} {tzAbbr(r.b.tz)}</div><div className={cx('text-[11.5px]', r.clk.open ? 'text-ok' : 'text-ink3')}>{r.clk.open ? 'Open now' : `in ${r.next >= 60 ? `${Math.floor(r.next / 60)} h ${r.next % 60} m` : `${r.next} min`}`}</div></td>
             <td className="px-2"><Badge tone={RES_TONE[r.result]}>{r.result}</Badge></td>
             {COLS.map(c => <td key={c.id} className="text-center px-0.5"><Cell x={r.c[c.id]} /></td>)}

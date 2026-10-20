@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import MAP from './mapdata.json';
 import { cx } from './ui.jsx';
 
@@ -14,18 +14,72 @@ export function useWidth(def = 640) {
   useEffect(() => { if (!ref.current || typeof ResizeObserver === 'undefined') return; const ro = new ResizeObserver(e => { const x = Math.round(e[0].contentRect.width); if (x > 40) setW(x); }); ro.observe(ref.current); return () => ro.disconnect(); }, []);
   return [ref, w];
 }
+
+// ── smooth motion helpers ────────────────────────────────────────────
+// useSlide: returns a key that changes when the series has shifted by one point (a new live reading),
+// so the chart can slide the line left by one step over the 2-second tick instead of jumping.
+export function useSlide(arr) {
+  const prev = useRef(null), key = useRef(0);
+  const p = prev.current;
+  if (p && arr && p !== arr && arr.length === p.length && arr.length > 3) {
+    let ok = true; for (let i = 0; i < arr.length - 1; i++) if (arr[i] !== p[i + 1]) { ok = false; break; }
+    if (ok) key.current++;
+  }
+  prev.current = arr;
+  return key.current;
+}
+// useScale: eases the y range between ticks so the line does not jump when an old peak leaves the window
+export function useScale(lo, hi) {
+  const r = useRef(null);
+  if (!r.current || !isFinite(r.current[0])) r.current = [lo, hi];
+  else { const [a, b] = r.current; r.current = [lo < a ? lo : a + (lo - a) * 0.35, hi > b ? hi : b + (hi - b) * 0.35]; }
+  return r.current;
+}
+// useTween: animates a number to its new value with requestAnimationFrame (ease-out)
+export function useTween(v, ms = 800) {
+  const [x, setX] = useState(v); const cur = useRef(v); const raf = useRef(0);
+  useEffect(() => {
+    const a = cur.current, b = v;
+    if (typeof b !== 'number' || !isFinite(b) || typeof a !== 'number' || !isFinite(a) || a === b) { cur.current = b; setX(b); return; }
+    const t0 = performance.now(); cancelAnimationFrame(raf.current);
+    const step = t => { const p = Math.min(1, (t - t0) / ms); const e = 1 - Math.pow(1 - p, 3); cur.current = a + (b - a) * e; setX(cur.current); if (p < 1) raf.current = requestAnimationFrame(step); };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [v]);
+  return x;
+}
+// TweenNum: counts a displayed number up or down to its new value, keeping its format ("1,234", "0.25%", "18 ms")
+const NUM_RE = /-?\d[\d,]*(\.\d+)?/;
+export function TweenNum({ value }) {
+  const str = value == null ? '' : String(value); const m = str.match(NUM_RE);
+  const target = m ? parseFloat(m[0].replace(/,/g, '')) : NaN;
+  const x = useTween(isFinite(target) ? target : 0);
+  if (!m || !isFinite(target)) return <>{str}</>;
+  const dec = m[1] ? m[1].length - 1 : 0; const comma = m[0].includes(',') || Math.abs(target) >= 10000;
+  const f = comma ? Number(x).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : Number(x).toFixed(dec);
+  return <>{str.slice(0, m.index)}{f}{str.slice(m.index + m[0].length)}</>;
+}
 const niceMax = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; };
 
 export function Spark({ data, w = 110, h = 30, color = C.info, fill = true, min, max, className }) {
+  const k = useSlide(data); const cid = useId().replace(/:/g, '');
+  const [lo0, hi0] = data && data.length ? [Math.min(...data), Math.max(...data)] : [0, 1];
+  const [elo, ehi] = useScale(lo0, hi0);
   if (!data || !data.length) return null;
-  const lo = min ?? Math.min(...data), hi = max ?? Math.max(...data), r = hi - lo || 1;
-  const pts = data.map((v, i) => [(i / (data.length - 1)) * (w - 4) + 1, h - 3 - ((v - lo) / r) * (h - 6)]);
+  const lo = min ?? elo, hi = max ?? ehi, r = hi - lo || 1;
+  const step = (w - 4) / Math.max(1, data.length - 1);
+  const pts = data.map((v, i) => [i * step + 1, h - 3 - ((v - lo) / r) * (h - 6)]);
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
   return (
     <svg width={w} height={h} className={className} viewBox={`0 0 ${w} ${h}`}>
-      {fill && <path d={`${d}L${w - 3},${h}L1,${h}Z`} fill={color} opacity="0.1" />}
-      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.6" fill={color} className="stroke-panel" strokeWidth="1.5" />
+      <defs><clipPath id={`sp${cid}`}><rect x="0" y="0" width={w} height={h} /></clipPath></defs>
+      <g clipPath={`url(#sp${cid})`}>
+        <g key={k} className={k ? 'slide-x' : ''} style={{ '--dx': `${step.toFixed(2)}px` }}>
+          {fill && <path d={`${d}L${pts[pts.length - 1][0]},${h}L1,${h}Z`} fill={color} opacity="0.1" />}
+          <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.6" fill={color} className="stroke-panel" strokeWidth="1.5" />
+        </g>
+      </g>
     </svg>
   );
 }
@@ -39,7 +93,10 @@ export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [
   let lo = yMin ?? Math.min(...all), hi = yMax ?? Math.max(...all);
   if (yMax == null) hi = yMin === 0 ? niceMax(hi) : hi + (hi - lo) * 0.08;
   if (yMin == null) lo = lo - (hi - lo) * 0.08;
+  [lo, hi] = useScale(lo, hi);
   const r = hi - lo || 1;
+  const sk = useSlide(series[0] && series[0].data); const cid = useId().replace(/:/g, '');
+  const live = sk > 0 && forecastFrom == null && !band;
   const n = labels.length;
   const X = i => L + (i / Math.max(1, n - 1)) * (W - L - Rr), Y = v => T + (1 - (v - lo) / r) * (H - T - B);
   const ticks = [lo, lo + r / 2, hi];
@@ -53,12 +110,15 @@ export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [
         {forecastFrom != null && <g><rect x={X(forecastFrom)} y={T} width={W - Rr - X(forecastFrom)} height={H - T - B} className="fill-chip" opacity="0.6" /><line x1={X(forecastFrom)} x2={X(forecastFrom)} y1={T} y2={H - B} className="stroke-ink3" strokeWidth="1" /><text x={X(forecastFrom) + 5} y={T + 11} fontSize="10.5" className="fill-ink2" fontWeight="600">{nowLabel}</text><text x={W - Rr - 4} y={T + 11} fontSize="10.5" textAnchor="end" className="fill-ink3">forecast</text></g>}
         {band && <path d={bandPath} fill={band.color || C.info} opacity="0.15" />}
         {refLines.map(rl => <g key={rl.label}><line x1={L} x2={W - Rr} y1={Y(rl.v)} y2={Y(rl.v)} stroke={rl.color} strokeDasharray="5 4" strokeWidth="1.3" /><text x={L + 4} y={Y(rl.v) - 4} fontSize="10.5" className="fill-ink2" fontWeight="600">{rl.label}</text></g>)}
-        {labels.map((l, i) => (n <= 12 || i % Math.ceil(n / 7) === 0) && <text key={i} x={X(i)} y={H - 7} textAnchor="middle" className="fill-ink3" fontSize="10.5">{l}</text>)}
+        {labels.map((l, i) => (n <= 12 || i % Math.ceil(n / 7) === 0) && <text key={i} x={X(i)} y={H - 7} textAnchor={i === 0 ? 'start' : X(i) > W - Rr - 24 ? 'end' : 'middle'} className="fill-ink3" fontSize="10.5">{l}</text>)}
+        <defs><clipPath id={`lc${cid}`}><rect x={L} y={0} width={Math.max(0, W - L - Rr + 6)} height={H} /></clipPath></defs>
+        <g clipPath={`url(#lc${cid})`}><g key={live ? sk : 'static'} className={live ? 'slide-x' : ''} style={{ '--dx': `${((W - L - Rr) / Math.max(1, n - 1)).toFixed(2)}px` }}>
         {series.map(s => { const f = s.forecastFrom ?? forecastFrom; return <g key={s.name}>
           {s.area && <path d={path(s.data) + `L${X(n - 1)},${Y(Math.max(lo, 0))}L${X(0)},${Y(Math.max(lo, 0))}Z`} fill={s.color} opacity="0.1" />}
           {f != null ? <><path d={path(s.data, 0, f)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /><path d={path(s.data, f)} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round" /></> : <path d={path(s.data)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
           {s.data[n - 1] != null && <circle cx={X(n - 1)} cy={Y(s.data[n - 1])} r="4" fill={s.color} className="stroke-panel" strokeWidth="2" />}
         </g>; })}
+        </g></g>
         {hover != null && <line x1={X(hover)} x2={X(hover)} y1={T} y2={H - B} className="stroke-ink3" strokeWidth="1" />}
         {hover != null && series.map(s => s.data[hover] != null && <circle key={s.name} cx={X(hover)} cy={Y(s.data[hover])} r="4" fill={s.color} className="stroke-panel" strokeWidth="2" />)}
       </svg>
@@ -83,12 +143,16 @@ export function Bars({ data, keys, colors, h = 170, stacked = true, onBar, fmt =
   const bw = (W - L) / data.length;
   const ph = H - T - B;
   const colW = Math.min(24, bw * 0.62);
+  const bk = useSlide(data.map(tot)); const bid = useId().replace(/:/g, '');
+  const blive = bk > 0 && forecastFrom == null;
   const col = (x, y, w, hh, rr) => `M${x},${y + hh}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${y + hh}Z`;
   return (
     <div className="relative" ref={wref}>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: h }}>
         {[0, 0.5, 1].map(f => <g key={f}><line x1={L} x2={W} y1={T + (1 - f) * ph} y2={T + (1 - f) * ph} className="stroke-line" strokeWidth="1" /><text x={L - 6} y={T + (1 - f) * ph + 3.5} textAnchor="end" fontSize="10.5" className="fill-ink3">{fmt(Math.round(hi * f))}</text></g>)}
         {forecastFrom != null && <rect x={L + forecastFrom * bw} y={T} width={W - L - forecastFrom * bw} height={ph} className="fill-chip" opacity="0.7" />}
+        <defs><clipPath id={`bc${bid}`}><rect x={L} y={0} width={Math.max(0, W - L)} height={H} /></clipPath></defs>
+        <g clipPath={`url(#bc${bid})`}><g key={blive ? bk : 'static'} className={blive ? 'slide-x' : ''} style={{ '--dx': `${bw.toFixed(2)}px` }}>
         {data.map((d, i) => {
           let y = T + ph; const cx0 = L + i * bw + bw / 2; const isF = forecastFrom != null && i >= forecastFrom;
           const segs = keys.map((k, j) => ({ k, j, v: d[k] || 0 })).filter(x => x.v > 0);
@@ -97,10 +161,11 @@ export function Bars({ data, keys, colors, h = 170, stacked = true, onBar, fmt =
               <rect x={L + i * bw} y={T} width={bw} height={ph} fill="transparent" />
               {stacked ? segs.map((sg, idx) => { const gap = idx ? 2 : 0; const hh = Math.max(0, (sg.v / hi) * ph - gap); y -= hh + gap; const top = idx === segs.length - 1; return <path key={sg.k} d={col(cx0 - colW / 2, y, colW, hh, top ? Math.min(3, hh) : 0)} fill={colors[sg.j]} opacity={(hover == null || hover === i ? 1 : 0.55) * (isF ? 0.5 : 1)} />; })
                 : keys.map((k, j) => { const hh = ((d[k] || 0) / hi) * ph; const ww = Math.min(14, (colW + 6) / keys.length); const x = cx0 - (ww * keys.length + 2 * (keys.length - 1)) / 2 + j * (ww + 2); return <path key={k} d={col(x, T + ph - hh, ww, hh, Math.min(3, hh))} fill={colors[j]} opacity={hover == null || hover === i ? 1 : 0.55} />; })}
-              {d.label && <text x={cx0} y={H - 8} textAnchor="middle" fontSize="10.5" className="fill-ink3">{d.label}</text>}
+              {d.label && <text x={cx0 + 18 > W ? W - 1 : cx0} y={H - 8} textAnchor={cx0 + 18 > W ? 'end' : 'middle'} fontSize="10.5" className="fill-ink3">{d.label}</text>}
             </g>
           );
         })}
+        </g></g>
         <line x1={L} x2={W} y1={T + ph} y2={T + ph} className="stroke-ink3" strokeWidth="1" />
       </svg>
       {hover != null && (

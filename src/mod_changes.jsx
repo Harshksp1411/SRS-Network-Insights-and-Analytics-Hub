@@ -132,7 +132,7 @@ export function Changes() {
       </div></Card>}
 
       {tab === 'firmware' && <div className="mb-3"><FirmwareProjectionCard cur={totOk / totN} /></div>}
-      {tab === 'firmware' && <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
+      {tab === 'firmware' && <div className="grid min-[1700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
         <Card title="Firmware compliance by platform" sub="Policy (Annexure B #32): critical devices at N-1 or newer, others at N-2 or newer; Day-0 critical patches in the emergency window" icon={I.ShieldCheck}>
           <Table rows={fwRows} cols={[
             { key: 'id', label: 'Platform', render: r => <div><b>{r.id}</b>{r.crit && <Badge tone="brand" className="ml-1">critical</Badge>}</div> },

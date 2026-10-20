@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, ChevronDown, Search, ChevronLeft, ChevronRight, ArrowUpDown, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import LOGOS from './logos.js';
+import { TweenNum } from './charts.jsx';
 
 export const cx = (...a) => a.filter(Boolean).join(' ');
 
@@ -76,9 +77,9 @@ export function Stat({ label, value, sub, tone, icon: I, onClick, children, clas
   const up = delta != null && delta > 0;
   return (
     <div onClick={onClick} className={cx('bg-panel border border-line rounded-lg px-4 py-3 flex flex-col min-w-0', onClick && 'cursor-pointer hover:bg-chip/50', className)}>
-      <div className="text-[12.5px] text-ink2 font-medium truncate">{label}</div>
+      <div className="text-[12.5px] text-ink2 font-medium leading-tight line-clamp-2">{label}</div>
       <div className="flex items-baseline gap-2 mt-1">
-        <div className={cx('font-display text-[30px] font-semibold leading-none whitespace-nowrap', vt)}>{value}</div>
+        <div className={cx('font-display text-[30px] font-semibold leading-none whitespace-nowrap', vt)}>{typeof value === 'string' || typeof value === 'number' ? <TweenNum value={value} /> : value}</div>
         {delta != null && delta !== 0 && <span className={cx('text-[12px] font-semibold whitespace-nowrap', (deltaGood ? up : !up) ? 'text-ok' : 'text-bad')}>{up ? '▲' : '▼'} {Math.abs(delta)}</span>}
       </div>
       {sub && <div className="text-[12px] text-ink3 mt-1 leading-snug">{sub}</div>}
@@ -145,7 +146,7 @@ export function Table({ cols, rows, onRow, pageSize = 0, empty = 'Nothing here',
           <thead>
             <tr className="text-left text-ink3 border-b border-line">
               {cols.map(c => (
-                <th key={c.key} className={cx('font-semibold py-2 px-2 whitespace-nowrap', c.className, c.right && 'text-right')}>
+                <th key={c.key} className={cx('font-semibold py-2 px-2 align-bottom leading-tight', c.className, c.right && 'text-right')}>
                   {sortable && c.sortable !== false && c.label ? <button onClick={() => setSort(s => ({ key: c.key, dir: s && s.key === c.key ? -s.dir : 1 }))} className="inline-flex items-center gap-1 hover:text-ink">{c.label}<ArrowUpDown size={11} className="opacity-50" /></button> : c.label}
                 </th>
               ))}

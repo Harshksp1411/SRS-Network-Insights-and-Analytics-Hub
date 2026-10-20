@@ -103,7 +103,7 @@ export function Overview() {
         <TopBranches />
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 mt-3">
+      <div className="mt-3">
         <Card title="By region" sub="Click a row to filter the console" icon={I.Globe2}>
           <Table dense rows={regionRows} onRow={r => act.set(st => ({ filters: { ...st.filters, region: r.region, city: 'All', branchId: null } }))} cols={[
             { key: 'region', label: 'Region', render: r => <span className="font-semibold whitespace-nowrap">{r.region}</span> },
@@ -116,10 +116,10 @@ export function Overview() {
             { key: 'inc', label: 'Incidents', right: true },
           ]} />
         </Card>
-        <AlertsPerMinCard />
       </div>
 
-      <div className="grid xl:grid-cols-2 gap-3 mt-3">
+      <div className="grid xl:grid-cols-3 gap-3 mt-3">
+        <AlertsPerMinCard />
         <Card title="Circuits down or degraded" icon={I.Cable} right={<Btn size="sm" onClick={() => act.go('carriers')}>Carriers</Btn>}>
           <div className="space-y-1 max-h-[260px] overflow-y-auto">
             {[...circDown, ...circDeg].map(c => { const b = D.BR[c.branchId]; return <button key={c.id} onClick={() => act.openBranch(b.id)} className="w-full text-left flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60 hover:bg-chip/60"><Dot tone={c.status === 'Down' ? 'red' : 'amber'} /><span className="font-semibold text-ink w-28 truncate">{b.name}</span><span className="text-ink2 flex-1 truncate">{c.role}, {c.carrier} {c.type}</span><span className="text-ink3 text-[11.5px]">{c.status}</span></button>; })}

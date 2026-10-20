@@ -124,7 +124,7 @@ export function Automation() {
         <Card pad={false}><div className="p-3"><Table rows={s.runbooks} onRow={r => setSel(r.id)} rowClass={r => r.id === sel ? 'bg-chip' : ''} cols={[
           { key: 'id', label: 'ID', className: 'whitespace-nowrap', render: r => <span className="font-mono text-[12px] font-semibold">{r.id}</span> },
           { key: 'name', label: 'Runbook', render: r => <div><div className="font-semibold">{r.name}</div><div className="text-[11px] text-ink3">{r.kind === 'change' ? 'Makes a change' : 'Read-only / notify'}</div></div> },
-          { key: 'autonomy', label: 'Autonomy', render: r => <Badge tone={r.autonomy === 'L4' ? 'brand' : r.autonomy === 'L3' ? 'purple' : 'blue'}>{r.autonomy}, {D.AUTONOMY[r.autonomy]}</Badge> },
+          { key: 'autonomy', label: 'Autonomy', render: r => <div><Badge tone={r.autonomy === 'L4' ? 'brand' : r.autonomy === 'L3' ? 'purple' : 'blue'}>{r.autonomy}</Badge><div className="text-[11px] text-ink3 leading-tight mt-0.5 max-w-[120px]">{D.AUTONOMY[r.autonomy]}</div></div> },
           { key: 'runs30', label: 'Runs 30d', right: true, render: r => num(r.runs30) },
           { key: 'success', label: 'Success', right: true, render: r => <span className={r.success < 0.9 ? 'text-bad font-semibold' : 'text-ok font-semibold'}>{pct(r.success)}</span> },
           { key: 'avg', label: 'Avg', right: true },

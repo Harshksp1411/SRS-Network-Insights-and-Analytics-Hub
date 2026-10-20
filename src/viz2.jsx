@@ -6,7 +6,7 @@ import * as D from './data.js';
 import { useApp, useNow, healthOf, inScope, filteredBranches, circuitOf } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo, SRC_LOGO, Dot } from './ui.jsx';
-import { Spark, Legend, C, useWidth, SEQ } from './charts.jsx';
+import { Spark, Legend, C, useWidth, SEQ, TweenNum } from './charts.jsx';
 import { AREAS, TL_LANES, AGENT_DEF, AGENT_GROUPS, TOOLS, outcomeOf, MONITOR_SRC } from './liveext.js';
 import { hhmm, hhmmss, num, rng, MIN, HR, ago } from './util.js';
 
@@ -23,7 +23,7 @@ export function LiveKpis({ items, cols = 3 }) {
         <div key={it.label} className="card bg-panel border border-line rounded-lg px-4 py-3 min-w-0">
           <div className="flex items-center gap-1.5 text-[12.5px] text-ink2"><Ic size={14} className="text-ink3" /><span className="truncate flex-1">{it.label}</span><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" /></div>
           <div className="flex items-end justify-between gap-3 mt-1">
-            <div className="min-w-0"><div key={L.last} className={cx('text-[28px] font-bold leading-none tabular-nums num-flash whitespace-nowrap', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}>{it.value}{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</div><div className="text-[12px] text-ink3 mt-1 truncate">{it.sub}</div></div>
+            <div className="min-w-0"><div className={cx('text-[28px] font-bold leading-none tabular-nums whitespace-nowrap', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}><TweenNum value={it.value} />{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</div><div className="text-[12px] text-ink3 mt-1 leading-snug line-clamp-2">{it.sub}</div></div>
             {it.series && <Spark data={it.series.slice(-50)} color={it.color || C.s1} w={110} h={36} />}
           </div>
         </div>); })}
@@ -52,7 +52,7 @@ export function ServiceTiles() {
       {tiles.map(([name, sub, ser, f, key, thr]) => { const n = hits(key); const v = ser.at(-1); const warn = n > 0 || (thr != null && v > thr); return (
         <div key={name} className={cx('card bg-panel border border-line rounded-lg p-3 min-w-0 border-l-[3px]', warn ? 'border-l-warn' : 'border-l-ok')}>
           <div className="flex items-center gap-1.5 text-[12.5px]"><Dot tone={warn ? 'amber' : 'green'} /><span className="font-bold text-ink truncate flex-1">{name}</span><span className={cx('text-[11px] font-semibold whitespace-nowrap', warn ? 'text-warn' : 'text-ok')}>{n ? `${n} branch${n > 1 ? 'es' : ''}` : 'Healthy'}</span></div>
-          <div className="flex items-end justify-between gap-2 mt-1"><div><div key={L.last} className="text-[20px] font-bold text-ink tabular-nums num-flash leading-tight">{f(v)}</div><div className="text-[11.5px] text-ink3">{sub}</div></div><Spark data={ser.slice(-60)} color={warn ? C.warn : C.ok} w={120} h={34} /></div>
+          <div className="flex items-end justify-between gap-2 mt-1"><div><div className="text-[20px] font-bold text-ink tabular-nums leading-tight"><TweenNum value={f(v)} /></div><div className="text-[11.5px] text-ink3">{sub}</div></div><Spark data={ser.slice(-60)} color={warn ? C.warn : C.ok} w={120} h={34} /></div>
         </div>); })}
     </div>
   );
@@ -72,9 +72,9 @@ export function ErrorBudgets() {
         return (
           <div key={b.name} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
             <div className="flex items-start gap-2"><div className="text-[13px] font-bold text-ink flex-1 leading-tight">{b.name}</div><Badge tone={left < 0.2 ? 'red' : burning ? 'amber' : 'green'}>{burning ? `Burning ${Math.max(1.5, rate).toFixed(1)}×` : 'On track'}</Badge></div>
-            <div className="flex items-baseline gap-2 mt-1"><span className="text-[22px] font-bold text-ink tabular-nums">{b.actual.toFixed(b.actual > 99.9 ? 3 : 2)}%</span><span className="text-[11.5px] text-ink3">target {b.target}% · 30 days</span></div>
+            <div className="flex items-baseline gap-2 mt-1"><span className="text-[22px] font-bold text-ink tabular-nums"><TweenNum value={`${b.actual.toFixed(b.actual > 99.9 ? 3 : 2)}%`} /></span><span className="text-[11.5px] text-ink3">target {b.target}% · 30 days</span></div>
             <div className="h-1.5 bg-chip rounded mt-1.5 overflow-hidden"><div className="h-full rounded transition-all duration-700" style={{ width: `${left * 100}%`, background: col }} /></div>
-            <div className="flex text-[11.5px] text-ink2 mt-1"><span>Error budget left <b className="text-ink">{mins >= 120 ? `${(mins / 60).toFixed(1)} h` : `${mins} min`}</b></span><span className="ml-auto tabular-nums" key={L.last}>{(left * 100).toFixed(1)}%</span></div>
+            <div className="flex text-[11.5px] text-ink2 mt-1"><span>Error budget left <b className="text-ink">{mins >= 120 ? `${(mins / 60).toFixed(1)} h` : `${mins} min`}</b></span><span className="ml-auto tabular-nums"><TweenNum value={`${(left * 100).toFixed(1)}%`} /></span></div>
             <div className="mt-1.5"><BudgetSpark data={b.series} color={col} /></div>
             <div className="text-[11px] text-ink3 mt-1">{b.sub}. Budget left over 30 days; the last point moves while an incident is open.</div>
           </div>); })}
@@ -89,7 +89,7 @@ export function HeartbeatGrid() {
   const groups = useMemo(() => D.REGIONS.map(r => ({ r, bs: D.BRANCHES.filter(b => b.region === r) })), []);
   const n = Object.keys(L.x.pulse).length;
   return (
-    <Card title="Branch heartbeat" sub="One cell per branch, all 900. A cell lights up when a reading from that branch arrives." right={<div className="flex items-center gap-3"><Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} /><span className="text-[11.5px] text-ink2 tabular-nums" key={L.last}><b className="text-ink">{n * 15}</b> readings / 30 s</span></div>}>
+    <Card title="Branch heartbeat" sub="One cell per branch, all 900. A cell lights up when a reading from that branch arrives." right={<div className="flex items-center gap-3"><Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} /><span className="text-[11.5px] text-ink2 tabular-nums" ><b className="text-ink"><TweenNum value={n * 15} /></b> readings / 30 s</span></div>}>
       <div className="space-y-1.5">{groups.map(g => (
         <div key={g.r} className="flex gap-2 items-start">
           <div className="w-[132px] shrink-0 text-[11.5px] text-ink2 leading-tight pt-0.5">{g.r}<span className="text-ink3"> {g.bs.length}</span></div>
@@ -159,9 +159,9 @@ export function AreaTimeline() {
                 <path d={`${d}L${X(n - 1)},${y0 + laneH - 2}L${X(0)},${y0 + laneH - 2}Z`} fill={cols[k]} opacity=".14" />
                 <path d={d} fill="none" stroke={cols[k]} strokeWidth="1.8" strokeLinejoin="round" />
                 <circle cx={X(n - 1)} cy={Y(s[n - 1])} r="3.5" fill={cols[k]} />
-                <text x={W - rw + 8} y={Y(s[n - 1]) + 4} fontSize="12" fontWeight="700" fill="rgb(var(--ink))" key={L.last}>{fmtN(s[n - 1], a.dec)}{a.unit}</text>
+                <text x={W - rw + 8} y={Y(s[n - 1]) + 4} fontSize="12" fontWeight="700" fill="rgb(var(--ink))"><TweenNum value={fmtN(s[n - 1], a.dec)} />{a.unit}</text>
               </g>); })}
-          {L.x.markers.map((m, i) => { const x = tX(m.t); if (x < lw) return null; return <g key={i}><line x1={x} x2={x} y1={top} y2={H - 20} stroke={MK[m.kind][0]} strokeWidth="1" opacity=".6" /><rect x={x - 4} y={H - 18} width="8" height="8" fill={MK[m.kind][0]} transform={m.kind === 'chg' ? `rotate(45 ${x} ${H - 14})` : undefined} /></g>; })}
+          {L.x.markers.map((m, i) => { const x = tX(m.t); if (x < lw) return null; return <g key={m.t + '-' + i} style={{ transform: `translateX(${x.toFixed(1)}px)`, transition: 'transform 1s linear' }}><line x1={0} x2={0} y1={top} y2={H - 20} stroke={MK[m.kind][0]} strokeWidth="1" opacity=".6" /><rect x={-4} y={H - 18} width="8" height="8" fill={MK[m.kind][0]} transform={m.kind === 'chg' ? `rotate(45 0 ${H - 14})` : undefined} /></g>; })}
           <text x={lw} y={H - 1} fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 60 * MIN)}</text><text x={(lw + W - rw) / 2} y={H - 1} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 30 * MIN)}</text><text x={W - rw} y={H - 1} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">now</text>
           {hx != null && <line x1={X(hx)} x2={X(hx)} y1={top} y2={H - 20} stroke="rgb(var(--ink))" strokeWidth="1" />}
         </svg>
@@ -186,7 +186,8 @@ export function UnifiedTimeline() {
         {ticks.map((t, i) => <g key={i}><line x1={X(t)} x2={X(t)} y1={top - 6} y2={H - 18} stroke="rgb(var(--line))" /><text x={X(t)} y={12} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{i === 8 ? 'now' : hhmm(t)}</text></g>)}
         {TL_LANES.map((l, k) => <g key={l.id}><rect x={lw} y={top + k * laneH + 2} width={W - lw - rw} height={laneH - 4} fill={k % 2 ? 'transparent' : 'rgb(var(--chip))'} opacity=".5" /><text x={4} y={top + k * laneH + 15} fontSize="11.5" fill="rgb(var(--ink2))" fontWeight={l.id === 'mova' ? 700 : 400}>{l.label}</text></g>)}
         {L.x.dots.map((d, i) => { const k = TL_LANES.findIndex(l => l.id === d.lane); if (k < 0) return null; const x = X(d.t), y = top + k * laneH + laneH / 2 + ((i * 7) % 7) - 3; const fresh = now - d.t < 6000;
-          return d.kind === 'inc' ? <rect key={i} x={x - 3.5} y={y - 3.5} width="7" height="7" fill={C.bad} /> : d.kind === 'chg' ? <rect key={i} x={x - 3} y={y - 3} width="6" height="6" fill={C.info} transform={`rotate(45 ${x} ${y})`} /> : <circle key={i} cx={x} cy={y} r={fresh ? 4 : 2.4} fill={d.lane === 'mova' ? C.s1 : C.s5} opacity={fresh ? 1 : 0.75} className={fresh ? 'map-ping' : ''} />; })}
+          const mv = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, transition: 'transform 1s linear' };
+          return d.kind === 'inc' ? <rect key={d.t + '-' + i} x={-3.5} y={-3.5} width="7" height="7" fill={C.bad} style={mv} /> : d.kind === 'chg' ? <g key={d.t + '-' + i} style={mv}><rect x={-3} y={-3} width="6" height="6" fill={C.info} transform="rotate(45)" /></g> : <circle key={d.t + '-' + i} cx={0} cy={0} r={fresh ? 4 : 2.4} fill={d.lane === 'mova' ? C.s1 : C.s5} opacity={fresh ? 1 : 0.75} style={mv} />; })}
         <line x1={X(now)} x2={X(now)} y1={top - 6} y2={H - 18} stroke={C.bad} strokeWidth="1.5" />
       </svg></div>
     </Card>
@@ -205,7 +206,7 @@ export function TopBranches() {
         <button key={r.id} onClick={() => act.openBranch(r.id)} className="w-full flex items-center gap-2 text-[12.5px] hover:bg-chip/60 rounded px-0.5">
           <span className="w-4 text-ink3 text-right">{i + 1}</span><span className="w-[120px] truncate text-left text-ink font-semibold">{b.name}</span>
           <span className="flex-1 h-2.5 bg-chip rounded-sm overflow-hidden"><span className="block h-full rounded-sm transition-all duration-700" style={{ width: `${Math.min(100, v / cfg[2] * 100)}%`, background: bad ? C.warn : C.s4 }} /></span>
-          <span className="w-16 text-right font-semibold tabular-nums text-ink">{cfg[1](v)}</span></button>); })}</div>
+          <span className="w-16 text-right font-semibold tabular-nums text-ink"><TweenNum value={cfg[1](v)} /></span></button>); })}</div>
     </Card>
   );
 }
@@ -304,7 +305,7 @@ export function GroupingSwimlane() {
           const t0 = Math.max(inc.opened - 4 * MIN, now - span); const dots = [...inc.signals.map(x => ({ t: x.t, src: x.src })), ...Array.from({ length: Math.max(0, n - inc.signals.length) }, () => ({ t: t0 + R() * Math.min(12 * MIN, now - t0), src: ['Orchestrator', 'OpsRamp', 'Aruba Central', 'New Relic'][Math.floor(R() * 4)] }))];
           return <g key={inc.id} onClick={() => act.openInc(inc.id)} className="cursor-pointer"><rect x={lw} y={y - laneH / 2 + 2} width={W - lw - rw} height={laneH - 4} fill={k % 2 ? 'transparent' : 'rgb(var(--chip))'} opacity=".5" />
             <text x={0} y={y + 4} fontSize="11.5" fill="rgb(var(--ink))"><tspan fontWeight="700">{inc.id.slice(-4)}</tspan><tspan fill="rgb(var(--ink2))"> {inc.title.length > 30 ? inc.title.slice(0, 29) + '…' : inc.title}</tspan></text>
-            {dots.map((d, j) => <circle key={j} cx={X(d.t)} cy={y + ((j * 5) % 9) - 4} r="3.2" fill={srcC[d.src] || C.s3} opacity=".9" />)}</g>; })}
+            {dots.map((d, j) => <circle key={j} cx={0} cy={0} r="3.2" fill={srcC[d.src] || C.s3} opacity=".9" style={{ transform: `translate(${X(d.t).toFixed(1)}px, ${(y + ((j * 5) % 9) - 4).toFixed(1)}px)`, transition: 'transform 1s linear' }} />)}</g>; })}
         {[90, 60, 30, 0].map(m => <text key={m} x={X(now - m * MIN)} y={H - 4} textAnchor={m === 90 ? 'start' : m === 0 ? 'end' : 'middle'} fontSize="10.5" fill="rgb(var(--ink3))">{m ? `-${m} min` : 'now'}</text>)}
       </svg></div>
     </Card>
@@ -312,12 +313,12 @@ export function GroupingSwimlane() {
 }
 
 // ── Area-to-area correlation matrix ──────────────────────────────────
-const CAT2 = c => /Carrier|SD-WAN|Major/.test(c) ? 0 : /Wireless|Switch|LAN|Customer|Config/.test(c) ? 2 : /Power|Hardware/.test(c) ? 3 : /Security|Lifecycle/.test(c) ? 4 : /readiness/i.test(c) ? 5 : 1;
+const CAT2 = c => /Carrier|SD-WAN|Major/.test(c) ? 0 : /Wireless|Switch|LAN|Customer|Config/.test(c) ? 2 : /Hardware|SD-WAN/.test(c) ? 3 : /Security|Lifecycle/.test(c) ? 4 : /readiness/i.test(c) ? 5 : 1;
 export function CorrMatrix() {
   const { s, act } = useApp();
   const names = ['WAN', 'Apps', 'LAN', 'Edge', 'Security', 'Field'];
   const M = names.map(() => names.map(() => 0));
-  s.incidents.filter(i => i.state !== 'Resolved').forEach(i => { const a = CAT2(i.cat); const imp = (i.impact || []).join(' '); const b = /POS|ERP|payment/i.test(imp) ? 1 : /scanner|AP|Wi-Fi|printer/i.test(imp) ? 2 : /UPS|power|battery/i.test(imp) ? 3 : i.workOrder ? 5 : a; M[a][b]++; if (a !== b) M[b][a]++; });
+  s.incidents.filter(i => i.state !== 'Resolved').forEach(i => { const a = CAT2(i.cat); const imp = (i.impact || []).join(' '); const b = /POS|ERP|payment/i.test(imp) ? 1 : /handheld|AP|Wi-Fi|LAN/i.test(imp) ? 2 : /EdgeConnect|appliance|tunnel/i.test(imp) ? 3 : i.workOrder ? 5 : a; M[a][b]++; if (a !== b) M[b][a]++; });
   const max = Math.max(1, ...M.flat());
   return (
     <Card title="Area-to-area correlations" sub="Open incidents that link two areas. The diagonal is incidents inside one area.">
@@ -358,8 +359,8 @@ export function AgentCards() {
         <div key={a.id} className={cx('bg-panel border rounded-lg p-3 min-w-0 transition-colors', working ? 'border-brand shadow-[0_0_0_1px_rgb(var(--brand))]' : 'border-line')}>
           <div className="flex items-start gap-2"><span className="w-8 h-8 rounded-lg bg-chip flex items-center justify-center text-brand shrink-0"><I.Bot size={16} /></span><div className="flex-1 min-w-0"><div className="text-[13.5px] font-bold text-ink">{a.name} <span className="text-ink3 font-normal text-[11.5px]">#{i + 1}</span></div><div className="text-[11.5px] text-ink3 leading-tight">{a.does}</div></div>
             <Badge tone={working ? 'brand' : 'gray'} className="shrink-0">{working ? <><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />Working</> : 'Idle'}</Badge></div>
-          <div className="grid grid-cols-2 gap-2 mt-2"><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Actions today</div><div key={g.today} className="text-[18px] font-bold text-ink tabular-nums num-flash">{num(g.today)}</div></div><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Success rate</div><div className="text-[18px] font-bold text-ink tabular-nums">{(g.ok * 100).toFixed(1)}%</div></div></div>
-          <div className="text-[12px] text-ink2 mt-2 truncate" title={g.last}><span className="text-ink3">Last:</span> {g.last}</div>
+          <div className="grid grid-cols-2 gap-2 mt-2"><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Actions today</div><div className="text-[18px] font-bold text-ink tabular-nums"><TweenNum value={num(g.today)} /></div></div><div className="bg-chip/60 rounded px-2 py-1"><div className="text-[11px] text-ink3">Success rate</div><div className="text-[18px] font-bold text-ink tabular-nums">{(g.ok * 100).toFixed(1)}%</div></div></div>
+          <div className="text-[12px] text-ink2 mt-2 leading-snug line-clamp-2" title={g.last}><span className="text-ink3">Last:</span> {g.last}</div>
           <div className="flex items-center gap-1 mt-1.5">{a.tools.map(t => <Logo key={t} k={t} h={9} />)}<span className="ml-auto text-[11px] text-ink3">{ago(g.lastT, now)}</span></div>
         </div>); })}
     </div>
@@ -385,9 +386,9 @@ export function ToolsStrip({ only }) {
     <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3">
       {list.map((t, k) => { const ser = L.x.tools[t.id]; const mx = Math.max(...ser); return (
         <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
-          <div className="flex items-center gap-1.5">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="text-[12px] font-bold text-ink truncate flex-1">{t.name}</span><span className="w-2 h-2 rounded-full bg-ok" /></div>
-          <div className="text-[14px] font-bold text-ink mt-1.5 truncate">{head[t.id][0]}</div><div className="text-[11px] text-ink3 truncate">{head[t.id][1]}</div>
-          <div className="text-[11px] text-ink2 mt-1"><b className="text-ink tabular-nums">{ser.at(-1)}</b> events/min · synced {(Math.floor(now / 1000) + k) % 6 + 1}s ago</div>
+          <div className="flex items-center gap-1.5">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="text-[12px] font-bold text-ink leading-tight line-clamp-2 flex-1">{t.name}</span><span className="w-2 h-2 rounded-full bg-ok" /></div>
+          <div className="text-[14px] font-bold text-ink mt-1.5 truncate"><TweenNum value={head[t.id][0]} /></div><div className="text-[11px] text-ink3 leading-snug line-clamp-2">{head[t.id][1]}</div>
+          <div className="text-[11px] text-ink2 mt-1"><b className="text-ink tabular-nums"><TweenNum value={ser.at(-1)} /></b> events/min · synced {(Math.floor(now / 1000) + k) % 6 + 1}s ago</div>
           <div className="flex items-end gap-[2px] h-8 mt-1">{ser.map((v, i) => <span key={i} className="flex-1 rounded-t-[1px] transition-all duration-500" style={{ height: `${Math.max(8, v / mx * 100)}%`, background: i === ser.length - 1 ? C.s1 : 'rgb(var(--ink3) / .45)' }} />)}</div>
         </div>); })}
     </div>
@@ -402,7 +403,7 @@ export function ScoreHistogram() {
   const bins = Array.from({ length: 15 }, (_, i) => ({ lo: 30 + i * 5, n: 0 })); list.forEach(b => { const v = scoreOf(b); const k = Math.min(14, Math.max(0, Math.floor((v - 30) / 5))); bins[k].n++; });
   const mx = Math.max(1, ...bins.map(b => b.n)); const avg = list.reduce((a, b) => a + scoreOf(b), 0) / Math.max(1, list.length);
   return (
-    <Card title="Branch health score distribution" sub={`${num(list.length)} branches. Good from 80, warning 60 to 79, critical below 60.`} right={<span className="text-[12px] text-ink2">Average <b className="text-ink text-[15px] tabular-nums" key={L.last}>{avg.toFixed(1)}</b></span>}>
+    <Card title="Branch health score distribution" sub={`${num(list.length)} branches. Good from 80, warning 60 to 79, critical below 60.`} right={<span className="text-[12px] text-ink2">Average <b className="text-ink text-[15px] tabular-nums" ><TweenNum value={avg.toFixed(1)} /></b></span>}>
       <div className="flex items-end gap-1 h-[150px] border-b border-line relative">
         {bins.map(b => <div key={b.lo} className="flex-1 flex flex-col items-center justify-end h-full group"><span className="text-[10.5px] text-ink2 mb-0.5 opacity-0 group-hover:opacity-100">{b.n}</span><span className="w-full rounded-t-[2px] transition-all duration-700" style={{ height: `${Math.max(b.n ? 2 : 0, Math.sqrt(b.n / mx) * 100)}%`, background: b.lo >= 80 ? C.s4 : b.lo >= 60 ? C.warn : C.bad }} /></div>)}
         <span className="absolute top-0 bottom-0 border-l border-dashed border-ink3" style={{ left: `${(50 / 75) * 100}%` }}><span className="absolute -top-0.5 left-1 text-[10.5px] text-ink3 whitespace-nowrap">good from 80</span></span>
@@ -439,7 +440,7 @@ export function AreaHourHeat() {
   const colr = v => SEQ[Math.min(7, Math.floor(v / m * 7.99))];
   return (
     <Card title="Alerts by area and hour" sub="Last 24 hours; the right-hand column fills as alerts arrive" right={<LiveTag />}>
-      <div className="overflow-x-auto"><table className="border-separate w-full table-fixed" style={{ borderSpacing: 2 }}><colgroup><col style={{ width: 132 }} />{cols.map((c, j) => <col key={j} />)}</colgroup><tbody>
+      <div className="overflow-hidden"><table className="border-separate w-full table-fixed" style={{ borderSpacing: 1 }}><colgroup><col style={{ width: 112 }} />{cols.map((c, j) => <col key={j} />)}</colgroup><tbody>
         {AREAS.map((a, k) => <tr key={a.id}><td className="text-[11.5px] text-ink2 pr-2 whitespace-nowrap truncate">{a.label}</td>{live[k].map((v, j) => <td key={j} title={`${a.label}, ${cols[j]}: ${v}`} className="h-[17px] rounded-[2px] p-0 transition-colors duration-700" style={{ background: colr(v), outline: j === 23 ? '1px solid rgb(var(--ink3))' : undefined }} />)}</tr>)}
         <tr><td />{cols.map((c, j) => <td key={j} className="text-[10px] text-ink3 text-center pt-1">{j % 3 === 2 || j === 23 ? c : ''}</td>)}</tr>
       </tbody></table></div>
@@ -466,7 +467,7 @@ export function MapFlows() {
 
 export function ReadinessHex({ readinessOf }) {
   const { s, act } = useApp(); const { L } = useLive();
-  const groups = useMemo(() => D.REGIONS.map(rg => { const bs = D.BRANCHES.filter(b => b.region === rg); const items = bs.map(b => { const r = readinessOf(b); const fail = r.results.filter(x => x.st === 'fail'), warn = r.results.filter(x => x.st === 'warn'); const st = fail.length ? 'fail' : warn.length ? 'warn' : 'pass'; return { id: b.id, st, color: st === 'fail' ? C.bad : st === 'warn' ? C.warn : '#a9cba9', dim: !inScope(s, b.id), title: `${b.name}: ${st === 'pass' ? 'all six checks pass' : (fail[0] || warn[0]).detail}` }; }); return { label: rg, sub: `${bs.length} branches · ${items.filter(i => i.st !== 'pass').length} with issues`, items }; }), [s.incidents, s.branchHealth, s.circuitState, s.readiness, s.filters, Math.floor(L.last / 10000)]);
+  const groups = useMemo(() => D.REGIONS.map(rg => { const bs = D.BRANCHES.filter(b => b.region === rg); const items = bs.map(b => { const r = readinessOf(b); const fail = r.results.filter(x => x.st === 'fail'), warn = r.results.filter(x => x.st === 'warn'); const st = fail.length ? 'fail' : warn.length ? 'warn' : 'pass'; return { id: b.id, st, color: st === 'fail' ? C.bad : st === 'warn' ? C.warn : '#a9cba9', dim: !inScope(s, b.id), title: `${b.name}: ${st === 'pass' ? 'all checks pass' : (fail[0] || warn[0]).detail}` }; }); return { label: rg, sub: `${bs.length} branches · ${items.filter(i => i.st !== 'pass').length} with issues`, items }; }), [s.incidents, s.branchHealth, s.circuitState, s.readiness, s.filters, Math.floor(L.last / 10000)]);
   return (
     <Card title="Readiness by branch" sub="Each hexagon is a branch, grouped by region, coloured by its worst pre-opening check. Click one to open it." right={<LiveTag />}>
       <HexMap groups={groups} onPick={it => act.openBranch(it.id)} legend={<Legend items={[['All checks pass', '#a9cba9'], ['Can trade, something degraded', C.warn], ['Not ready', C.bad]]} />} />
@@ -496,7 +497,7 @@ export function CarrierNetworks() {
             <td className="px-4 py-2"><div className="font-bold text-ink">{r.k}</div><div className="text-[11px] text-ink3">{r.types}</div></td>
             <td className="px-2 text-right tabular-nums text-ink">{num(r.n)}</td>
             <td className="px-2"><div className="flex h-2.5 rounded-sm overflow-hidden bg-chip"><span style={{ width: `${r.up / r.n * 100}%`, background: C.ok }} /><span style={{ width: `${Math.max(r.deg ? 2 : 0, r.deg / r.n * 100)}%`, background: C.warn }} /><span style={{ width: `${Math.max(r.dn ? 2 : 0, r.dn / r.n * 100)}%`, background: C.bad }} /></div><div className="text-[11px] text-ink3 mt-0.5">{r.up} up{r.deg ? <span className="text-warn"> · {r.deg} degraded</span> : ''}{r.dn ? <span className="text-bad"> · {r.dn} down</span> : ''}</div></td>
-            <td className="px-2"><div className="flex items-center gap-2"><Spark data={r.series} color={r.lat > 45 ? C.warn : C.s4} w={110} h={26} /><b className="tabular-nums text-ink whitespace-nowrap" key={L.last}>{Math.round(r.lat)} ms</b></div></td>
+            <td className="px-2"><div className="flex items-center gap-2"><Spark data={r.series} color={r.lat > 45 ? C.warn : C.s4} w={110} h={26} /><b className="tabular-nums text-ink whitespace-nowrap"><TweenNum value={`${Math.round(r.lat)} ms`} /></b></div></td>
             <td className="px-2 text-right tabular-nums">{r.loss.toFixed(2)}%</td>
             <td className={cx('px-2 text-right tabular-nums font-semibold', r.sla != null && r.sla < 0.9 ? 'text-warn' : 'text-ink')}>{r.sla != null ? `${Math.round(r.sla * 100)}%` : '—'}</td>
             <td className="px-2 text-right">{r.cases ? <button onClick={() => act.go('carriers')} className="font-bold text-ink tabular-nums">{r.cases}</button> : <span className="text-ink3">0</span>}</td>

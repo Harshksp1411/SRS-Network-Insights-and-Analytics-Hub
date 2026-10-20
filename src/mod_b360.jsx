@@ -5,12 +5,13 @@ import * as P from './predict.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, gate, slaClock, cityKey } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, KV, Progress, Logo, Modal, Tabs, cx, healthTone, Illus } from './ui.jsx';
-import { Spark, LineChart, Bars, Legend, Ring, C, useWidth } from './charts.jsx';
+import { Spark, LineChart, Bars, Legend, Ring, C, useWidth, useTween } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, hhmmss, dt, dateShort, rng, MIN, HR, DAY, T0, exportCSV } from './util.js';
 import { baseReadiness } from './mod_ops.jsx';
 
 // ───────── gauge with normal / warning / critical outer bands ─────────
-function Gauge({ value, min = 0, max, warn, crit, label, sub, unit, fmt = v => v, invert }) {
+function Gauge({ value: v0, min = 0, max, warn, crit, label, sub, unit, fmt = v => v, invert }) {
+  const value = useTween(v0, 1400);
   const W = 180, H = 136, cx0 = 90, cy0 = 88, R = 64;
   const a0 = -210, a1 = 30; // degrees
   const ang = v => a0 + (Math.max(min, Math.min(max, v)) - min) / (max - min) * (a1 - a0);
@@ -45,7 +46,7 @@ function useBranchLive(s, b) {
   const p = circuitOf(s, b.wan[0]), sc = circuitOf(s, b.wan[1]);
   const incs = s.incidents.filter(i => i.branchId === b.id && i.state !== 'Resolved');
   const steer = s.steer && s.steer[b.id];
-  const onBackup = p.status !== 'Up' || steer;
+  const onBackup = p.status === 'Down' || !!steer;
   const path = onBackup ? sc : p;
   const dW = (L.series.wan.at(-1) - 27) * 0.4;
   const R = Math.random;
@@ -274,7 +275,7 @@ export function Branch360() {
 
       <div className="mt-3">
         <Tabs value={tab} onChange={setTab} className="mb-2" tabs={[{ id: 'devices', label: 'Devices and lifecycle', count: devs.length }, { id: 'vulns', label: 'Vulnerabilities', count: vulnRows.reduce((a, r) => a + r.devs.length, 0) }, { id: 'work', label: 'Open work and history' }]} />
-        {tab === 'devices' && <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
+        {tab === 'devices' && <div className="grid min-[1700px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
           <Card pad={false} title="Every device at this branch" sub="Make, model, firmware, lifecycle and open vulnerabilities" right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV(`${b.code}-devices.csv`, devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Make', get: d => (D.MODEL_INFO[d.model] || {}).make }, { label: 'Model', key: 'desc' }, { label: 'SKU', get: d => d.sku || '' }, { label: 'Serial/MAC', key: 'serial' }, { label: 'Firmware', key: 'fw' }, { label: 'Lifecycle', get: d => d.life.status }, { label: 'Warranty end', get: d => new Date(d.warranty).toISOString().slice(0, 10) }, { label: 'Advisories', get: d => d.vulns.map(v => v.id).join(' ') }])}>Export</Btn>}>
             <div className="px-3 pb-3"><Table dense rows={devRows} cols={[
               { key: 'id', label: 'Hostname', render: d => <span className="font-mono font-bold">{d.id}</span> },
