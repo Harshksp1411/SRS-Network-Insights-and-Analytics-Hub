@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { parts, MIN } from './util.js';
+import { seedX, tickX } from './liveext.js';
 
 // Live simulation engine: every tick it streams telemetry, raw events and their correlation outcome,
 // moves the rolling metric series, and now and then raises / acknowledges / auto-resolves incidents
@@ -67,6 +68,7 @@ export function LiveProvider({ children }) {
     const cats = [...new Set(EV.map(e => e.cat))];
     cats.forEach(cat => { const evs = EV.filter(e => e.cat === cat); for (let i = 0; i < 6; i++) { const b = pick(D.BRANCHES), e = pick(evs); L.current.feed.push({ id: `seed-${cat}-${i}`, t: now - Math.floor(rnd(20e3, 600e3)), src: e.src, cat, branchId: b.id, ...e.make(b) }); } });
     L.current.feed.sort((a, b) => b.t - a.t);
+    L.current.x = seedX(now);
   }
   const [ver, setVer] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -165,6 +167,7 @@ export function LiveProvider({ children }) {
       Lc.flaps = Lc.flaps.filter(f => { if (now < f.until) return true; act.map('circuitState', f.id, undefined); act.map('branchHealth', f.b, sRef.current.incidents.some(i => i.branchId === f.b && i.state !== 'Resolved') ? 'degraded' : 'up'); Lc.feed = [{ id: `${now}-rec-${f.id}`, t: now, src: 'Orchestrator', cat: 'carriers', branchId: f.b, msg: `${f.id} clean for 30 s – traffic back on primary`, sev: 'Info', out: 'Recovered – no ticket' }, ...Lc.feed].slice(0, 300); return false; });
       for (const k in Lc.newIncs) if (now - Lc.newIncs[k] > 25000) delete Lc.newIncs[k];
       for (const k in Lc.pending) { const nx = Lc.pending[k].shift(); if (nx) act.upd('incidents', k, x => ({ agentSteps: [...x.agentSteps, { ...nx, t: now }] })); if (!Lc.pending[k].length) delete Lc.pending[k]; }
+      try { tickX(Lc, sRef.current, now); } catch (err) { console.warn('live x', err); }
       Lc.last = now;
       setVer(v => v + 1);
     }, TICK);

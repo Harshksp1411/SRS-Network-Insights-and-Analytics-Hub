@@ -19,10 +19,10 @@ Every demo and runbook runs in one of three modes:
 | Area | Screens |
 |---|---|
 | Start here | Live Demos: 19 scripted demos. Each plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation, and replays into the live console |
-| Operate | Operations Overview (all 900 branches on the map), Branch 360, Branch Readiness, Live Incidents, Network Graph |
+| Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents, Network Graph |
 | Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch, Approvals & Changes |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
-| Improve | Predictive Watchlist, Knowledge, Automation Library |
+| Improve | Predictive Watchlist, Knowledge, Mova iO Agents, Automation Library |
 | Govern | SLA & KPI Tracker (Annexure B), Reports |
 
 Filter everything by Region › City › Branch › Brand. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".

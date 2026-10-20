@@ -19,10 +19,13 @@ import { Inventory, Carriers, Dispatch } from './mod_assets.jsx';
 import { Changes } from './mod_changes.jsx';
 import { BiaB } from './mod_biab.jsx';
 import { Predictive, Knowledge, Automation, SLATracker, Reports } from './mod_more.jsx';
+import { LiveOps, Correlation, Agents } from './mod_live.jsx';
 
 export const MODULES = [
   { id: 'demos', label: 'Live Demos', icon: I.PlayCircle, group: 'Start here', C: LiveDemos, badge: () => DEMOS.length },
   { id: 'overview', label: 'Operations Overview', icon: I.LayoutDashboard, group: 'Operate', C: Overview },
+  { id: 'live', label: 'Live Operations', icon: I.Radio, group: 'Operate', C: LiveOps },
+  { id: 'correlation', label: 'Correlation', icon: I.GitMerge, group: 'Operate', C: Correlation },
   { id: 'b360', label: 'Branch 360', icon: I.Store, group: 'Operate', C: Branch360 },
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
@@ -35,6 +38,7 @@ export const MODULES = [
   { id: 'biab', label: 'Branch-in-a-Box', icon: I.PackageCheck, group: 'Grow', C: BiaB },
   { id: 'predict', label: 'Predictive Watchlist', icon: I.TrendingUp, group: 'Improve', C: Predictive },
   { id: 'knowledge', label: 'Knowledge', icon: I.BookOpen, group: 'Improve', C: Knowledge },
+  { id: 'agents', label: 'Mova iO Agents', icon: I.Bot, group: 'Improve', C: Agents },
   { id: 'automation', label: 'Automation Library', icon: I.Workflow, group: 'Improve', C: Automation },
   { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },

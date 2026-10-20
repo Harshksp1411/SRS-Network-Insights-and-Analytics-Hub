@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
+import { LatencyHex, ToolsStrip, TopBranches } from './viz2.jsx';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
@@ -58,6 +59,7 @@ export function Inventory() {
         <Stat label="Warranty" icon={I.CalendarClock} value={<span><span className="text-bad">{expired}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{expiring}</span></span>} sub="expired / ending < 90 days" onClick={() => { setTab('devices'); setWar('Expired'); }} />
       </div>
       <LivePanel kind="inventory" className="mb-3 mt-3" />
+      <div className="mb-3"><ToolsStrip only={['aruba', 'central', 'opsramp']} /></div>
       <div className="grid xl:grid-cols-3 gap-3 mb-3">
         <FirmwareMixCard />
         <WarrantyCard />
@@ -181,6 +183,7 @@ export function Carriers() {
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>
       <LivePanel kind="carriers" className="mb-3 mt-3" />
+      <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><LatencyHex /><TopBranches /></div>
       <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
         <CarrierForecastCard />
         <CarrierTrendCard />

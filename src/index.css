@@ -48,3 +48,5 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
   color-scheme: light;
 }
 .num-flash { animation: numFlash 1.2s ease-out; }
+@keyframes flowDash { to { stroke-dashoffset: -16; } }
+.flow-dash { animation: flowDash 1.6s linear infinite; }

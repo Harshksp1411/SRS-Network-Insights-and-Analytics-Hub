@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
+import { ErrorBudgets, CalendarHeat } from './viz2.jsx';
 import * as D from './data.js';
 import { useApp, useNow, gate, slaClock, branchClock, healthOf, circuitOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Conf, GateBox, Modal, KV, cx, Progress, Select, SearchBox, Illus, ExportBtn, Pri, Dot, Logo } from './ui.jsx';
@@ -173,6 +174,8 @@ export function SLATracker() {
         <Stat label="Critical availability (#29)" icon={I.Activity} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
       </div>
       <LivePanel kind="sla" className="mb-3 mt-3" />
+      <div className="mb-3"><ErrorBudgets /></div>
+      <div className="mb-3"><CalendarHeat /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>

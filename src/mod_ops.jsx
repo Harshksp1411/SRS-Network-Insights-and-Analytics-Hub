@@ -8,6 +8,7 @@ import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from '
 import { useLive } from './live.jsx';
 import { LiveBadge, LiveFeed, EventFlowCard, ExperienceCard, AlertsPerMinCard, AppsLive, LivePanel } from './liveui.jsx';
 import { IncidentForecastCard, PreventiveCard, ReadinessTrendCard, OpeningRiskCard } from './viz.jsx';
+import { ServiceTiles, ErrorBudgets, TopBranches, UnifiedTimeline, MapFlows, ReadinessHex } from './viz2.jsx';
 
 const sevColor = h => ({ up: C.ok, degraded: C.warn, down: C.bad }[h]);
 
@@ -61,9 +62,12 @@ export function Overview() {
         <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
       </div>
 
+      <div className="flex items-center gap-2 mt-4 mb-2"><h2 className="text-[15px] font-bold text-ink">Business services</h2><span className="text-[12px] text-ink3">what branches feel right now</span><span className="ml-auto"><LiveBadge /></span></div>
+      <ServiceTiles />
+
       <div className="grid xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
         <Card title="Branch health map" sub={`All 900 branches. Each dot is one branch, coloured by health; pick a region or city above to zoom. Click a branch for Branch 360.`} icon={I.Map} right={<Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} />}>
-          <NAMap points={points} focus={focusPts} onPoint={p => act.openBranch(p.id)} h={440} />
+          <NAMap points={points} focus={focusPts} onPoint={p => act.openBranch(p.id)} h={440}>{!focusPts && <MapFlows />}</NAMap>
         </Card>
         <Card title="Open incidents" sub="Sorted by priority, then SLA time left, new ones flash" icon={I.ListOrdered} right={<Btn size="sm" onClick={() => act.go('incidents')}>Queue</Btn>}>
           <div className="space-y-1.5 max-h-[440px] overflow-y-auto pr-1">
@@ -82,6 +86,9 @@ export function Overview() {
         </Card>
       </div>
 
+      <div className="flex items-center gap-2 mt-4 mb-2"><h2 className="text-[15px] font-bold text-ink">Service levels and error budgets</h2><span className="text-[12px] text-ink3">30-day window</span></div>
+      <ErrorBudgets />
+
       <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
         <IncidentForecastCard />
         <PreventiveCard />
@@ -95,7 +102,7 @@ export function Overview() {
 
       <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
         <LiveFeed h={380} />
-        <AppsLive open={open} />
+        <TopBranches />
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 mt-3">
@@ -130,6 +137,7 @@ export function Overview() {
       <Modal open={!!cityPick} onClose={() => setCityPick(null)} title={cityPick ? `${cityPick.bs[0].city}, ${cityPick.bs[0].state}` : ''} sub={cityPick ? `${cityPick.bs.length} branches` : ''}>
         {cityPick && <Table dense rows={cityPick.bs} onRow={b => { setCityPick(null); act.openBranch(b.id); }} cols={[{ key: 'h', label: '', sortable: false, render: b => <Dot tone={healthTone(healthOf(s, b))} /> }, { key: 'name', label: 'Branch' }, { key: 'brand', label: 'Brand' }, { key: 'id', label: 'ID' }, { key: 'inc', label: 'Open inc.', get: b => s.incidents.filter(i => i.branchId === b.id && i.state !== 'Resolved').length }]} />}
       </Modal>
+      <div className="mt-3"><UnifiedTimeline /></div>
     </div>
   );
 }
@@ -195,6 +203,7 @@ export function Readiness() {
         </Card>
       </div>
       <LivePanel kind="readiness" className="mb-3 mt-3" />
+      <ReadinessHex readinessOf={b => s.readiness[b.id] || baseReadiness(s, b)} />
       <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
         <ReadinessTrendCard />
         <OpeningRiskCard />
