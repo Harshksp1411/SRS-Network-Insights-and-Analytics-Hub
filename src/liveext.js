@@ -61,7 +61,7 @@ export function seedX(now) {
   const tools = {}; TOOLS.forEach(t => { tools[t.id] = Array.from({ length: 30 }, () => Math.round(t.base * (0.7 + R() * 0.6))); });
   const cands = D.BRANCHES.filter((b, i) => i % 15 === 3).map((b, i) => ({ id: b.id, wan: 40 + R() * 48, lat: 18 + R() * 50, loss: R() * 0.7, cpu: 10 + R() * 60 }));
   const corr = { auto: 0, digest: 0, grouped: 0, watch: 0 };
-  const budgets = [[99.95, 99.962, 'Branches online (WAN)', 'both paths, all 900 branches'], [99.9, 99.94, 'POS path under 400 ms', 'synthetic probe, every branch'], [99.5, 99.71, 'Roof Hub p95 under 1.2 s', 'New Relic, from branches'], [98, 98.5, 'P1 and P2 answered in 15 min', 'Annexure B #1 and #2']].map(([target, actual, name, sub], k) => {
+  const budgets = [[99.95, 99.962, 'Branches online (WAN)', 'both paths, all 900 branches'], [99.9, 99.94, 'POS path under 400 ms', 'synthetic probe, every branch'], [99.5, 99.71, 'Loss under 1% on active paths', 'Orchestrator, every branch'], [98, 98.5, 'P1 and P2 answered in 15 min', 'Annexure B #1 and #2']].map(([target, actual, name, sub], k) => {
     const used = (100 - actual) / (100 - target); const series = []; let left = 1; for (let d = 0; d < 30; d++) { left -= used / 30 * (0.6 + R() * 0.8) * (d > 24 && k === 1 ? 2.2 : 1); series.push(+Math.max(0, left).toFixed(3)); }
     return { name, sub, target, actual, series };
   });

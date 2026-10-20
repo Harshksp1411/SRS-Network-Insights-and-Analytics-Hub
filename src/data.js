@@ -548,9 +548,9 @@ export const GATE_TEMPLATE = [
   ['Sat 08:00', 'Circuits verified: primary + LTE', 'Carrier Agent', 'Speed test + failover test both paths'],
   ['Sat 10:00', 'VLANs & policies applied (NaC)', 'Network Eng L3', 'Diff = 0 vs golden'],
   ['Sat 13:00', 'POS / payment tested (PCI segment)', 'Security Lead', 'RB-110 pass; test auth approved'],
-  ['Sat 15:00', 'Scanners & printers tested', 'StoreOps + Field Tech', '14/14 handhelds online; label print test'],
-  ['Sun 10:00', 'ERP & Roof Hub order flow tested', 'StoreOps Lead', 'Test order placed in Roof Hub → ERP → pick ticket printed'],
-  ['Sun 12:00', 'Delivery tracking tested', 'StoreOps Lead', 'Truck tablet posts location + proof-of-delivery photo'],
+  ['Sat 15:00', 'Scanners and printers on the network', 'StoreOps + Field Tech', '14/14 handhelds online; label print test'],
+  ['Sun 10:00', 'ERP and order flow over the network', 'StoreOps Lead', 'Test order end to end over the new network'],
+  ['Sun 12:00', 'Delivery-tracking devices connected', 'StoreOps Lead', 'Truck tablet reports location'],
   ['Sun 16:00', 'Day-1 parity: OpsRamp, Central, CMDB, runbooks', 'Movate NOC', 'Parity check 100%'],
   ['Mon 05:30', 'StoreOps sign-off – Go', 'Branch Manager + StoreOps', 'Signed in ServiceNow'],
 ];
