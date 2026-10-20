@@ -473,3 +473,35 @@ export function ReadinessHex({ readinessOf }) {
     </Card>
   );
 }
+
+// ── Carrier networks, live: one row per carrier ──────────────────────
+export function CarrierNetworks() {
+  const { L } = useLive(); const { s, act } = useApp();
+  const t = Math.floor(L.last / 2000);
+  const rows = useMemo(() => D.CARRIERS.map((k, i) => {
+    const cs = D.CIRCUITS.filter(c => c.carrier === k).map(c => circuitOf(s, c.id)).filter(c => inScope(s, c.branchId));
+    if (!cs.length) return null;
+    const up = cs.filter(c => c.status === 'Up').length, deg = cs.filter(c => c.status === 'Degraded').length, dn = cs.filter(c => c.status === 'Down').length;
+    const lat = cs.reduce((a, c) => a + c.lat, 0) / cs.length; const loss = cs.reduce((a, c) => a + c.loss, 0) / cs.length;
+    const R = rng(i * 17 + 3); const series = Array.from({ length: 40 }, (_, j) => +(lat * (1 + 0.06 * Math.sin((t + j) * 0.5 + i) + (R() - 0.5) * 0.05)).toFixed(1));
+    const sc = D.SCORECARD.find(x => x.carrier === k); const cases = s.cases.filter(c => c.carrier === k && !c.closed).length;
+    return { k, n: cs.length, up, deg, dn, lat: series.at(-1), loss, series, sla: sc ? sc.slaMet : null, cases, types: [...new Set(cs.map(c => c.type))].join(', ') };
+  }).filter(Boolean).sort((a, b) => b.n - a.n), [t, s.circuitState, s.cases, s.filters]);
+  return (
+    <Card title="Carrier networks, live" sub="Every circuit in view, grouped by carrier: status, latency to the data centre and open cases" right={<LiveTag />} pad={false}>
+      <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
+        <thead><tr className="text-ink3 border-b border-line text-left"><th className="px-4 py-2 font-semibold">Carrier</th><th className="px-2 font-semibold text-right">Circuits</th><th className="px-2 font-semibold w-[200px]">Status</th><th className="px-2 font-semibold">Latency, live</th><th className="px-2 font-semibold text-right">Avg loss</th><th className="px-2 font-semibold text-right">Restore SLA</th><th className="px-2 font-semibold text-right">Open cases</th></tr></thead>
+        <tbody>{rows.map(r => (
+          <tr key={r.k} className="border-b border-line/70">
+            <td className="px-4 py-2"><div className="font-bold text-ink">{r.k}</div><div className="text-[11px] text-ink3">{r.types}</div></td>
+            <td className="px-2 text-right tabular-nums text-ink">{num(r.n)}</td>
+            <td className="px-2"><div className="flex h-2.5 rounded-sm overflow-hidden bg-chip"><span style={{ width: `${r.up / r.n * 100}%`, background: C.ok }} /><span style={{ width: `${Math.max(r.deg ? 2 : 0, r.deg / r.n * 100)}%`, background: C.warn }} /><span style={{ width: `${Math.max(r.dn ? 2 : 0, r.dn / r.n * 100)}%`, background: C.bad }} /></div><div className="text-[11px] text-ink3 mt-0.5">{r.up} up{r.deg ? <span className="text-warn"> · {r.deg} degraded</span> : ''}{r.dn ? <span className="text-bad"> · {r.dn} down</span> : ''}</div></td>
+            <td className="px-2"><div className="flex items-center gap-2"><Spark data={r.series} color={r.lat > 45 ? C.warn : C.s4} w={110} h={26} /><b className="tabular-nums text-ink whitespace-nowrap" key={L.last}>{Math.round(r.lat)} ms</b></div></td>
+            <td className="px-2 text-right tabular-nums">{r.loss.toFixed(2)}%</td>
+            <td className={cx('px-2 text-right tabular-nums font-semibold', r.sla != null && r.sla < 0.9 ? 'text-warn' : 'text-ink')}>{r.sla != null ? `${Math.round(r.sla * 100)}%` : '—'}</td>
+            <td className="px-2 text-right">{r.cases ? <button onClick={() => act.go('carriers')} className="font-bold text-ink tabular-nums">{r.cases}</button> : <span className="text-ink3">0</span>}</td>
+          </tr>))}</tbody>
+      </table></div>
+    </Card>
+  );
+}

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
-import { LatencyHex, ToolsStrip, TopBranches } from './viz2.jsx';
+import { CarrierNetworks, ToolsStrip, TopBranches } from './viz2.jsx';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
@@ -183,7 +183,7 @@ export function Carriers() {
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>
       <LivePanel kind="carriers" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><LatencyHex /><TopBranches /></div>
+      <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><CarrierNetworks /><TopBranches /></div>
       <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
         <CarrierForecastCard />
         <CarrierTrendCard />

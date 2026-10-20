@@ -8,7 +8,8 @@ import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from '
 import { useLive } from './live.jsx';
 import { LiveBadge, LiveFeed, EventFlowCard, ExperienceCard, AlertsPerMinCard, AppsLive, LivePanel } from './liveui.jsx';
 import { IncidentForecastCard, PreventiveCard, ReadinessTrendCard, OpeningRiskCard } from './viz.jsx';
-import { ServiceTiles, ErrorBudgets, TopBranches, UnifiedTimeline, MapFlows, ReadinessHex } from './viz2.jsx';
+import { ServiceTiles, ErrorBudgets, TopBranches, UnifiedTimeline, MapFlows } from './viz2.jsx';
+import { useReadiness, branchChecks, COLS, PreopenBanner, ReadinessSummary, OpenByTimezone, OpeningSchedule, ReadinessTable, PreopenStream, FixedOvernight } from './readiness.jsx';
 
 const sevColor = h => ({ up: C.ok, degraded: C.warn, down: C.bad }[h]);
 
@@ -188,42 +189,30 @@ export function Readiness() {
   const regionMatrix = D.REGIONS.map(rg => { const rs = rows.filter(r => r.b.region === rg); if (!rs.length) return null; return { rg, n: rs.length, cells: D.READY_CHECKS.map(c => { const p = rs.filter(r => r.r.results.find(x => x.id === c.id).st === 'pass').length; return { id: c.id, p, n: rs.length }; }) }; }).filter(Boolean);
   const total = rows.length, passAll = rows.filter(r => r.worst === 'pass').length;
   const waves = ['America/New_York', 'America/Chicago', 'America/Denver', 'America/Phoenix', 'America/Los_Angeles'].map(tz => { const b = list.find(x => x.tz === tz); if (!b) return null; const c = branchClock(b, now); return { tz, c, n: list.filter(x => x.tz === tz).length }; }).filter(Boolean);
-  const bulk = () => { const targets = shown.slice(0, 40); targets.forEach((r, i) => setTimeout(() => rerun(r.b), i * 120)); act.toast(`Re-running checks on ${targets.length} branches`, 'info'); };
+  const bulk = () => { act.audit('Readiness check run on demand (all branches in view)', ''); act.toast(`Re-running pre-opening checks on ${list.length} branches`, 'info'); };
 
+  const R = useReadiness(list);
+  const raise2 = b => { const ch = branchChecks(s, b); const fails = Object.entries(ch.c).filter(([, x]) => x.st !== 'pass').map(([id, x]) => ({ id, ...x, name: COLS.find(c => c.id === id).label })); if (!fails.length) { act.toast(`${b.name}: all checks pass, nothing to raise`, 'info'); return; } const id = D.nextInc();
+    act.add('incidents', { id, kind: 'readiness', pri: fails.some(f => ['wan1', 'ec', 'pos', 'erp'].includes(f.id) && f.st === 'fail') ? 'P2' : 'P3', title: `Readiness check failed before opening: ${fails.map(f => f.name).join(', ')}`, cat: 'Branch readiness', branchId: b.id, ci: `${b.code}-ec01`, opened: Date.now(), acked: null, state: 'New', group: 'Movate NOC – L2 Network', assignee: null, signals: fails.map(f => ({ t: Date.now(), src: 'Synthetic', msg: `${f.name}: ${f.detail}`, sev: f.st === 'fail' ? 'Major' : 'Minor' })), corr: fails.length, suppressed: 0, rca: [], conf: 0, agentSteps: [], runbook: null, rbState: 'proposed', impact: fails.map(f => f.detail), verify: [], notes: [], carrierCase: null, workOrder: null, major: false, children: [] });
+    act.audit(`Raised ${id} from readiness check`, b.id); act.toast(`${id} raised for ${b.name}`); };
+  const rerun2 = b => { setRunning(x => ({ ...x, [b.id]: true })); setTimeout(() => { setRunning(x => ({ ...x, [b.id]: false })); const ch = branchChecks(s, b); act.audit(`Readiness re-run: ${b.name}`, b.id); act.toast(`${b.name}: ${ch.result === 'Ready' || ch.result === 'Fixed overnight' ? 'all checks pass' : ch.result.toLowerCase()}`, ch.result === 'Not ready' ? 'bad' : ch.result === 'Needs attention' ? 'warn' : 'ok'); }, 1800); };
   return (
     <div>
-      <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Automated pre-opening checks run at 05:30 local for every branch: SD-WAN, ERP/POS path, Wi-Fi, handheld scanners, printers and delivery-tracking devices."
-        right={<><Btn icon={I.RefreshCw} onClick={bulk}>Re-run {view === 'all' ? 'first 40' : 'shown'}</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', rows, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, ...D.READY_CHECKS.map(c => ({ label: c.name, get: r => r.r.results.find(x => x.id === c.id).st }))])} /></>} />
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4">
-        <Stat label="Ready (all checks pass)" icon={I.CheckCircle2} value={num(passAll)} tone="green" sub={`${pct(passAll / Math.max(1, total))} of ${num(total)}`} />
-        <Stat label="Ready with issues" icon={I.AlertTriangle} value={rows.filter(r => r.worst === 'warn').length} tone="amber" sub="can trade; something degraded" />
-        <Stat label="Not ready" icon={I.XCircle} value={rows.filter(r => r.worst === 'fail').length} tone="red" sub="needs action before opening" />
-        <Card title="Next opening waves" icon={I.Clock} className="!p-0" pad>
-          <div className="space-y-1">{waves.map(w => <div key={w.tz} className="flex items-center text-[12px]"><span className="w-12 font-bold text-ink">{w.c.local.split(' ')[1]}</span><span className="text-ink2 flex-1">{w.n} branches, now {w.c.local.split(' ')[0]}</span><Badge tone={w.c.open ? 'green' : 'gray'}>{w.c.open ? 'Open' : w.c.minsToOpen != null ? `opens in ${Math.floor(w.c.minsToOpen / 60)}h ${w.c.minsToOpen % 60}m` : 'Closed'}</Badge></div>)}</div>
-        </Card>
-      </div>
-      <LivePanel kind="readiness" className="mb-3 mt-3" />
-      <ReadinessHex readinessOf={b => s.readiness[b.id] || baseReadiness(s, b)} />
+      <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Pre-opening checks run at 05:30 local for every branch: primary and backup internet, EdgeConnect, switches, Wi-Fi, POS, ERP, Roof Hub, scanners, printers, truck tablets and UPS. Issues are fixed overnight or given an owner before opening."
+        right={<><Btn icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
+      <PreopenBanner rows={R} />
+      <div className="mt-3"><ReadinessSummary rows={R} /></div>
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
+      <div className="mt-3"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} /></div>
+      <div className="grid xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
       <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
         <ReadinessTrendCard />
         <OpeningRiskCard />
       </div>
-      <Card title="Pass rate by region and check" sub="Click a cell to list the branches failing that check" icon={I.Grid3x3} className="mt-3">
-        <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="text-ink3 text-left"><th className="py-1.5 pr-2">Region</th>{D.READY_CHECKS.map(c => <th key={c.id} className="px-1 py-1.5 font-semibold">{c.name}<div className="text-[10.5px] font-normal">{c.src}</div></th>)}</tr></thead>
-          <tbody>{regionMatrix.map(r => <tr key={r.rg} className="border-t border-line/60"><td className="py-1.5 pr-2 font-semibold text-ink whitespace-nowrap">{r.rg} <span className="text-ink3 font-normal">({r.n})</span></td>{r.cells.map(c => { const v = c.p / c.n; return <td key={c.id} className="px-1 py-1"><button onClick={() => { act.set(st => ({ filters: { ...st.filters, region: r.rg, branchId: null } })); setView('attention'); }} className={cx('w-full rounded px-2 py-1 font-bold text-left', v === 1 ? 'bg-ok/10 text-ok' : v >= 0.97 ? 'bg-warn/10 text-warn' : 'bg-bad/10 text-bad')}>{pct(v, 1)}<span className="font-normal text-ink3 ml-1">{c.n - c.p ? `${c.n - c.p} not passing` : ''}</span></button></td>; })}</tr>)}</tbody></table></div>
+      <Card title="Pass rate by region and check" sub="Click a cell to filter the console to that region" icon={I.Grid3x3} className="mt-3">
+        <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="text-ink3 text-left"><th className="py-1.5 pr-2">Region</th>{COLS.map(c => <th key={c.id} className="px-1 py-1.5 font-semibold text-center">{c.label}</th>)}</tr></thead>
+          <tbody>{D.REGIONS.map(rg => { const rs = R.filter(r => r.b.region === rg); if (!rs.length) return null; return <tr key={rg} className="border-t border-line/60"><td className="py-1.5 pr-2 font-semibold text-ink whitespace-nowrap">{rg} <span className="text-ink3 font-normal">({rs.length})</span></td>{COLS.map(c => { const v = rs.filter(r => r.c[c.id].st === 'pass').length / rs.length; return <td key={c.id} className="px-0.5 py-1"><button onClick={() => act.set(st => ({ filters: { ...st.filters, region: rg, city: 'All', branchId: null } }))} title={`${rg}, ${c.label}: ${(v * 100).toFixed(1)}% pass`} className={cx('w-full rounded px-1 py-1 font-bold text-center text-[11.5px]', v === 1 ? 'bg-ok/10 text-ok' : v >= 0.97 ? 'bg-warn/10 text-warn' : 'bg-bad/10 text-bad')}>{v === 1 ? '100' : (v * 100).toFixed(1)}</button></td>; })}</tr>; })}</tbody></table></div>
       </Card>
-      <Section title="Branches" right={<Tabs size="sm" value={view} onChange={setView} tabs={[{ id: 'attention', label: 'Needs attention', count: rows.filter(r => r.worst !== 'pass').length }, { id: 'soon', label: 'Opening in < 3 h', count: rows.filter(r => r.clk.minsToOpen != null && r.clk.minsToOpen < 180).length }, { id: 'all', label: 'All', count: rows.length }]} />}>
-        <Card pad={false}><div className="p-3">
-          <Table pageSize={25} rows={shown} cols={[
-            { key: 'b', label: 'Branch', get: r => r.b.name, render: r => <button onClick={() => act.openBranch(r.b.id)} className="text-left"><div className="font-semibold text-ink hover:underline whitespace-nowrap">{r.b.name}</div><div className="text-[11.5px] text-ink3 truncate max-w-[200px]" title="">{r.b.brand}, {r.b.state}</div></button> },
-            { key: 'clk', label: 'Local', get: r => r.clk.local, render: r => <div className="text-[12px] whitespace-nowrap"><div className="font-mono">{r.clk.local}</div><div className="text-ink3">{r.clk.open ? 'Open' : r.clk.minsToOpen != null ? `Opens in ${Math.floor(r.clk.minsToOpen / 60)}h ${r.clk.minsToOpen % 60}m` : 'Closed'}</div></div> },
-            ...D.READY_CHECKS.map(c => ({ key: c.id, label: { 'SD-WAN tunnels': 'SD-WAN', 'ERP / POS path': 'ERP/POS', 'Wi-Fi': 'Wi-Fi', 'Handheld scanners': 'Scanners', 'Printers': 'Printers', 'Delivery-tracking devices': 'Trucks' }[c.name.split(' (')[0]] || c.name.split(' (')[0], sortable: false, render: r => { const x = r.r.results.find(y => y.id === c.id); return <span title={x.detail} className="inline-flex">{stIcon(x.st)}</span>; } })),
-            { key: 'issue', label: 'First issue', sortable: false, className: 'min-w-[180px]', render: r => <span className="text-[12px] text-ink2">{(r.r.results.find(x => x.st === 'fail') || r.r.results.find(x => x.st === 'warn') || { detail: '—' }).detail}</span> },
-            { key: 'at', label: 'Last run', get: r => r.r.at || 0, render: r => <span className="text-[11.5px] text-ink3">{r.r.at ? ago(r.r.at, now) : '05:30 local'}</span> },
-            { key: 'act', label: '', sortable: false, render: r => <div className="flex gap-1 justify-end whitespace-nowrap"><Btn size="xs" icon={I.RefreshCw} title="Re-run checks" disabled={running[r.b.id]} onClick={() => rerun(r.b)}>Re-run</Btn>{r.worst !== 'pass' && <Btn size="xs" kind="danger" icon={I.TicketPlus} title="Raise ticket" onClick={() => raise(r.b, r.r)}>Ticket</Btn>}</div> },
-          ]} />
-        </div></Card>
-      </Section>
     </div>
   );
 }
