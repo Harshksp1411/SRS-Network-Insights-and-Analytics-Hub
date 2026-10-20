@@ -72,7 +72,6 @@ function Header() {
       </div>
       <div className="leading-tight min-w-0 border-l border-line pl-4">
         <div className="font-display text-[19px] font-semibold text-ink whitespace-nowrap">Network Intelligence Hub</div>
-        <div className="text-[11.5px] text-ink3 whitespace-nowrap flex items-center gap-1.5">{num(D.FACTS.branches)} branches and {num(D.FACTS.totalDevices)} devices. Operated by <span className="inline-flex bg-white rounded-[3px] px-1 py-[1px] border border-line"><img src={LOGOS.movate} alt="Movate" style={{ height: 10 }} /></span></div>
       </div>
       <div className="flex-1" />
       <div className="hidden 2xl:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">

@@ -21,63 +21,54 @@ export function addStep(act, id, s) { act.upd('incidents', id, x => ({ agentStep
 export const SCENARIOS = [
   // 1 ─────────────────────────────────────────────────────────────
   {
-    id: 'mpls', title: 'Branch MPLS jitter', icon: 'Activity', sub: '40+ events become one incident, traffic steers to broadband, carrier case raised, StoreOps told within 15 minutes',
-    span: 14 * 60,
+    id: 'mpls', title: 'Branch MPLS jitter', icon: 'Activity', sub: '40+ events become one incident, traffic steers to broadband, carrier case raised and the incident closes in under 2 minutes',
+    span: 150,
     setup(ctx) {
       ctx.b = branchBy('Houston', 'SRS Building Products');
       ctx.p = ctx.b.wan[0]; ctx.s = ctx.b.wan[1];
       ctx.id = D.nextInc();
     },
     steps: [
-      { at: 0, label: 'Orchestrator: wan1 jitter 34 ms on AT&T MPLS', run(act, c, T) {
+      { at: 0, label: '09:12:00 OpsRamp: jitter, loss and latency rising on the AT&T MPLS primary', run(act, c, T) {
         act.map('circuitState', c.p, { status: 'Degraded', type: 'MPLS', carrier: 'AT&T', jit: 34, loss: 1.2 });
         act.map('branchHealth', c.b.id, 'degraded');
         act.add('incidents', baseInc({ id: c.id, pri: 'P3', title: 'MPLS jitter 34 ms / loss 1.2% – AT&T (raw events arriving)', branchId: c.b.id, ci: c.p, opened: T, cat: 'Carrier / LEC',
-          signals: [sig(T, 'Orchestrator', `${c.p} jitter 34 ms, loss 1.2% (AT&T MPLS)`, 'Major')], corr: 1 }));
+          signals: [sig(T, 'Orchestrator', `${c.p} jitter 34 ms, loss 1.2%, latency 96 ms (AT&T MPLS)`, 'Major')], corr: 1 }));
       } },
-      { at: 25, label: 'OpsRamp: 14 more events (BFD flaps, tunnel quality, latency)', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'OpsRamp', 'BFD session flap on overlay tunnel to Primary DC (x6)', 'Minor'), sig(T + 4e3, 'OpsRamp', 'Tunnel quality score 61 (was 98)', 'Major'), sig(T + 9e3, 'Orchestrator', 'Latency 96 ms on wan1 (baseline 24 ms)', 'Major')], 14);
+      { at: 10, label: 'More events: BFD flaps, tunnel quality, ERP and POS path latency', run(act, c, T) {
+        addSignals(act, c.id, [sig(T, 'OpsRamp', 'BFD session flap on overlay tunnel to Primary DC (x6)', 'Minor'), sig(T + 2e3, 'Orchestrator', 'Tunnel quality score 61 (was 98)', 'Major'), sig(T + 4e3, 'New Relic', 'ERP path latency 180 ms from this branch (baseline 40 ms)', 'Major'), sig(T + 6e3, 'Synthetic', 'POS path RTT 640 ms (threshold 400 ms)', 'Critical')], 26);
       } },
-      { at: 70, label: 'New Relic + synthetic: ERP path 180 ms, POS RTT 640 ms', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'New Relic', 'ERP path latency 180 ms from this branch (baseline 40 ms)', 'Major'), sig(T + 6e3, 'Synthetic', 'POS path RTT 640 ms (threshold 400 ms)', 'Critical'), sig(T + 9e3, 'Aruba Central', 'Counter clients reporting retries (app)', 'Minor')], 12);
-      } },
-      { at: 125, label: 'Correlation Agent: 43 events → 1 incident, P2', run(act, c, T) {
+      { at: 15, label: '09:12:15 Correlation Agent: 43 events → 1 incident; CI and site mapped', run(act, c, T) {
         act.upd('incidents', c.id, x => ({ pri: 'P2', title: 'SD-WAN degradation – AT&T MPLS: POS and ERP at risk', corr: 43, suppressed: 41, state: 'In Progress', acked: T, assignee: 'Mova iO', group: 'Movate NOC – L2 Network', impact: ['Card payments at risk of slowing at the counter', 'ERP order entry at risk'] }));
-        addStep(act, c.id, step('correlation', T, '43 raw events grouped into one incident (41 suppressed as duplicates/children). Priority raised to P2: branch open and POS impacted.'));
+        addStep(act, c.id, step('correlation', T, '43 raw events from the EdgeConnect, switches and Wi-Fi grouped into one incident; duplicates and flaps suppressed. ServiceNow incident opened with the CI and site mapped. Priority P2: branch open, POS at risk.'));
       } },
-      { at: 160, label: 'Diagnosis Agent: carrier congestion 87%', run(act, c, T) {
-        act.upd('incidents', c.id, { conf: 0.87, rca: [{ cause: 'Congestion on AT&T MPLS access / aggregation', conf: 0.87, ev: 'Jitter and loss rise together; local util only 29%; 3 other AT&T MPLS sites in Houston show the same pattern' }, { cause: 'Local WAN saturation', conf: 0.06, ev: 'wan1 utilisation 29%' }, { cause: 'EdgeConnect CPU / QoS', conf: 0.03, ev: 'CPU 11%, no drops in queue' }] });
-        addStep(act, c.id, step('diagnosis', T, 'Ranked 3 causes. Top: AT&T MPLS congestion (87%). Blast radius: this branch only for POS; 3 more Houston sites watching.'));
+      { at: 40, label: '09:12:40 Diagnosis: path tests, carrier portal and golden-config check point to the carrier (87%)', run(act, c, T) {
+        act.upd('incidents', c.id, { conf: 0.87, rca: [{ cause: 'Carrier-side degradation on the AT&T MPLS path', conf: 0.87, ev: 'Path and interface tests run in parallel; AT&T portal shows congestion on the aggregation; running config matches the golden template; local utilisation 29%' }, { cause: 'Local WAN saturation', conf: 0.06, ev: 'wan1 utilisation 29%' }, { cause: 'EdgeConnect CPU or QoS', conf: 0.03, ev: 'CPU 11%, no queue drops' }] });
+        addStep(act, c.id, step('diagnosis', T, 'Automated path and interface tests, carrier circuit health pulled from the AT&T portal, running config compared with the golden template. Not a local device or config fault: carrier-side degradation (87%).'));
       } },
-      { at: 190, label: 'Runbook RB-101 steers POS, ERP and voice to the healthy broadband path', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'Orchestrator', `POS, ERP and voice moved to ${c.s}; QoS re-applied (pre-approved RB-101, Act tier)`, 'Info')]);
-        act.map('branchHealth', c.b.id, 'degraded');
-        addStep(act, c.id, step('runbook', T, 'Broadband path tested healthy first. RB-101 is a pre-approved Act-tier action, so it ran during trading hours and the NOC was notified.'));
+      { at: 60, label: '09:13:00 RB-101 self-heals: traffic to broadband, QoS re-applied, tunnel verified', run(act, c, T) {
+        addSignals(act, c.id, [sig(T, 'Orchestrator', `POS, ERP and voice moved to ${c.s}; QoS re-applied for voice and ERP; tunnel re-established (pre-approved RB-101, Act tier)`, 'Info')]);
+        addStep(act, c.id, step('runbook', T, 'Broadband path tested healthy first. RB-101 is a pre-approved Act-tier action inside guardrails and change policy, so it ran during trading hours and notified the NOC.'));
         act.upd('incidents', c.id, { runbook: 'RB-101', rbState: 'done' });
       } },
-      { at: 230, label: 'Carrier Agent: evidence pack built, AT&T case raised', run(act, c, T) {
+      { at: 85, label: '09:13:25 Verification: synthetic POS and voice pass; evidence pack; AT&T ticket raised', run(act, c, T) {
+        act.upd('incidents', c.id, { verify: [{ v: 'POS RTT < 400 ms', st: 'pass', val: '180 ms' }, { v: 'ERP path < 80 ms', st: 'pass', val: '42 ms' }, { v: 'Voice MOS > 3.8', st: 'pass', val: '4.2' }] });
+        addSignals(act, c.id, [sig(T, 'Synthetic', 'POS path RTT 180 ms via wan2; voice MOS 4.2', 'Info')]);
         const no = D.caseNo('AT&T');
-        act.add('cases', { id: no, carrier: 'AT&T', circuit: c.p, inc: c.id, branchId: c.b.id, opened: T, status: 'Open – carrier testing', eta: T + 4 * HR, lastUpdate: T, evidence: ['60-min jitter/loss graph (Orchestrator)', 'MTR from EdgeConnect to PE', 'Tunnel quality history', 'Timestamps UTC/CT'], escal: 0 });
-        act.upd('incidents', c.id, { carrierCase: no, state: 'On Hold – Carrier' });
-        addStep(act, c.id, step('carrier', T, `Evidence pack attached; AT&T ticket ${no} opened via portal. Next carrier update due in 60 min.`));
+        act.add('cases', { id: no, carrier: 'AT&T', circuit: c.p, inc: c.id, branchId: c.b.id, opened: T, status: 'Open – carrier testing', eta: T + 4 * HR, lastUpdate: T, evidence: ['60-min jitter/loss graph (Orchestrator)', 'MTR from EdgeConnect to PE', 'Config diff vs golden (none)', 'Synthetic test results', 'Timestamps UTC/CT'], escal: 0 });
+        act.upd('incidents', c.id, { carrierCase: no });
+        addStep(act, c.id, step('carrier', T, `Evidence Collector attached telemetry, config diff and test results. AT&T ticket ${no} raised automatically with the circuit ID.`));
         act.audit(`Carrier case ${no} opened for ${c.p}`, c.id, 'Carrier Agent');
       } },
-      { at: 330, label: 'Comms Agent: StoreOps + branch manager notified (5 m 30 s)', run(act, c, T) {
-        addStep(act, c.id, step('comms', T, `StoreOps and ${c.b.name} manager told: "Card payments and ERP moved to the backup line before the counter noticed. AT&T is working the main line. Next update 60 min." – sent 5 m 30 s after first event.`));
-        act.note(c.id, 'StoreOps notified (Teams + email) – 5 m 30 s from first signal. Target 15 min: met.', 'Comms Agent');
+      { at: 100, label: '09:13:40 Closed on its own in under 2 minutes; StoreOps told', run(act, c, T) {
+        act.upd('incidents', c.id, { state: 'Resolved', resolved: T, closeCode: 'Auto-resolved (zero touch)' });
+        addStep(act, c.id, step('comms', T, `StoreOps and the ${c.b.name} manager told: "Card payments and ERP moved to the backup line before the counter noticed. AT&T is working the main line." No action needed.`));
+        act.note(c.id, 'Closed autonomously 1 m 40 s after the first signal: zero human touch, no user-reported impact.', 'Mova iO');
+        act.audit('RB-101 ran under policy (Act tier); incident closed autonomously', c.id, 'Runbook Agent');
       } },
-      { at: 380, label: 'Verification: POS 180 ms, ERP path 42 ms', run(act, c, T) {
-        act.upd('incidents', c.id, { verify: [{ v: 'POS RTT < 400 ms', st: 'pass', val: '180 ms' }, { v: 'ERP path < 80 ms', st: 'pass', val: '42 ms' }, { v: 'Jitter < 10 ms on active path', st: 'pass', val: '2.1 ms' }] });
-        addSignals(act, c.id, [sig(T, 'Synthetic', 'POS path RTT 180 ms via wan2', 'Info')]);
-      } },
-      { at: 470, label: 'NOC notified: traffic stays on broadband until AT&T confirms the fix', run(act, c, T) {
-        act.note(c.id, 'RB-101 ran inside the Act tier (healthy backup confirmed). Rollback: remove the override. NOC notified.', 'Runbook Agent');
-        act.audit('RB-101 ran under policy (Act tier) and notified the NOC', c.id, 'Runbook Agent');
-      } },
-      { at: 840, label: 'AT&T update: aggregation congestion relieved; 30-min watch before return to primary', run(act, c, T) {
+      { at: 130, label: 'Prevention: pattern rule for other AT&T MPLS branches; return-to-primary watch armed', run(act, c, T) {
         act.add('watches', { id: `W-${c.id}`, what: `Return ${c.p} to primary after 30 clean minutes`, branchId: c.b.id, created: T, by: 'Runbook Agent', rb: 'RB-102' });
-        addStep(act, c.id, step('carrier', T, 'AT&T: congestion on aggregation router relieved, traffic re-balanced. Watching 30 min before RB-102 (needs approval if branch still open).'));
-        act.map('circuitState', c.p, { status: 'Up', type: 'MPLS', carrier: 'AT&T', jit: 3.1, loss: 0.05 });
+        addStep(act, c.id, step('change', T, 'Change and Prevention Agent: the same degradation signature now pre-empts failover at 3 other AT&T MPLS branches in Houston. Return to primary waits for 30 clean minutes (RB-102).'));
       } },
     ],
     focus: c => ({ module: 'incidents', selInc: c.id }),
@@ -93,7 +84,7 @@ export const SCENARIOS = [
         act.add('incidents', baseInc({ id: c.id, pri: 'P1', cat: 'Hardware', title: 'Branch down – EdgeConnect EC-XS unreachable, both paths', branchId: c.b.id, ci: c.ec, opened: T, signals: [sig(T, 'Orchestrator', `${c.ec} heartbeat lost; tunnels down on wan1 and wan2`, 'Critical'), sig(T + 15e3, 'OpsRamp', 'Switches/APs at site unreachable (children)', 'Critical')], corr: 19, suppressed: 18, impact: ['ERP, POS and voice down at branch'] }));
       } },
       { at: 50, label: 'Diagnosis: not the carriers – both circuits up at the modems', run(act, c, T) {
-        act.upd('incidents', c.id, { state: 'In Progress', acked: T, assignee: 'Arjun M.', group: 'Movate NOC – Major Incident', conf: 0.74, rca: [{ cause: 'EdgeConnect hardware / OS fault', conf: 0.74, ev: 'Carrier portals show both circuits up; LTE router online via OOB; UPS shows EC outlet drawing 9 W (normal 28 W)' }, { cause: 'Power to EC outlet', conf: 0.15, ev: 'Outlet on, low draw' }, { cause: 'Carrier outage', conf: 0.03, ev: 'Both carriers clean' }] });
+        act.upd('incidents', c.id, { state: 'In Progress', acked: T, assignee: 'Arjun M.', group: 'Movate NOC – Major Incident', conf: 0.74, rca: [{ cause: 'EdgeConnect hardware / OS fault', conf: 0.74, ev: 'Carrier portals show both circuits up; LTE router online via OOB; switch port to the EdgeConnect up but no LLDP neighbour' }, { cause: 'Switch port or patch lead', conf: 0.15, ev: 'Port up, no LLDP' }, { cause: 'Carrier outage', conf: 0.03, ev: 'Both carriers clean' }] });
         addStep(act, c.id, step('diagnosis', T, 'Both carriers clean, LTE router reachable over OOB. EC drawing 9 W – likely hardware. Confidence 74%: remote recovery first.'));
         addStep(act, c.id, step('comms', T, 'StoreOps + branch manager: branch offline, use downtime procedure for orders; next update 30 min.'));
       } },
@@ -103,11 +94,11 @@ export const SCENARIOS = [
       } },
       { at: 520, label: 'OOB console: boot loop, disk I/O errors', run(act, c, T) {
         addSignals(act, c.id, [sig(T, 'OOB console', 'Boot loop: "EXT4-fs error … I/O error, dev sda"', 'Critical')]);
-        addStep(act, c.id, step('runbook', T, 'Console shows disk I/O errors in boot loop. Managed-outlet power-cycle attempted next.'));
+        addStep(act, c.id, step('runbook', T, 'Console shows disk I/O errors in boot loop. Reload from the backup partition attempted next.'));
       } },
-      { at: 700, label: 'Managed-outlet power-cycle – fails POST. Remote recovery failed', run(act, c, T) {
-        act.upd('incidents', c.id, { rbState: 'failed', conf: 0.93, rca: [{ cause: 'EdgeConnect hardware failure (storage)', conf: 0.93, ev: 'Disk I/O errors in boot; fails POST after power-cycle' }, { cause: 'Power to EC outlet', conf: 0.03, ev: 'Outlet cycled OK' }] });
-        addSignals(act, c.id, [sig(T, 'OpsRamp', 'PDU outlet 1 cycled; EC fails POST', 'Critical')]);
+      { at: 700, label: 'Reload from the backup partition fails POST. Remote recovery failed', run(act, c, T) {
+        act.upd('incidents', c.id, { rbState: 'failed', conf: 0.93, rca: [{ cause: 'EdgeConnect hardware failure (storage)', conf: 0.93, ev: 'Disk I/O errors in boot; fails POST from both partitions' }, { cause: 'Switch port or patch lead', conf: 0.03, ev: 'Port and lead tested from the switch' }] });
+        addSignals(act, c.id, [sig(T, 'OOB console', 'Reload from backup partition: POST failed (storage)', 'Critical')]);
       } },
       { at: 760, label: 'Dispatch Agent: WO with pre-staged spare EC-XS from Phoenix depot', run(act, c, T) {
         const tech = D.TECHS.find(t => t.skills.includes('EdgeConnect swap') && (t.region === 'Mountain West' || t.region === 'Pacific')) || D.TECHS[0];

@@ -204,6 +204,10 @@ export const AGENTS = {
   knowledge: { name: 'Knowledge Agent', also: 'Similar-Case Indexer', color: '#0f766e' },
   change: { name: 'Change Validation Agent', also: 'Change Impact Analyzer, Release Readiness', color: '#762123' },
   prediction: { name: 'Prediction Agent', also: 'Anomaly Detector, Capacity Analyst', color: '#b26a00' },
+  triage: { name: 'Smart Triage Agent', also: 'Intent Understanding Agent', color: '#33557a' },
+  ticket: { name: 'Ticket Update Agent', also: 'ServiceNow Integration', color: '#6b6b6b' },
+  verify: { name: 'Verification Agent', also: 'Test Generator', color: '#2e7d32' },
+  toil: { name: 'Toil Miner', also: 'Catalog Steward, Eval Runner', color: '#0f766e' },
 };
 
 // ---------- runbooks ----------
@@ -216,7 +220,7 @@ export const RUNBOOKS = [
   { id: 'RB-105', name: 'Config rollback', kind: 'change', autonomy: 'L2', runs30: 9, success: 1, avg: '1 m 40 s', desc: 'Restore last known-good config from the Network-as-Code repo / nightly backup.', steps: ['Diff running vs last good', 'Push last good via Central / Orchestrator', 'Re-run post-checks'], rollback: 'Re-apply the rolled-back config (stored).', verify: ['Diff = 0 vs golden', 'Post-checks pass'] },
   { id: 'RB-106', name: 'Carrier case raise', kind: 'readonly', autonomy: 'L3', runs30: 88, success: 0.989, avg: '55 s', desc: 'Build an evidence pack (loss/jitter graphs, traceroutes, demarc tests, timestamps) and open a case on the carrier portal / API.', steps: ['Collect 60-min path stats from Orchestrator', 'Run traceroute + MTR from EC', 'Attach LEC demarc test where available', 'Open carrier ticket, record ticket number in ServiceNow'], rollback: 'Case can be cancelled with carrier.', verify: ['Carrier ticket number stored', 'Case linked to INC'] },
   { id: 'RB-107', name: 'StoreOps notify', kind: 'readonly', autonomy: 'L3', runs30: 241, success: 1, avg: '4 s', desc: 'Tell StoreOps and the branch manager what is affected, what still works, and the next update time.', steps: ['Build plain-language impact summary', 'Send to StoreOps channel + branch manager', 'Schedule next update'], rollback: 'n/a', verify: ['Message read receipt'] },
-  { id: 'RB-108', name: 'EdgeConnect remote recovery', kind: 'change', autonomy: 'L2', runs30: 14, success: 0.571, avg: '6 m', desc: 'Soft reboot via Orchestrator, then out-of-band console reload and a managed-outlet power-cycle.', steps: ['Orchestrator soft reboot', 'Wait 6 min for tunnels', 'If no check-in: OOB console', 'Managed outlet power-cycle'], rollback: 'n/a', verify: ['EC reachable in Orchestrator', 'Tunnels up'] },
+  { id: 'RB-108', name: 'EdgeConnect remote recovery', kind: 'change', autonomy: 'L2', runs30: 14, success: 0.571, avg: '6 m', desc: 'Soft reboot via Orchestrator, then an out-of-band console reload from the backup partition.', steps: ['Orchestrator soft reboot', 'Wait 6 min for tunnels', 'If no check-in: OOB console', 'Reload from the backup partition'], rollback: 'n/a', verify: ['EC reachable in Orchestrator', 'Tunnels up'] },
   { id: 'RB-109', name: 'Config backup re-run', kind: 'readonly', autonomy: 'L4', runs30: 61, success: 0.951, avg: '35 s', desc: 'Retry failed nightly backups with integrity check.', steps: ['Retry SSH/API pull', 'Hash compare', 'Store in repo'], rollback: 'n/a', verify: ['Backup hash stored'] },
   { id: 'RB-110', name: 'POS / payment path test', kind: 'readonly', autonomy: 'L3', runs30: 2702, success: 0.996, avg: '12 s', desc: 'Synthetic payment-path test from the PCI segment to the processor; no card data.', steps: ['Run TLS handshake + test auth to processor endpoint', 'Measure RTT'], rollback: 'n/a', verify: ['RTT < 400 ms', 'TLS OK'] },
 ];
@@ -228,7 +232,7 @@ export const slaOf = p => ({ resp: P_SLA[p][0] * MIN, res: P_SLA[p][1] * MIN });
 const TEMPLATES = {
   circuit: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `Primary circuit down – ${c.carrier} ${c.type}, branch on ${CIR[b.wan[1]].type}`, ci: c.id,
     signals: [[0, 'Orchestrator', `${c.id} (${c.carrier}) loss 100%, tunnel down`, 'Critical'], [20, 'OpsRamp', 'EdgeConnect wan1 interface down', 'Critical'], [32, 'Orchestrator', `Traffic moved to ${b.wan[1]}`, 'Info'], [70, 'Synthetic', 'POS path test OK via wan2', 'Info']],
-    corr: 17, rca: [['Carrier/LEC fault upstream of demarc', 0.86, 'Loss 100% both directions; EC port up/up; neighbouring branches on same LEC CO also alarmed'], ['Demarc / NTE lost power', 0.08, 'Out-of-band router at the branch still answers'], ['EC port / cable', 0.04, 'Port up/up, no CRC']],
+    corr: 17, rca: [['Carrier/LEC fault upstream of demarc', 0.86, 'Loss 100% both directions; EC port up/up; neighbouring branches on same LEC CO also alarmed'], ['NTE fault at the branch', 0.08, 'NTE answers its loopback from the branch side'], ['EC port / cable', 0.04, 'Port up/up, no CRC']],
     runbook: 'RB-106', impact: ['Running on backup; no business impact'], verify: ['Primary loss < 0.5% for 30 min', 'Return to primary approved'] }; },
   jitter: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `${c.type} jitter 38 ms / loss 2.4% – ${c.carrier}`, ci: c.id,
     signals: [[0, 'Orchestrator', `${c.id} jitter 38 ms (threshold 30)`, 'Major'], [60, 'New Relic', 'ERP path latency from branch 160 ms', 'Minor'], [90, 'Synthetic', 'POS path RTT 610 ms', 'Major']],
@@ -506,7 +510,6 @@ export const KIT = [
   { item: 'Aruba CX 6100 48G PoE switch (stack on L sites: 6200M)', qty: 'S: 1, M: 2, L: stack of 3–4', note: 'Golden config from Network-as-Code repo', group: 'LAN' },
   { item: 'AP-635 indoor (office, counter, warehouse)', qty: '2–6', note: 'Warehouse placed for racking aisles and receiving', group: 'Wireless' },
   { item: 'AP-565 / AP-585 rugged outdoor (yard)', qty: '1–3', note: 'Pole/wall mount, lift needed; covers yard and loading areas', group: 'Wireless' },
-  { item: 'Managed power outlet (PDU) with out-of-band control', qty: '1', note: 'Lets the NOC power-cycle the EdgeConnect and switches remotely', group: 'Management' },
   { item: 'Out-of-band console server (cellular)', qty: '1', note: 'Console to EC and switches when the WAN is down', group: 'Management' },
   { item: 'Patch panel, labelled patch leads, rack shelf', qty: '1 set', note: 'Colour code: red POS, blue corp, yellow warehouse Wi-Fi, green cameras', group: 'Physical' },
 ];
@@ -523,7 +526,7 @@ export const VLANS = [
 export const ZONES = [
   { id: 'counter', name: 'Counter / showroom', short: 'Counter / showroom', x: 20, y: 20, w: 240, h: 130, devices: ['AP-635 ×1', '2 POS terminals + PIN pads', 'Desk phones ×3'], drops: 12, vlans: [10, 20, 40, 60] },
   { id: 'office', name: 'Back office', short: 'Back office', x: 20, y: 160, w: 150, h: 120, devices: ['AP-635 ×1', 'PCs ×6', 'Desk phones ×5'], drops: 16, vlans: [10, 40] },
-  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect EC-XS', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'Managed PDU', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
+  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect EC-XS', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
   { id: 'warehouse', name: 'Warehouse', short: 'Warehouse', x: 270, y: 20, w: 300, h: 260, devices: ['AP-635 ×3 (aisles + receiving)', 'Access switch drops ×4', 'Cameras ×4'], drops: 14, vlans: [30, 50, 10] },
   { id: 'docks', name: 'Loading docks', short: 'Loading docks', x: 580, y: 20, w: 160, h: 260, devices: ['AP-635 ×1', 'Dock door sensors', 'Camera ×2'], drops: 6, vlans: [30, 50, 70] },
   { id: 'yard', name: 'Outdoor yard', short: 'Outdoor yard', x: 20, y: 290, w: 550, h: 160, devices: ['AP-585 rugged ×2 (poles)', 'Yard cameras ×6', 'Gate controller'], drops: 8, vlans: [30, 50, 70] },
@@ -541,7 +544,7 @@ export const GATE_TEMPLATE = [
   ['Fri 17:30', 'Branch closed; change freeze in effect for site', 'StoreOps Lead', 'Branch closed in ERP; doors secured'],
   ['Fri 18:00', 'Legacy config + data backed up', 'Movate NOC', 'Backup files hashed and stored'],
   ['Fri 19:00', 'Old edge off (legacy router/firewall)', 'Field Tech', 'Photo of powered-off legacy kit'],
-  ['Fri 21:00', 'Rack swap: switches, PDU, OOB console', 'Field Tech', 'Rack photo + all devices online'],
+  ['Fri 21:00', 'Rack swap: switches and OOB console', 'Field Tech', 'Rack photo + all devices online'],
   ['Fri 22:30', 'EdgeConnect up (zero-touch)', 'Movate Network Eng', 'EC registered in Orchestrator; tunnels to DC up'],
   ['Sat 08:00', 'Circuits verified: primary + LTE', 'Carrier Agent', 'Speed test + failover test both paths'],
   ['Sat 10:00', 'VLANs & policies applied (NaC)', 'Network Eng L3', 'Diff = 0 vs golden'],
