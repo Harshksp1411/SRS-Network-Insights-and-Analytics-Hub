@@ -55,7 +55,7 @@ export function Overview() {
           <div className="flex h-1.5 rounded-full overflow-hidden mt-2.5 bg-chip"><span className="bg-ok" style={{ width: `${health.up / list.length * 100}%` }} /><span className="bg-warn" style={{ width: `${health.degraded / list.length * 100}%` }} /><span className="bg-bad" style={{ width: `${health.down / list.length * 100}%` }} /></div>
         </Stat>
         <Stat label="Open incidents" icon={I.Siren} value={<span className="flex items-center gap-2">{open.length}{Object.keys(L.newIncs).length > 0 && <Badge tone="alert" className="pulse-alert">+{Object.keys(L.newIncs).length} new</Badge>}</span>} onClick={() => act.go('incidents')} tone={byPri.P1 ? 'alert' : undefined}>
-          <div className="flex gap-1 mt-2">{Object.entries(byPri).map(([p, n]) => <span key={p} className="flex items-center gap-1 text-[11.5px]"><Pri p={p} /><b className="text-ink">{n}</b></span>)}</div>
+          <div className="flex flex-wrap gap-x-1.5 gap-y-1 mt-2">{Object.entries(byPri).map(([p, n]) => <span key={p} className="flex items-center gap-1 text-[11.5px]"><Pri p={p} /><b className="text-ink">{n}</b></span>)}</div>
         </Stat>
         <Stat label="Devices down" icon={I.ServerCrash} value={downDevices} tone={downDevices ? 'red' : 'green'} sub={`of ${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))} in view`} />
         <Stat label="Circuits down / degraded" icon={I.Cable} value={<span><span className="text-bad">{circDown.length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{circDeg.length}</span></span>} sub={`${onBackup} branches on backup path`} onClick={() => act.go('carriers')} />
