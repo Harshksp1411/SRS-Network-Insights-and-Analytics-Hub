@@ -68,7 +68,7 @@ export function LiveDemos() {
           <div className="flex flex-wrap gap-1.5">{sp.systems.map(k => <span key={k} className="inline-flex items-center gap-1.5 text-[12px] text-ink border border-line rounded px-1.5 py-1">{SYS[k].logo ? <Logo k={SYS[k].logo} h={11} className="!p-0 !border-0" /> : null}{k === 'carrier' && sp.carrier ? `${sp.carrier} portal` : SYS[k].n}</span>)}</div>
           <div className="text-[12px] text-ink3 mt-2">Detect → Correlate → Decide → Act → Verify → Record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.</div>
           <div className="mt-4 mb-2"><ViewToggle view={view} setView={setView} /></div>
-          <div className="max-h-[420px] overflow-y-auto pr-1"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div>
+          <div className="max-h-[420px] overflow-y-auto pr-1 stage-col"><div className="pb-5"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div><div className="sticky bottom-0 h-7 -mt-7 bg-gradient-to-t from-[rgb(var(--panel))] to-transparent pointer-events-none" /></div>
           <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn><Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn></div>
           <div className="text-[12px] text-ink3 mt-3">{open} incidents open in the console right now. A demo adds to them; it never resets your work.</div>
         </Card>
