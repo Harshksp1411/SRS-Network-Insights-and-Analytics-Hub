@@ -2,7 +2,7 @@
 import React from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
-import { useApp, healthOf, filteredBranches, inScope } from './store.jsx';
+import { useApp, healthOf, filteredBranches, inScope, onBackupOf } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, PageHead, Dot, cx } from './ui.jsx';
 import { C } from './charts.jsx';
@@ -16,17 +16,16 @@ export function LiveOps() {
   const S = L.series; const list = filteredBranches(s);
   const open = s.incidents.filter(i => i.state !== 'Resolved' && inScope(s, i.branchId));
   const attention = open.slice().sort((a, b) => a.pri.localeCompare(b.pri)).slice(0, 7);
-  const dp = Math.round(4075 * 30 * 0.92 + S.raw.at(-1) * 40);
   return (
     <div>
-      <PageHead icon={I.Radio} title="Live Operations" sub="Real-time readings, alerts and automation across every branch in view." right={<LiveBadge />} />
+      <PageHead icon={I.Radio} title="Live Operations" sub="The network as it runs: lines, tunnels, alerts and automation for every branch in view, with what each reading means for trading." right={<LiveBadge />} />
       <LiveKpis items={[
-        { label: 'Readings per minute', value: num(dp), sub: '4,075 devices reporting to OpsRamp and Central', series: S.raw.map(v => v * 40 + 112000), color: C.s4, icon: I.Activity },
-        { label: 'Fleet latency to DC', value: Math.round(S.wan.at(-1)), unit: ' ms', sub: `${list.filter(b => healthOf(s, b) === 'down').length} branches offline`, series: S.wan, color: C.s1, icon: I.Network },
-        { label: 'POS path p95', value: Math.round(S.pos.at(-1)), unit: ' ms', sub: 'synthetic card-payment test, every branch', series: S.pos, color: C.s1, icon: I.CreditCard, tone: S.pos.at(-1) > 400 ? 'bad' : undefined },
-        { label: 'Packet loss, fleet average', value: S.loss.at(-1).toFixed(2), unit: '%', sub: 'all primary paths, Orchestrator', series: S.loss, color: C.s4, icon: I.Activity },
-        { label: 'SD-WAN tunnels up', value: num(Math.round(S.tunnels.at(-1))), sub: 'of 1,866 (933 EdgeConnects, two paths)', series: S.tunnels, color: C.ok, icon: I.Cable },
-        { label: 'Alerts, last 5 minutes', value: Math.round(S.raw.slice(-150).reduce((a, b) => a + b, 0) / 150 * 5 * 0.29), sub: `${open.length} open incidents in this view`, series: S.corr, color: C.warn, icon: I.Bell, tone: 'warn' },
+        { label: 'Branches online', value: num(Math.max(0, list.length - list.filter(b => healthOf(s, b) === 'down').length)), sub: `of ${num(list.length)}: at least one working line, so the branch can trade`, series: S.online, color: C.ok, icon: I.Store },
+        { label: 'Branches on backup line', value: num(list.filter(b => onBackupOf(s, b)).length), sub: 'trading on the second line or LTE: works, but slower and metered', series: S.onbackup, color: C.warn, icon: I.Shuffle },
+        { label: 'Average latency to data centre', value: Math.round(S.wan.at(-1)), unit: ' ms', sub: `normal ${D.AVG_LAT} ms; above +25 ms ERP and pricing screens feel slow`, series: S.wan, color: C.s1, icon: I.Timer, tone: S.wan.at(-1) > D.AVG_LAT + 10 ? 'warn' : undefined },
+        { label: 'Average packet loss', value: S.loss.at(-1).toFixed(2), unit: '%', sub: 'on the lines in use; above 1% card payments retry and calls break up', series: S.loss, color: C.s4, icon: I.Activity, tone: S.loss.at(-1) > 0.5 ? 'warn' : undefined },
+        { label: 'Average jitter', value: S.jit.at(-1).toFixed(1), unit: ' ms', sub: 'variation in delay; above 30 ms voice calls become choppy', series: S.jit, color: C.s2, icon: I.Waves, tone: S.jit.at(-1) > 10 ? 'warn' : undefined },
+        { label: 'SD-WAN tunnels up', value: num(Math.round(S.tunnels.at(-1))), sub: 'of 1,866: two secure paths per EdgeConnect; one down leaves a branch on a single line', series: S.tunnels, color: C.ok, icon: I.Cable },
       ]} />
       <div className="mt-3"><AreaTimeline /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
@@ -49,17 +48,16 @@ export function LiveOps() {
 
 export function Correlation() {
   const { s } = useApp(); const { L } = useLive();
-  const S = L.series; const raw = todayCounts(L, s).raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
-  const tickets = open.length + s.resolved.filter(i => Date.now() - (i.resolved || 0) < 864e5).length;
+  const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div>
       <PageHead icon={I.GitMerge} title="Correlation" sub="Alerts normalised, de-duplicated and correlated into one incident per branch per event. Orchestrator, Aruba Central, OpsRamp and New Relic in; ServiceNow out." right={<LiveBadge />} />
       <LiveKpis cols={5} items={[
-        { label: 'Alerts in today', value: num(raw), sub: `from ${num(L.counters.events)} raw events`, series: S.raw, color: C.s2, icon: I.Bell },
-        { label: 'Tickets out', value: tickets, sub: `${Math.round(raw / Math.max(1, tickets))} alerts per ticket`, series: S.corr.map(v => v / 3), color: C.s1, icon: I.Ticket },
-        { label: 'Compression', value: `${Math.round(raw / Math.max(1, tickets))}:1`, sub: 'alerts per ticket today', series: S.raw.map((v, i) => v / Math.max(1, S.corr[i])), color: C.s1, icon: I.Shrink },
-        { label: 'Noise removed', value: '88%', sub: 'auto-cleared or rolled to the digest (KPI 50%)', series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
-        { label: 'Correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers },
+        { label: 'Events in today', value: num(tc.events), sub: 'traps, syslog and threshold crossings from every tool', series: S.raw, color: C.s2, icon: I.Bell },
+        { label: 'Noise removed', value: `${Math.round(tc.noise * 100)}%`, sub: `${num(tc.suppressed)} duplicates, flaps and info events (KPI 50%)`, series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
+        { label: 'Alerts left', value: num(raw), sub: `${num(tc.auto)} auto-cleared, ${num(tc.digest)} to the digest`, series: S.corr, color: C.s1, icon: I.Shrink },
+        { label: 'Incidents today', value: tc.inc, sub: `${Math.round(tc.corr / Math.max(1, tc.inc))} correlated alerts per incident on average`, series: S.corr.map(v => v / 3), color: C.s1, icon: I.Ticket },
+        { label: 'Open correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers },
       ]} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
       <div className="mt-3"><GroupingSwimlane /></div>

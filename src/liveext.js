@@ -10,8 +10,8 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const walk = (p, t, v, lo, hi) => Math.max(lo, Math.min(hi, p + (t - p) * 0.2 + rnd(-v, v)));
 
 export const AREAS = [
-  { id: 'wan', label: 'SD-WAN and circuits', metric: 'Packet loss, fleet median', unit: '%', base: 0.18, vol: 0.03, lo: 0, hi: 3, dec: 2 },
-  { id: 'apps', label: 'Path to data centre', metric: 'POS and ERP path latency', unit: ' ms', base: 24, vol: 1.2, lo: 8, hi: 400, dec: 0 },
+  { id: 'wan', label: 'SD-WAN and circuits', metric: 'Packet loss, median across branches', unit: '%', base: 0.18, vol: 0.03, lo: 0, hi: 3, dec: 2 },
+  { id: 'apps', label: 'Path to data centre', metric: 'Latency to data centre', unit: ' ms', base: 35, vol: 1.2, lo: 8, hi: 400, dec: 0 },
   { id: 'lan', label: 'LAN and Wi-Fi', metric: 'Access points down', unit: '', base: 9, vol: 0.8, lo: 0, hi: 80, dec: 0 },
   { id: 'power', label: 'EdgeConnect', metric: 'Appliances unreachable', unit: '', base: 1, vol: 0.3, lo: 0, hi: 40, dec: 0 },
   { id: 'sec', label: 'Security', metric: 'Failed admin logins per 5 min', unit: '', base: 4, vol: 0.9, lo: 0, hi: 60, dec: 0 },
@@ -28,7 +28,7 @@ export const AGENT_DEF = [
   { id: 'runbook', name: 'Runbook', group: 2, does: 'Runs approved runbooks inside the gate rules.', tools: ['aruba', 'central'], acts: b => [`RB-109 config backup re-run at ${b.name}: success`, `RB-104 AP reboot at ${b.name}: success in 2 m 41 s`, `RB-103 port bounce at ${b.name}: skipped, branch trading, sent for approval`] },
   { id: 'carrier', name: 'Carrier', group: 2, does: 'Raises and chases carrier cases with an evidence pack.', tools: ['servicenow'], acts: b => { const c = D.CIR[b.wan[0]]; return [`Updated ${c.carrier} case for ${b.name} with a fresh loss graph`, `Chased ${c.carrier} for an ETA on ${b.name}`, `Attached MTR from ${b.code}-ec01 to the ${c.carrier} case`]; } },
   { id: 'dispatch', name: 'Dispatch', group: 2, does: 'Matches field visits to skills, parts and branch hours.', tools: ['servicenow'], acts: b => [`Matched a Rack and closet technician for ${b.name}`, `Reserved a spare EC-XS at the nearest depot for ${b.name}`, `Moved the ${b.name} visit to after close`] },
-  { id: 'verify', name: 'Verification', group: 3, does: 'Confirms recovery against the baseline before anything is closed.', tools: ['aruba', 'newrelic'], acts: b => [`Verified POS path at ${b.name}: 210 ms`, `Verified both tunnels up at ${b.name}`, `Verified handhelds re-associated at ${b.name}`] },
+  { id: 'verify', name: 'Verification', group: 3, does: 'Confirms recovery against the baseline before anything is closed.', tools: ['aruba', 'newrelic'], acts: b => [`Verified payment path at ${b.name}: 130 ms`, `Verified both tunnels up at ${b.name}`, `Verified handhelds re-associated at ${b.name}`] },
   { id: 'ticket', name: 'Ticket', group: 3, does: 'One ticket per event: merges duplicates, writes work notes, resolves.', tools: ['servicenow'], acts: b => [`Merged 2 duplicate tickets for ${b.name}`, `Wrote the work note for ${b.name}`, `Updated priority for ${b.name}: branch now open`] },
   { id: 'comms', name: 'Comms', group: 3, does: 'Keeps StoreOps and branch managers informed.', tools: ['servicenow'], acts: b => [`Sent a plain-language update to the ${b.name} manager`, `Posted the 30-minute update to StoreOps`, `Told ${b.name}: back on the main line, nothing to do`] },
   { id: 'change', name: 'Change Validation', group: 3, does: 'Checks freezes, calendar and canaries before and after every change.', tools: ['servicenow', 'central'], acts: () => { const c = pick(D.CHANGES); return [`${c.id}: pre-checks passed`, `${c.id}: canary within 2% of control`, `${c.id}: Network-as-Code lint and policy checks passed`]; } },
@@ -59,9 +59,9 @@ export function seedX(now) {
   const agentSeries = AGENT_GROUPS.map((g, k) => Array.from({ length: 30 }, () => Math.max(0, Math.round(3 + k * 0.6 + (R() - 0.5) * 4))));
   const agentStream = AGENT_DEF.map((a, i) => ({ id: `as${i}`, agent: a.id, t: now - Math.floor(R() * 15 * MIN), text: a.acts(D.BRANCHES[(i * 53) % 900])[1] })).sort((a, b) => b.t - a.t);
   const tools = {}; TOOLS.forEach(t => { tools[t.id] = Array.from({ length: 30 }, () => Math.round(t.base * (0.7 + R() * 0.6))); });
-  const cands = D.BRANCHES.filter((b, i) => i % 15 === 3).map((b, i) => ({ id: b.id, wan: 40 + R() * 48, lat: 18 + R() * 50, loss: R() * 0.7, cpu: 10 + R() * 60 }));
+  const cands = D.BRANCHES.filter((b, i) => i % 15 === 3).map((b, i) => { const c = D.CIR[b.wan[0]]; return { id: b.id, wan: Math.min(96, c.util + 20 + R() * 28), lat: c.lat + R() * 14, loss: c.loss + R() * 0.6, cpu: 10 + R() * 60 }; });
   const corr = { auto: 0, digest: 0, grouped: 0, watch: 0 };
-  const budgets = [[99.95, 99.962, 'Branches online (WAN)', 'both paths, all 900 branches'], [99.9, 99.94, 'POS path under 400 ms', 'synthetic probe, every branch'], [99.5, 99.71, 'Loss under 1% on active paths', 'Orchestrator, every branch'], [98, 98.5, 'P1 and P2 answered in 15 min', 'Annexure B #1 and #2']].map(([target, actual, name, sub], k) => {
+  const budgets = [[99.95, 99.962, 'Branches online', 'at least one working line, all 900 branches'], [99.9, 99.94, 'Jitter under 30 ms', 'lines in use, every branch; protects calls and payments'], [99.5, 99.71, 'Loss under 1%', 'lines in use, every branch; protects payments and ERP'], [98, 98.5, 'P1 and P2 answered in 15 min', 'Annexure B #1 and #2']].map(([target, actual, name, sub], k) => {
     const used = (100 - actual) / (100 - target); const series = []; let left = 1; for (let d = 0; d < 30; d++) { left -= used / 30 * (0.6 + R() * 0.8) * (d > 24 && k === 1 ? 2.2 : 1); series.push(+Math.max(0, left).toFixed(3)); }
     return { name, sub, target, actual, series };
   });

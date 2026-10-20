@@ -1,5 +1,5 @@
 // Branch opening readiness: per-branch device and path checks (primary internet, backup line, EdgeConnect,
-// switches, Wi-Fi, DHCP, config, POS and ERP paths), opening schedule by time zone
+// switches, Wi-Fi, DHCP, config, payment and ERP paths), opening schedule by time zone
 // and what Mova iO fixed overnight. Results are derived from live console state; overnight fixes are illustrative.
 import React, { useMemo, useState } from 'react';
 import * as I from 'lucide-react';
@@ -19,7 +19,7 @@ export const COLS = [
   { id: 'wifi', label: 'Wi-Fi', logo: 'central', tip: 'All access points up (office, warehouse, yard)' },
   { id: 'dhcp', label: 'DHCP', logo: 'opsramp', tip: 'Address pools below 85% on every branch VLAN' },
   { id: 'cfg', label: 'Config', logo: 'opsramp', tip: 'Last night\'s config backup taken; no drift from the golden config' },
-  { id: 'pos', label: 'POS path', logo: 'opsramp', tip: 'PCI segment path to the payment processor under 400 ms' },
+  { id: 'pos', label: 'Payment path', logo: 'opsramp', tip: 'Round trip from the counter VLAN (PCI segment) to the payment processor, under 400 ms' },
   { id: 'erp', label: 'ERP path', logo: 'opsramp', tip: 'Path to the data centre: latency and loss within limits' },
 ];
 const FIXES = [
@@ -44,8 +44,8 @@ export function branchChecks(s, b) {
   set('wifi', down ? 'fail' : has('apdown') ? (b.dev.ap <= 1 ? 'fail' : 'warn') : has('scanner') ? 'warn' : 'pass', has('apdown') ? (b.dev.ap <= 1 ? 'The only access point is down' : `${b.dev.ap - 1}/${b.dev.ap} APs up (one yard or warehouse AP down)`) : has('scanner') ? 'Roaming failures in the warehouse aisles' : `${b.dev.ap}/${b.dev.ap} APs up`);
   set('dhcp', down ? 'fail' : has('dhcp') ? 'fail' : 'pass', has('dhcp') ? 'VLAN 30 address pool 100% used' : `Largest pool ${38 + Math.floor(R() * 40)}% used`);
   const drift = R() < 0.01; set('cfg', has('backup') ? 'warn' : drift ? 'warn' : 'pass', has('backup') ? 'Nightly config backup failed' : drift ? 'Drift from golden config (2 lines)' : 'Backup taken 02:00, matches golden config');
-  const posMs = 170 + Math.floor(R() * 140) + (p.status !== 'Up' ? 80 : 0);
-  set('pos', down ? 'fail' : has('pos') ? 'fail' : has('jitter') ? 'warn' : 'pass', has('pos') ? 'POS path 1.9 s (limit 400 ms)' : `POS path ${posMs} ms`);
+  const lineIn = p.status === 'Down' ? D.CIR[b.wan[1]] : p; const posMs = Math.round(2 * (lineIn.lat || 30) + 70 + (lineIn.loss || 0.05) * 140 + R() * 20);
+  set('pos', down ? 'fail' : has('pos') ? 'fail' : has('jitter') ? 'warn' : 'pass', has('pos') ? 'Payment path 1.9 s (limit 400 ms)' : `Payment path ${posMs} ms`);
   set('erp', down ? 'fail' : has('jitter') ? 'warn' : 'pass', has('jitter') ? `Jitter ${p.jit} ms on the active path` : `${p.lat + 6} ms to DC, loss ${p.loss}%`);
   // overnight fixes: a small share of branches had one issue fixed by Mova iO before opening
   let fixed = null;
@@ -158,7 +158,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
       <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
         <thead><tr className="text-ink3 border-b border-line">
           <th className="text-left font-semibold px-2 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>
-          {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'POS path' ? <>POS<br />path</> : c.label === 'ERP path' ? <>ERP<br />path</> : c.label}</th>)}
+          {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'Payment path' ? <>Payment<br />path</> : c.label === 'ERP path' ? <>ERP<br />path</> : c.label}</th>)}
           <th className="font-semibold px-1 text-center text-[11px]">Incident</th><th className="text-left font-semibold px-2 text-[11px] leading-tight">Act before<br />opening</th>
         </tr></thead>
         <tbody>{shown.slice(0, n).map(r => (
@@ -172,7 +172,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
           </tr>))}</tbody>
       </table></div>
       <div className="flex items-center gap-3 px-3 py-2 text-[11.5px] text-ink3 border-t border-line">
-        <span>Primary, Backup, EdgeConnect, Tunnels: Orchestrator. Switches, Wi-Fi: Aruba Central. DHCP, Config, POS and ERP paths: OpsRamp and synthetic probes. LTE backups are tested weekly. Wrench: fixed overnight by Mova iO.</span>
+        <span>Primary, Backup, EdgeConnect, Tunnels: Orchestrator. Switches, Wi-Fi: Aruba Central. DHCP, Config, payment and ERP paths: OpsRamp and synthetic probes. LTE backups are tested weekly. Wrench: fixed overnight by Mova iO.</span>
         {shown.length > n && <Btn size="xs" className="ml-auto" onClick={() => setN(x => x + 40)}>Show 40 more</Btn>}
       </div>
     </Card>

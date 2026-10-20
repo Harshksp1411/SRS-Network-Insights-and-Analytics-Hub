@@ -92,7 +92,12 @@ const SW_FW = { '2530': ['YA.16.11.0021', 'YA.16.11.0018', 'YA.16.10.0024', 'YA.
 const AP_FW = ['10.7.1.0', '10.6.0.3', '10.5.1.4', '10.4.1.2'];
 const EC_FW = ['9.5.4.1', '9.4.4.2', '9.4.3.4', '9.3.8.0'];
 export const FW_TARGET = { 'EC-XS': EC_FW, '2530': SW_FW['2530'], '6100': SW_FW.cx, '6200M': SW_FW.cx, '6300': SW_FW.cx, AP: AP_FW };
-const fwPick = list => list[R.weighted([[0, 66], [1, 22], [2, 9.5], [3, 2.5]])];
+const FW_W = [[0, 66], [1, 22], [2, 9.5], [3, 2.5]];
+// Managed estate: almost every switch and AP already runs a fixed release; only a small tail is still exposed
+const FW_W_CX = [[0, 97.4], [1, 1.4], [2, 0.9], [3, 0.3]];
+const FW_W_AP = [[0, 70], [1, 28], [2, 1.5], [3, 0.5]];
+const FW_W_EC = [[0, 78], [1, 19], [2, 2.3], [3, 0.7]];
+const fwPick = (list, w = FW_W) => list[R.weighted(w)];
 const serial = () => 'CN' + Array.from({ length: 8 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789'[R.int(0, 33)]).join('');
 const mac = () => '00:1b:bc:' + [0, 0, 0].map(() => R.int(0, 255).toString(16).padStart(2, '0')).join(':');
 function warranty() { const months = R.int(-5, 44); return T0 + months * 30 * DAY; }
@@ -106,17 +111,17 @@ let swi = 0;
 BRANCHES.forEach(b => {
   const ecs = haSet.has(b.id) ? 2 : 1;
   b.dev = { ec: ecs, sw: 0, ap: 0, apOut: apOut[b.id] };
-  for (let k = 1; k <= ecs; k++) DEVICES.push({ id: `${b.code}-ec0${k}`, type: 'SD-WAN', model: 'EC-XS', role: ecs === 2 ? (k === 1 ? 'HA primary' : 'HA secondary') : 'Edge', branchId: b.id, fw: fwPick(EC_FW), serial: mac(), backup: backup(), warranty: warranty(), mode: 'Orchestrator' });
+  for (let k = 1; k <= ecs; k++) DEVICES.push({ id: `${b.code}-ec0${k}`, type: 'SD-WAN', model: 'EC-XS', role: ecs === 2 ? (k === 1 ? 'HA primary' : 'HA secondary') : 'Edge', branchId: b.id, fw: fwPick(EC_FW, FW_W_EC), serial: mac(), backup: backup(), warranty: warranty(), mode: 'Orchestrator' });
   const si = stackSet.indexOf(b.id);
   if (si >= 0) {
     const m = stackDefs[si]; const members = m === '6200M' ? (si % 2 ? 3 : 2) : 0;
     const roles = ['Stack (Conductor)', 'Stack (Standby)', ...Array(members).fill('Stack (Member)')];
-    roles.forEach((role, k) => DEVICES.push({ id: `${b.code}-sw0${k + 1}`, type: 'Switch', model: m, role, branchId: b.id, fw: fwPick(SW_FW.cx), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' }));
+    roles.forEach((role, k) => DEVICES.push({ id: `${b.code}-sw0${k + 1}`, type: 'Switch', model: m, role, branchId: b.id, fw: fwPick(SW_FW.cx, FW_W_CX), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' }));
     b.dev.sw = roles.length;
   }
   for (let k = 0; k < swCount[b.id]; k++) {
     const m = swPool[swi++ % swPool.length];
-    DEVICES.push({ id: `${b.code}-sw${String(b.dev.sw + 1).padStart(2, '0')}`, type: 'Switch', model: m, role: R() < 0.7 ? 'Standalone' : 'Switch', branchId: b.id, fw: fwPick(m === '2530' ? SW_FW['2530'] : SW_FW.cx), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' });
+    DEVICES.push({ id: `${b.code}-sw${String(b.dev.sw + 1).padStart(2, '0')}`, type: 'Switch', model: m, role: R() < 0.7 ? 'Standalone' : 'Switch', branchId: b.id, fw: (m === '2530' ? fwPick(SW_FW['2530']) : fwPick(SW_FW.cx, FW_W_CX)), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' });
     b.dev.sw++;
   }
 });
@@ -129,7 +134,7 @@ BRANCHES.forEach(b => {
   // balance overall switch total to 1856
   let tot = DEVICES.filter(d => d.type === 'Switch').length;
   let i = 0; while (tot > 1856) { const d = DEVICES.find((x, j) => j > i && x.type === 'Switch' && x.role !== 'Stack (Member)' && !x.role.startsWith('Stack') && BR[x.branchId].dev.sw > 1); i = DEVICES.indexOf(d); DEVICES.splice(i, 1); BR[d.branchId].dev.sw--; tot--; }
-  while (tot < 1856) { const b = BRANCHES[(tot * 13) % 900]; DEVICES.push({ id: `${b.code}-sw${String(b.dev.sw + 1).padStart(2, '0')}`, type: 'Switch', model: '6100', role: 'Standalone', branchId: b.id, fw: fwPick(SW_FW.cx), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' }); b.dev.sw++; tot++; }
+  while (tot < 1856) { const b = BRANCHES[(tot * 13) % 900]; DEVICES.push({ id: `${b.code}-sw${String(b.dev.sw + 1).padStart(2, '0')}`, type: 'Switch', model: '6100', role: 'Standalone', branchId: b.id, fw: fwPick(SW_FW.cx, FW_W_CX), serial: serial(), backup: backup(), warranty: warranty(), mode: 'Central' }); b.dev.sw++; tot++; }
 }
 const apInPool = R.shuffle([...Array(1162).fill('AP-635'), 'AP-634', 'AP-634']);
 const apOutPool = R.shuffle([...Array(80).fill('AP-565'), ...Array(40).fill('AP-585'), 'AP-567', 'AP-575']);
@@ -137,8 +142,8 @@ let ai = 0, ao = 0;
 BRANCHES.forEach(b => {
   let k = 0;
   const zonesIn = ['Back office', 'Counter', 'Warehouse', 'Warehouse', 'Warehouse', 'Loading docks'];
-  for (let i = 0; i < apIn[b.id]; i++) { const m = apInPool[ai++]; DEVICES.push({ id: `${b.code}-ap${String(++k).padStart(2, '0')}`, type: 'AP', model: m, role: zonesIn[i % zonesIn.length], branchId: b.id, fw: fwPick(AP_FW), serial: serial(), backup: { st: 'N/A', at: null }, warranty: warranty(), mode: R() < 0.37 ? 'Access Point' : 'Standalone' }); }
-  for (let i = 0; i < apOut[b.id]; i++) { const m = apOutPool[ao++]; DEVICES.push({ id: `${b.code}-ap${String(++k).padStart(2, '0')}`, type: 'AP', model: m, role: 'Outdoor yard', branchId: b.id, fw: fwPick(AP_FW), serial: serial(), backup: { st: 'N/A', at: null }, warranty: warranty(), mode: R() < 0.37 ? 'Access Point' : 'Standalone' }); }
+  for (let i = 0; i < apIn[b.id]; i++) { const m = apInPool[ai++]; DEVICES.push({ id: `${b.code}-ap${String(++k).padStart(2, '0')}`, type: 'AP', model: m, role: zonesIn[i % zonesIn.length], branchId: b.id, fw: fwPick(AP_FW, FW_W_AP), serial: serial(), backup: { st: 'N/A', at: null }, warranty: warranty(), mode: R() < 0.37 ? 'Access Point' : 'Standalone' }); }
+  for (let i = 0; i < apOut[b.id]; i++) { const m = apOutPool[ao++]; DEVICES.push({ id: `${b.code}-ap${String(++k).padStart(2, '0')}`, type: 'AP', model: m, role: 'Outdoor yard', branchId: b.id, fw: fwPick(AP_FW, FW_W_AP), serial: serial(), backup: { st: 'N/A', at: null }, warranty: warranty(), mode: R() < 0.37 ? 'Access Point' : 'Standalone' }); }
   b.dev.ap = k;
 });
 export const DEV = Object.fromEntries(DEVICES.map(d => [d.id, d]));
@@ -176,7 +181,29 @@ BRANCHES.forEach(b => {
   CIRCUITS.push(p, s);
   b.wan = [p.id, s.id];
 });
+// Realistic line quality. Round-trip time to the primary data centre (McKinney, TX) grows with distance
+// (about 1.6 ms per 100 km of fibre route, plus 4 ms of equipment), and each line type adds its own delay:
+// MPLS and DIA are steady, broadband a little noisier, LTE/5G adds 25-40 ms and more jitter.
+{
+  const dc = BRANCHES.find(b => b.city === 'McKinney') || BRANCHES[0];
+  const OVER = { MPLS: [1, 0.4, 1.0, 0, 0.02], DIA: [2, 0.6, 1.4, 0, 0.04], Broadband: [6, 1.2, 3.0, 0.02, 0.12], 'LTE/5G': [30, 5, 9, 0.1, 0.35] };
+  CIRCUITS.forEach(c => {
+    const b = BRANCHES.find(x => x.id === c.branchId);
+    const km = b.state === 'HI' ? 5300 : Math.hypot(b.cx - dc.cx, b.cy - dc.cy) * 6.7;
+    const rtt = 4 + km / 100 * 1.6;
+    const u = (c.lat - 14) / 28, v = Math.min(1, Math.max(0, (c.jit - 0.5) / 4)), w = Math.min(1, c.loss / 0.15);
+    const [lo, j0, j1, l0, l1] = OVER[c.type] || OVER.Broadband;
+    c.rtt = Math.round(rtt);
+    c.lat = Math.round(rtt + lo + u * (c.type === 'LTE/5G' ? 10 : 3));
+    c.jit = +(j0 + v * (j1 - j0)).toFixed(1);
+    c.loss = +(l0 + w * (l1 - l0)).toFixed(2);
+  });
+}
 export const CIR = Object.fromEntries(CIRCUITS.map(c => [c.id, c]));
+const prim = CIRCUITS.filter(c => c.role === 'Primary');
+export const AVG_LAT = Math.round(prim.reduce((t, c) => t + c.lat, 0) / prim.length);
+export const AVG_JIT = +(prim.reduce((t, c) => t + c.jit, 0) / prim.length).toFixed(1);
+export const AVG_LOSS = +(prim.reduce((t, c) => t + c.loss, 0) / prim.length).toFixed(2);
 // a few known repeat offenders
 ['Houston', 'Tampa', 'Atlanta', 'Phoenix', 'Chicago', 'Columbus', 'San Antonio', 'Charlotte', 'Denver', 'Miami', 'Oklahoma City', 'Philadelphia'].forEach((city, i) => {
   const b = BRANCHES.filter(x => x.city === city)[i % 3] || BRANCHES.find(x => x.city === city);
@@ -236,7 +263,7 @@ const TEMPLATES = {
     runbook: 'RB-106', impact: ['Running on backup; no business impact'], verify: ['Primary loss < 0.5% for 30 min', 'Return to primary approved'] }; },
   jitter: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `${c.type} jitter 38 ms / loss 2.4% – ${c.carrier}`, ci: c.id,
     signals: [[0, 'Orchestrator', `${c.id} jitter 38 ms (threshold 30)`, 'Major'], [60, 'New Relic', 'ERP path latency from branch 160 ms', 'Minor'], [90, 'Synthetic', 'POS path RTT 610 ms', 'Major']],
-    corr: 24, rca: [['Carrier congestion on access link', 0.83, 'Loss/jitter rises with carrier-side queueing; local util only 31%'], ['Local saturation', 0.09, 'Util 31%'], ['EC CPU', 0.03, 'CPU 12%']], runbook: 'RB-101', impact: ['POS slower at counter', 'ERP slower'], verify: ['POS RTT < 400 ms', 'Jitter < 10 ms on active path'] }; },
+    corr: 24, rca: [['Carrier congestion on access link', 0.83, 'Loss/jitter rises with carrier-side queueing; local util only 31%'], ['Local saturation', 0.09, 'Util 31%'], ['EC CPU', 0.03, 'CPU 12%']], runbook: 'RB-101', impact: ['POS slower at counter', 'ERP slower'], verify: ['Payment path < 400 ms', 'Jitter < 10 ms on active path'] }; },
   apdown: b => { const ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Outdoor yard') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP'); return { pri: 'P4', cat: 'Wireless', title: `${ap.role === 'Outdoor yard' ? 'Yard' : 'Warehouse'} AP offline – ${ap.model}`, ci: ap.id,
     signals: [[0, 'Aruba Central', `${ap.id} down`, 'Major'], [15, 'Aruba Central', `PoE port ${b.code}-sw01 1/1/${R.int(10, 44)} drawing 0 W`, 'Minor']],
     corr: 3, rca: [['PoE / cable to outdoor AP', 0.64, 'PoE 0 W; port up/down flaps last night'], ['AP hardware', 0.22, '3 reboots in 7 days'], ['Switch PoE budget', 0.1, 'Budget 62% used']], runbook: 'RB-103', impact: ['Yard Wi-Fi coverage reduced'], verify: ['AP up in Central', 'Clients re-associated'] }; },
@@ -250,8 +277,8 @@ const TEMPLATES = {
     signals: [[0, 'Aruba Central', '41 deauth events on SRS-SCAN in 10 min', 'Minor'], [120, 'ServiceNow', 'Branch call: Wi-Fi sessions dropping at receiving', 'Minor'], [240, 'Aruba Central', 'Co-channel interference ch 36 on ap02/ap03', 'Minor']],
     corr: 6, rca: [['RF coverage gap / co-channel on 5 GHz', 0.58, 'Deauths cluster near racking; CCI on ch 36'], ['Client roaming thresholds', 0.27, 'Older client model roams late'], ['DHCP lease exhaustion', 0.08, 'Scope 61% used']], runbook: 'RB-104', impact: ['Receiving slower; picking OK'], verify: ['Deauths < 5 per 10 min', 'No branch complaints for 2 h'] }),
   pos: b => { const c = CIR[b.wan[0]]; return { pri: 'P2', cat: 'Branch connectivity', title: 'POS terminals slow at counter – payment path latency', ci: c.id,
-    signals: [[0, 'Synthetic', 'POS path RTT 1.9 s (threshold 0.4 s)', 'Critical'], [30, 'Orchestrator', `${c.id} loss 3.1%`, 'Major'], [60, 'ServiceNow', 'Branch call: card payments timing out', 'Major']],
-    corr: 19, rca: [['Primary path loss (carrier)', 0.81, 'Loss 3.1% on wan1, wan2 clean'], ['Processor-side slowness', 0.11, 'Other branches OK']], runbook: 'RB-101', impact: ['Card payments timing out at counter'], verify: ['POS RTT < 400 ms', 'No payment timeouts for 15 min'] }; },
+    signals: [[0, 'Synthetic', 'Payment path round trip 1.9 s (threshold 0.4 s)', 'Critical'], [30, 'Orchestrator', `${c.id} loss 3.1%`, 'Major'], [60, 'ServiceNow', 'Branch call: card payments timing out', 'Major']],
+    corr: 19, rca: [['Primary path loss (carrier)', 0.81, 'Loss 3.1% on wan1, wan2 clean'], ['Processor-side slowness', 0.11, 'Other branches OK']], runbook: 'RB-101', impact: ['Card payments timing out at counter'], verify: ['Payment path < 400 ms', 'No payment timeouts for 15 min'] }; },
   dhcp: b => ({ pri: 'P3', cat: 'Customer-caused', title: 'DHCP scope exhausted on VLAN 30 (warehouse Wi-Fi)', ci: `${b.code}-sw01`,
     signals: [[0, 'OpsRamp', 'DHCP scope 10.x.30.0/25 100% used', 'Major'], [40, 'Aruba Central', 'Clients failing to get IP on SRS-SCAN', 'Major']],
     corr: 4, rca: [['New handhelds added without IPAM update', 0.79, '24 new MACs in 2 days (branch rollout)'], ['Lease time too long', 0.16, '8-day lease']], runbook: 'RB-105', impact: ['New Wi-Fi clients cannot get an address'], verify: ['Scope < 80%', 'New devices get IP'] }),
@@ -450,7 +477,7 @@ export const KB = [
   { id: 'KB0012041', title: 'EdgeConnect: primary circuit down, branch on LTE – what to check and when to raise the carrier', tags: ['carrier', 'sdwan', 'lte'], views: 1840, rating: 4.8, updated: T0 - 12 * DAY, status: 'Published', body: '1) Confirm wan1 loss 100% and EC port up/up. 2) Check other branches on the same LEC CO. 3) Raise case with evidence pack (RB-106). 4) Tell StoreOps the branch is on backup and what is slower. 5) Return to primary only after 30 clean minutes.' },
   { id: 'KB0012055', title: 'Yard AP offline: PoE, outdoor cable and lift requirements', tags: ['wireless', 'yard', 'poe'], views: 920, rating: 4.6, updated: T0 - 30 * DAY, status: 'Published', body: 'Check PoE draw on the switch port. Bounce port (RB-103). If 0 W persists, outdoor cable or injector; dispatch tech with lift skill.' },
   { id: 'KB0012070', title: 'Wi-Fi sessions dropping in racking aisles', tags: ['wireless', 'roaming'], views: 610, rating: 4.4, updated: T0 - 21 * DAY, status: 'Published', body: 'Look for co-channel interference and late roaming. Enable 2.4 GHz on SRS-SCAN for older handhelds; adjust min RSSI; consider extra AP-635 near receiving.' },
-  { id: 'KB0012088', title: 'POS slow at counter: separate processor issues from WAN issues', tags: ['pos', 'pci', 'sdwan'], views: 1310, rating: 4.7, updated: T0 - 8 * DAY, status: 'Published', body: 'Run RB-110 POS path test. If other branches are fine and wan1 shows loss, fail POS class to wan2 (RB-101).' },
+  { id: 'KB0012088', title: 'POS slow at counter: separate processor issues from WAN issues', tags: ['pos', 'pci', 'sdwan'], views: 1310, rating: 4.7, updated: T0 - 8 * DAY, status: 'Published', body: 'Run RB-110 payment path test. If other branches are fine and wan1 shows loss, fail POS class to wan2 (RB-101).' },
   { id: 'KB0012102', title: 'Branch unreachable: treat the EdgeConnect as parent and suppress downstream alarms', tags: ['edgeconnect', 'correlation'], views: 480, rating: 4.5, updated: T0 - 44 * DAY, status: 'Published', body: 'When the EdgeConnect stops reporting it is the parent; OpsRamp suppresses child alarms for the switches and APs behind it. Check both carrier portals, then the out-of-band console, then run RB-108.' },
   { id: 'KB0012119', title: 'Acquired branch: legacy kit triage and data destruction certificates', tags: ['branch-in-a-box', 'acquisition'], views: 210, rating: 4.9, updated: T0 - 16 * DAY, status: 'Published', body: 'Keep only kit on the SRS standard list. Replace everything else. Recycle via approved vendor and attach the data destruction certificate to the CMDB retirement record.' },
   { id: 'KB0012131', title: 'Nightly backup failures caused by TACACS+ timeouts', tags: ['backup', 'tacacs'], views: 330, rating: 4.3, updated: T0 - 5 * DAY, status: 'Published', body: 'If several devices fail at the same minute on the same TACACS node, retry with RB-109 and raise with Security for node health.' },
@@ -504,7 +531,7 @@ export const SLA = [
 // ---------- Branch-in-a-Box ----------
 export const STAGES = ['Planned', 'Discovery', 'Site audit', 'Kit staged', 'Cutover', 'Hypercare', 'BAU'];
 export const KIT = [
-  { item: 'HPE Aruba EdgeConnect EC-XS', qty: 'S/M: 1, L: 2 (HA)', note: 'Pre-staged, zero-touch from Orchestrator; ships with branch template', group: 'WAN' },
+  { item: 'HPE Aruba Networking EdgeConnect 10104', qty: 'S/M: 1, L: 2 (HA)', note: 'Replaces the EC-XS (end of sale 31 Jan 2026). Pre-staged, zero-touch from Orchestrator; ships with branch template', group: 'WAN' },
   { item: 'Primary circuit (DIA or broadband)', qty: '1', note: 'Ordered at signing; 45–60 day lead time tracked by Carrier Agent', group: 'WAN' },
   { item: 'LTE / 5G backup router + pooled SIM', qty: '1', note: 'Activated and tested at staging (not at cutover)', group: 'WAN' },
   { item: 'Aruba CX 6100 48G PoE switch (stack on L sites: 6200M)', qty: 'S: 1, M: 2, L: stack of 3–4', note: 'Golden config from Network-as-Code repo', group: 'LAN' },
@@ -526,7 +553,7 @@ export const VLANS = [
 export const ZONES = [
   { id: 'counter', name: 'Counter / showroom', short: 'Counter / showroom', x: 20, y: 20, w: 240, h: 130, devices: ['AP-635 ×1', '2 POS terminals + PIN pads', 'Desk phones ×3'], drops: 12, vlans: [10, 20, 40, 60] },
   { id: 'office', name: 'Back office', short: 'Back office', x: 20, y: 160, w: 150, h: 120, devices: ['AP-635 ×1', 'PCs ×6', 'Desk phones ×5'], drops: 16, vlans: [10, 40] },
-  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect EC-XS', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
+  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect 10104', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
   { id: 'warehouse', name: 'Warehouse', short: 'Warehouse', x: 270, y: 20, w: 300, h: 260, devices: ['AP-635 ×3 (aisles + receiving)', 'Access switch drops ×4', 'Cameras ×4'], drops: 14, vlans: [30, 50, 10] },
   { id: 'docks', name: 'Loading docks', short: 'Loading docks', x: 580, y: 20, w: 160, h: 260, devices: ['AP-635 ×1', 'Dock door sensors', 'Camera ×2'], drops: 6, vlans: [30, 50, 70] },
   { id: 'yard', name: 'Outdoor yard', short: 'Outdoor yard', x: 20, y: 290, w: 550, h: 160, devices: ['AP-585 rugged ×2 (poles)', 'Yard cameras ×6', 'Gate controller'], drops: 8, vlans: [30, 50, 70] },
@@ -570,7 +597,7 @@ export const PROJECTS = [
   { id: 'BIB-0140', track: 'Greenfield', brand: 'American Roofing Supply', site: 'Nampa, ID', state: 'ID', region: 'Mountain West', stage: 'Hypercare', rag: 'Green', golive: T0 - 3 * DAY, size: 'S', blockers: [], gates: makeGates(13), steps: {}, legacy: [], carriers: [] },
 ];
 export const GREEN_STEPS = [
-  { id: 'plan', name: 'Profile & bill of materials', desc: 'Pick S/M/L profile from yard size, staff and fleet; ServiceNow project opened' },
+  { id: 'plan', name: 'Profile & bill of materials', desc: 'Pick S/M/L profile from yard size and staff; ServiceNow project opened' },
   { id: 'circuits', name: 'Circuits ordered', desc: 'Primary + LTE ordered at lease signing; install dates tracked' },
   { id: 'build', name: 'Closet & cabling', desc: 'Closet rack, Cat6A drops, yard poles' },
   { id: 'stage', name: 'Kit staged & shipped', desc: 'Zero-touch profile bound to site; switches/APs pre-claimed in Central' },
@@ -593,11 +620,12 @@ export const SRC = {
   papi: 'HPE Aruba Networking HPESBNW04712, Sep 2024 (CCB advisory 2024-231)',
   cx: 'HPE Aruba Networking HPESBNW05027, Mar 2026',
   ec: 'HPE Aruba Networking HPESBNW04943, Sep 2025',
-  eol2530: 'Aruba 2530 G models: end of sale 31 Oct 2021, vendor end of support 1 Feb 2027',
+  eol2530: 'HPE Aruba Networking end-of-sale notice for the 2530 24/48-port Gigabit switches: 48G PoE+ (J9772A) end of sale 31 Jan 2022, end of support 31 Jan 2027; 24G PoE+ (J9773A) end of sale 31 Mar 2022, end of support 31 Mar 2027',
+  ecxs: 'HPE Aruba Networking EdgeConnect EC-XS (JM962A): end of sale 31 Jan 2026, end of support 31 Jan 2031 (EdgeConnect lifecycle policy: support ends 5 years after end of sale)',
 };
 export const MODEL_INFO = {
-  'EC-XS': { make: 'HPE Aruba Networking', family: 'EdgeConnect SD-WAN', name: 'EdgeConnect EC-XS', os: 'ECOS', status: 'Current', eos: null, eosup: null },
-  '2530': { make: 'HPE Aruba Networking', family: 'Aruba 2530 (AOS-S)', name: 'Aruba 2530 48G PoE+', sku: 'J9772A', os: 'AOS-S', status: 'End of sale', eos: '2021-10-31', eosup: '2027-02-01', est: false, replace: 'CX 6100 48G Class4 PoE' },
+  'EC-XS': { make: 'HPE Aruba Networking', family: 'EdgeConnect SD-WAN', name: 'EdgeConnect EC-XS', sku: 'JM962A', os: 'ECOS', status: 'End of sale', eos: '2026-01-31', eosup: '2031-01-31', replace: 'EdgeConnect 10104' },
+  '2530': { make: 'HPE Aruba Networking', family: 'Aruba 2530 (AOS-S)', name: 'Aruba 2530 48G PoE+', sku: 'J9772A', os: 'AOS-S', status: 'End of sale', eos: '2022-01-31', eosup: '2027-01-31', replace: 'CX 6100 48G Class4 PoE' },
   '6100': { make: 'HPE Aruba Networking', family: 'Aruba CX 6100', name: 'Aruba CX 6100 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
   '6200M': { make: 'HPE Aruba Networking', family: 'Aruba CX 6200M', name: 'Aruba CX 6200M 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
   '6300': { make: 'HPE Aruba Networking', family: 'Aruba CX 6300', name: 'Aruba CX 6300M 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
@@ -608,19 +636,41 @@ export const MODEL_INFO = {
   'AP-575': { make: 'HPE Aruba Networking', family: '570 Series outdoor', name: 'AP-575 outdoor', os: 'AOS 10', status: 'Current', eos: null, eosup: null },
   'AP-585': { make: 'HPE Aruba Networking', family: '580 Series outdoor', name: 'AP-585 outdoor', os: 'AOS 10', status: 'Current', eos: null, eosup: null },
 };
+// Per-SKU dates where a model family has more than one notice
+export const SKU_INFO = { J9773A: { name: 'Aruba 2530 24G PoE+', sku: 'J9773A', eos: '2022-03-31', eosup: '2027-03-31', replace: 'CX 6100 24G Class4 PoE' } };
+export const lifeInfo = d => ({ ...(MODEL_INFO[d.model] || {}), ...(d.sku && SKU_INFO[d.sku] || {}) });
+// Warranty, per the HPE Aruba Networking warranty quick reference: switches and APs carry a limited lifetime
+// warranty that ends 5 years after end of sale; the EdgeConnect EC-XS has a 1-year warranty, so its date is the
+// HPE support contract, renewed every year.
+export const LIFETIME = Date.UTC(2099, 0, 1);
+export const warrantyKind = d => d.type === 'SD-WAN' ? 'Support contract' : 'Limited lifetime warranty';
+export const warrantyText = d => d.warranty >= LIFETIME ? 'Lifetime' : new Date(d.warranty).toISOString().slice(0, 10);
 DEVICES.forEach(d => { if (d.model === '2530') { const b = BR[d.branchId]; if (b.size === 'S') { d.sku = 'J9773A'; d.desc = 'Aruba 2530 24G PoE+'; } else { d.sku = 'J9772A'; d.desc = 'Aruba 2530 48G PoE+'; } } else d.desc = (MODEL_INFO[d.model] || {}).name || d.model; });
+// Management mode, as in the contracted inventory: 2,080 switches and APs are standalone (outside Aruba Central,
+// polled by OpsRamp only); the rest are managed in Central.
+DEVICES.forEach(d => { if (d.type === 'Switch') d.mode = d.role === 'Standalone' ? 'Standalone' : 'Central'; else if (d.type === 'AP') d.mode = d.mode === 'Standalone' ? 'Standalone' : 'Central'; });
+{ // match the contracted split exactly: 1,268 standalone switches and 812 standalone APs
+  const fix = (type, want) => { let n = DEVICES.filter(d => d.type === type && d.mode === 'Standalone').length; for (const d of DEVICES) { if (n >= want) break; if (d.type === type && d.mode === 'Central' && !/core|HA|Stack/i.test(d.role)) { d.mode = 'Standalone'; n++; } } };
+  fix('Switch', 1268); fix('AP', 812);
+}
+export const CENTRAL_N = DEVICES.filter(d => d.mode === 'Central').length;
+DEVICES.forEach((d, i) => {
+  if (d.type === 'SD-WAN') { if (d.warranty < T0 && i % 9) d.warranty += 365 * DAY; }
+  else { const e = lifeInfo(d).eosup; d.warranty = e ? Date.parse(e + 'T00:00:00Z') : LIFETIME; }
+});
+
 export const ADVISORIES = [
-  { id: 'HPESBNW04712', cves: ['CVE-2024-42505', 'CVE-2024-42506', 'CVE-2024-42507'], title: 'Unauthenticated command injection via PAPI (UDP 8211) in access points', product: 'Access points (AOS 10)', types: ['AP'], cvss: 9.8, sev: 'Critical', published: '2024-09-24', vector: 'Network, no authentication', affects: d => d.type === 'AP' && ['10.5.1.4', '10.4.1.2'].includes(d.fw), fixed: 'AOS 10.6.0.3 or 10.7.x', mitigation: 'Block UDP 8211 from untrusted networks (cluster security on AOS 10)', src: 'papi' },
-  { id: 'HPESBNW05027', cves: ['CVE-2026-23813'], title: 'Authentication bypass in the AOS-CX web management interface', product: 'CX 6100 / 6200 / 6300 (AOS-CX)', types: ['Switch'], cvss: 9.8, sev: 'Critical', published: '2026-03-10', vector: 'Network, no authentication', affects: d => d.type === 'Switch' && ['10.16.1020', '10.13.1160', '10.10.1170'].includes(d.fw), fixed: 'Current 10.16 or 10.17 maintenance release (target 10.16.1030)', mitigation: 'Restrict HTTPS management to the management VLAN; disable web UI where unused', src: 'cx' },
-  { id: 'HPESBNW04943', cves: ['CVE-2025-37123', 'CVE-2025-37124', 'CVE-2025-37125', 'CVE-2025-37126'], title: 'Multiple vulnerabilities in EdgeConnect SD-WAN gateways (incl. unauthenticated firewall bypass)', product: 'EdgeConnect EC-XS (ECOS)', types: ['SD-WAN'], cvss: 8.8, sev: 'High', published: '2025-09-16', vector: 'Network (CVE-2025-37124 needs no authentication)', affects: d => d.type === 'SD-WAN' && ['9.4.3.4', '9.3.8.0'].includes(d.fw), fixed: 'ECOS 9.5.4.1 or 9.4.4.2 (Orchestrator at or above gateway version)', mitigation: 'Restrict management plane; keep Orchestrator at or above gateway release', src: 'ec' },
-  { id: 'EOS-2530', cves: [], title: 'Aruba 2530 past end of sale; no further security fixes once support ends', product: 'Aruba 2530 (AOS-S)', types: ['Switch'], cvss: null, sev: 'Lifecycle', published: '2021-10-31', vector: 'Lifecycle risk', affects: d => d.model === '2530', fixed: 'Replace with CX 6100 (Branch-in-a-Box standard)', mitigation: 'Keep on YA.16.11.0021; ACL on management; prioritise replacement at high-traffic branches', src: 'eol2530' },
-  { id: 'ECOS-9.3-EOM', cves: [], title: 'ECOS 9.3 reached end of maintenance on 30 Jun 2025', product: 'EdgeConnect EC-XS (ECOS 9.3)', types: ['SD-WAN'], cvss: null, sev: 'Lifecycle', published: '2025-06-30', vector: 'Software lifecycle', affects: d => d.type === 'SD-WAN' && d.fw.startsWith('9.3'), fixed: 'Upgrade to ECOS 9.5.4.1', mitigation: 'Schedule into next ECOS wave', src: 'ec' },
+  { id: 'HPESBNW04712', cves: ['CVE-2024-42505', 'CVE-2024-42506', 'CVE-2024-42507'], title: 'Unauthenticated command injection via PAPI (UDP 8211) in access points', product: 'Access points (AOS 10)', types: ['AP'], cvss: 9.8, sev: 'Critical', published: '2024-09-24', vector: 'Network, no authentication', affects: d => d.type === 'AP' && ['10.5.1.4', '10.4.1.2'].includes(d.fw), fixed: 'AOS 10.7.0.0, 10.6.0.3 or 10.4.1.4 and later; AOS 10.5 is out of support, so move to 10.6 or 10.7', mitigation: 'Block UDP 8211 (PAPI) from all untrusted networks', src: 'papi' },
+  { id: 'HPESBNW05027', cves: ['CVE-2026-23813'], title: 'Authentication bypass in the AOS-CX web management interface', product: 'CX 6100 / 6200 / 6300 (AOS-CX)', types: ['Switch'], cvss: 9.8, sev: 'Critical', published: '2026-03-10', vector: 'Network, no authentication', affects: d => d.type === 'Switch' && ['10.16.1020', '10.13.1160', '10.10.1170'].includes(d.fw), fixed: 'AOS-CX 10.16.1030, 10.13.1161, 10.10.1180 or 10.17.1001 and later (target 10.16.1030)', mitigation: 'Restrict HTTPS management to the management VLAN; disable web UI where unused', src: 'cx' },
+  { id: 'HPESBNW04943', cves: ['CVE-2025-37123', 'CVE-2025-37124', 'CVE-2025-37125', 'CVE-2025-37126'], title: 'Multiple vulnerabilities in EdgeConnect SD-WAN gateways (incl. unauthenticated firewall bypass)', product: 'EdgeConnect EC-XS (ECOS)', types: ['SD-WAN'], cvss: 8.8, sev: 'High', published: '2025-09-16', vector: 'Network (CVE-2025-37124 needs no authentication)', affects: d => d.type === 'SD-WAN' && ['9.4.3.4', '9.3.8.0'].includes(d.fw), fixed: 'ECOS 9.5.4 or 9.4.4 and later (affected: 9.5.0.0 to 9.5.3.6 and 9.4.0.0 to 9.4.3.7)', mitigation: 'Restrict management plane; keep Orchestrator at or above gateway release', src: 'ec' },
+  { id: 'EOS-2530', cves: [], title: 'Aruba 2530: end of sale 2022, end of support 31 Jan 2027 (48G) and 31 Mar 2027 (24G)', product: 'Aruba 2530 (AOS-S)', types: ['Switch'], cvss: null, sev: 'Lifecycle', published: '2021-05-31', vector: 'Lifecycle risk', affects: d => d.model === '2530', fixed: 'Replace with CX 6100 (Branch-in-a-Box standard)', mitigation: 'Keep on YA.16.11.0021; ACL on management; prioritise replacement at high-traffic branches', src: 'eol2530' },
+  { id: 'ECOS-9.3', cves: [], title: 'ECOS 9.3 is an older release: security fixes ship only for 9.4 and 9.5', product: 'EdgeConnect EC-XS (ECOS 9.3)', types: ['SD-WAN'], cvss: null, sev: 'Lifecycle', published: '2025-09-16', vector: 'Software release', affects: d => d.type === 'SD-WAN' && d.fw.startsWith('9.3'), fixed: 'Upgrade to ECOS 9.5.4.1', mitigation: 'Schedule into the next ECOS wave', src: 'ec' },
 ];
 export const vulnsOf = d => ADVISORIES.filter(a => a.affects(d));
 export const lifecycleOf = d => {
-  const m = MODEL_INFO[d.model] || {};
-  if (m.status === 'End of sale') return { status: 'Support ending', tone: 'red', eos: m.eos, eosup: m.eosup, est: m.est, note: `End of sale ${m.eos}; end of support ${m.eosup}` };
-  if (d.type === 'SD-WAN' && d.fw.startsWith('9.3')) return { status: 'Software end of maintenance', tone: 'amber', note: 'ECOS 9.3 end of maintenance 30 Jun 2025' };
-  if (d.warranty < T0) return { status: 'Warranty expired', tone: 'amber', note: 'Hardware current; warranty lapsed' };
-  return { status: 'Current', tone: 'green', note: 'No end-of-life notice' };
+  const m = lifeInfo(d);
+  if (m.eosup && m.eosup <= '2026-10-20') return { status: 'End of support', tone: 'red', eos: m.eos, eosup: m.eosup, note: `End of sale ${m.eos}; end of support ${m.eosup}` };
+  if (m.eos) return { status: 'End of sale', tone: m.eosup < '2027-10-20' ? 'red' : 'amber', eos: m.eos, eosup: m.eosup, note: `End of sale ${m.eos}; end of support ${m.eosup}` };
+  if (d.warranty < T0) return { status: 'Warranty expired', tone: 'amber', note: 'No end of sale announced; warranty lapsed' };
+  return { status: 'Current', tone: 'green', note: 'No end of sale announced' };
 };

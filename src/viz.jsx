@@ -110,7 +110,7 @@ export function BreachRiskCard() {
   );
 }
 const METRIC = {
-  circuit: ['Primary path packet loss', '%', 0.1, 100, 0.08], jitter: ['Primary path jitter', 'ms', 3.2, 38, 0.8], pos: ['POS path p95', 'ms', 210, 1900, 18],
+  circuit: ['Primary path packet loss', '%', 0.1, 100, 0.08], jitter: ['Primary path jitter', 'ms', 3.2, 38, 0.8], pos: ['Payment path round trip', 'ms', 150, 1900, 18],
   apdown: ['Clients on the AP', '', 18, 0, 3], crc: ['Uplink CRC errors per 5 min', '', 2, 1240, 2], lte: ['Backup path loss', '%', 0.1, 100, 0.08],
   scanner: ['SRS-SCAN deauths per 10 min', '', 3, 41, 1.2], dhcp: ['VLAN 30 scope used', '%', 62, 100, 1.5], backup: ['Backup jobs succeeding', '%', 100, 83, 0.4],
   cpu: ['Core switch CPU', '%', 22, 94, 3], edgedown: ['EdgeConnect heartbeats per 5 min', '', 10, 0, 0.3],
@@ -170,7 +170,7 @@ export function FirmwareMixCard() {
 export function WarrantyCard() {
   const now = useNow(); const q = useMemo(() => P.warrantyByQuarter(now), []);
   return (
-    <Card title="Warranty ending, next 8 quarters" sub="Plan refresh budgets before support lapses" right={<Legend items={[['EdgeConnect', C.s1], ['Switches', C.s2], ['APs', C.s3]]} />}>
+    <Card title="Warranty and support contracts ending, next 8 quarters" sub="EdgeConnect support contracts renew yearly; the Aruba 2530 warranty ends with its end of support" right={<Legend items={[['EdgeConnect', C.s1], ['Switches', C.s2], ['APs', C.s3]]} />}>
       <Bars data={q.map(x => ({ ...x, EdgeConnect: x['SD-WAN'], Switches: x.Switch, APs: x.AP }))} keys={['EdgeConnect', 'Switches', 'APs']} colors={[C.s1, C.s2, C.s3]} h={170} />
     </Card>
   );

@@ -48,47 +48,57 @@ function useBranchLive(s, b) {
   const steer = s.steer && s.steer[b.id];
   const onBackup = p.status === 'Down' || !!steer;
   const path = onBackup ? sc : p;
-  const dW = (L.series.wan.at(-1) - 27) * 0.4;
+  // One consistent picture of the line the branch is using. A degraded line (congestion or a carrier fault)
+  // shows higher latency, jitter and loss together; Wi-Fi is measured inside the branch and does not depend on the WAN.
+  const dW = (L.series.wan.at(-1) - D.AVG_LAT) * 0.3;
   const R = Math.random;
-  const base = { lat: path.lat + dW + (R() - 0.5) * 2, loss: path.status === 'Degraded' ? 2.1 + R() * 0.8 : (path.loss || 0.05) + R() * 0.06, jit: path.status === 'Degraded' ? 30 + R() * 8 : (path.jit || 1.5) + (R() - 0.5) * 0.8 };
-  const posBad = incs.some(i => ['pos', 'jitter'].includes(i.kind) || /POS|jitter/i.test(i.title)) && !steer;
-  const pos = (posBad ? 620 : 175 + hashOf(b) * 90) + (onBackup && path.type === 'LTE/5G' ? 60 : 0) + (R() - 0.5) * 18;
+  const deg = path.status === 'Degraded';
+  const jT = deg ? (path.jit || 30) : path.jit || 1.5, lT = deg ? (path.loss || 2) : path.loss || 0.05;
+  const latT = path.lat + (deg ? 18 + jT * 0.9 : 0);
+  const base = { lat: Math.max(2, latT + dW + (R() - 0.5) * (deg ? jT * 0.5 : Math.max(1, path.jit))), loss: Math.max(0, lT + (R() - 0.5) * (deg ? 0.6 : 0.04)), jit: Math.max(0.2, jT + (R() - 0.5) * (deg ? 5 : 0.6)) };
+  const useT = onBackup ? (path.type === 'LTE/5G' ? 52 + hashOf(b) * 30 : Math.min(85, p.util * 1.3 + 12)) : path.util + (deg ? 14 : 0);
+  const util = Math.min(98, Math.max(2, useT + (R() - 0.5) * 6));
+  // What the business feels, worked out from the line: payment round trip, ERP login, call quality
+  const pay = 2 * base.lat + 70 + base.loss * 140;
+  const erp = 0.8 + base.lat * 0.006 + base.loss * 0.35;
+  const mos = Math.max(1, Math.min(4.4, 4.4 - base.jit * 0.02 - base.loss * 0.4 - Math.max(0, base.lat - 150) * 0.004));
+  const pos = pay;
   const wifi = 93 - incs.filter(i => i.kind === 'apdown').length * 11 - incs.filter(i => ['scanner', 'dhcp'].includes(i.kind)).length * 14 + (R() - 0.5) * 2;
-  const roof = (posBad ? 2.4 : 0.62 + hashOf(b) * 0.3) + (onBackup && path.type === 'LTE/5G' ? 0.25 : 0) + (R() - 0.5) * 0.05;
+  const roof = erp;
   const down = healthOf(s, b) === 'down';
   if (h.id !== b.id) { // seed 3 minutes of history
     h.id = b.id; h.ev = []; const r = rng(b.num);
-    h.lat = Array.from({ length: 90 }, () => +(path.lat + (r() - 0.5) * 3).toFixed(1)); h.loss = Array.from({ length: 90 }, () => +((path.loss || 0.05) + r() * 0.08).toFixed(2)); h.jit = Array.from({ length: 90 }, () => +((path.jit || 1.5) + (r() - 0.5)).toFixed(1)); h.pos = Array.from({ length: 90 }, () => Math.round(175 + hashOf(b) * 90 + (r() - 0.5) * 20));
+    h.lat = Array.from({ length: 90 }, () => +(latT + (r() - 0.5) * (deg ? jT * 0.5 : Math.max(1, path.jit))).toFixed(1)); h.loss = Array.from({ length: 90 }, () => +Math.max(0, lT + (r() - 0.5) * (deg ? 0.6 : 0.04)).toFixed(2)); h.jit = Array.from({ length: 90 }, () => +Math.max(0.2, jT + (r() - 0.5) * (deg ? 5 : 0.6)).toFixed(1)); h.pos = Array.from({ length: 90 }, () => Math.round(useT + (r() - 0.5) * 6));
     h.ver = ver;
   }
   if (h.ver !== ver) {
     h.ver = ver;
     const push = (k, v) => { h[k] = [...h[k].slice(1), v]; };
-    push('lat', down ? null : +base.lat.toFixed(1)); push('loss', down ? null : +base.loss.toFixed(2)); push('jit', down ? null : +base.jit.toFixed(1)); push('pos', down ? null : Math.round(pos));
+    push('lat', down ? null : +base.lat.toFixed(1)); push('loss', down ? null : +base.loss.toFixed(2)); push('jit', down ? null : +base.jit.toFixed(1)); push('pos', down ? null : Math.round(util));
     const devs = D.devicesOf(b.id);
     const ap = devs.find(d => d.type === 'AP') || devs[0], sw = devs.find(d => d.type === 'Switch') || devs[0];
     const tpl = [
       ['OpsRamp', `${sw.id} interfaces: InErrors = 0, PortsUp = ${18 + (b.num % 20)}`],
       ['Orchestrator', `${b.code}-ec01 ${onBackup ? 'wan2' : 'wan1'}: latency ${Math.round(base.lat)} ms, loss ${base.loss.toFixed(2)}%`],
       ['Aruba Central', `${ap.id} clients = ${6 + Math.floor(R() * 14)}, channel util ${20 + Math.floor(R() * 30)}%`],
-      ['Synthetic', `POS path test ${Math.round(pos)} ms, ERP login ${(1.1 + R() * 0.5).toFixed(1)} s`],
-      ['New Relic', `ERP path ${Math.round(base.lat + 6)} ms to the data centre`],
+      ['Synthetic', `Payment path test ${Math.round(pay)} ms, ERP login ${erp.toFixed(1)} s`],
+      ['Orchestrator', `${b.code}-ec01 ${onBackup ? 'wan2' : 'wan1'} jitter ${base.jit.toFixed(1)} ms, WAN use ${Math.round(util)}%`],
       ['Aruba Central', `${sw.id} uplink 1/1/49 up, CRC errors 0, utilisation ${12 + Math.floor(R() * 30)}%`],
     ];
     if (!down) { const k = h.ev.length < 6 ? 6 : 1; const add = []; for (let j = 0; j < k; j++) { const t = tpl[(Math.floor(R() * tpl.length) + j) % tpl.length]; add.push({ id: `${Date.now()}-${j}`, t: Date.now() - j * 1700, src: t[0], msg: t[1] }); } h.ev = [...add, ...h.ev].slice(0, 30); }
   }
-  return { L, ver, h, p, sc, path, onBackup, steer, down, cur: { lat: down ? 0 : base.lat, loss: down ? 100 : base.loss, jit: down ? 0 : base.jit, pos: down ? 0 : pos, wifi: down ? 0 : wifi, roof: down ? 0 : roof }, incs };
+  return { L, ver, h, p, sc, path, onBackup, steer, down, cur: { lat: down ? 0 : base.lat, loss: down ? 100 : base.loss, jit: down ? 0 : base.jit, pos: down ? 0 : pos, pay: down ? 0 : pay, erp: down ? 0 : erp, mos: down ? 0 : mos, util: down ? 0 : util, wifi: down ? 0 : wifi, roof: down ? 0 : roof, deg }, incs };
 }
 
 export function healthBreakdown(s, b, x) {
   const devs = D.devicesOf(b.id);
   const vul = devs.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length;
-  const life = devs.filter(d => D.lifecycleOf(d).status === 'Support ending').length;
+  const life = devs.filter(d => { const l = D.lifecycleOf(d); return l.status === 'End of support' || (l.status === 'End of sale' && l.tone === 'red'); }).length;
   const rd = (s.readiness[b.id] || baseReadiness(s, b)).results;
-  const net = x.down ? 10 : Math.max(20, 100 - (x.p.status === 'Down' ? 26 : x.p.status === 'Degraded' ? 16 : 0) - (x.sc.status !== 'Up' ? 14 : 0) - Math.max(0, x.cur.loss - 0.3) * 4);
+  const net = x.down ? 10 : Math.max(20, 100 - (x.p.status === 'Down' ? 22 : x.p.status === 'Degraded' ? 14 : 0) - (x.sc.status !== 'Up' ? 14 : 0) - Math.max(0, x.cur.loss - 0.3) * 8 - Math.max(0, x.cur.jit - 10) * 0.4);
   const parts = [
     ['Network', Math.round(net)], ['Wi-Fi', Math.round(Math.max(10, Math.min(100, x.cur.wifi + 4)))], ['Devices', x.down ? 10 : 100 - x.incs.filter(i => ['apdown', 'crc', 'cpu'].includes(i.kind)).length * 9],
-    ['Applications', x.down ? 10 : x.cur.pos > 400 ? 62 : 98], ['Security', Math.max(40, 100 - vul * 7)], ['Lifecycle', Math.max(45, 100 - life * 9)],
+    ['Applications', x.down ? 10 : (x.cur.pay > 400 || x.cur.mos < 3.6 || x.cur.erp > 2) ? 62 : 98], ['Security', Math.max(40, 100 - vul * 7)], ['Lifecycle', Math.max(45, 100 - life * 9)],
     ['Open incidents', Math.max(30, 100 - x.incs.length * 12)], ['Readiness', Math.round(100 * rd.filter(r => r.st === 'pass').length / rd.length)],
   ];
   const score = Math.round(parts.reduce((a, p, i) => a + p[1] * [0.22, 0.12, 0.12, 0.16, 0.1, 0.06, 0.14, 0.08][i], 0));
@@ -101,6 +111,8 @@ function riskNext4h(s, b, x, hb) {
   if (p.tickets90 >= 3) drivers.push([`Primary ${p.carrier} ${p.type} is a repeat offender (${p.tickets90} tickets in 90 days)`, 14]);
   if (s.predictions.some(q => q.branchId === b.id && ['New', 'Watching'].includes(q.status))) drivers.push(['Open prediction on a device or circuit at this branch', 18]);
   if (x.sc.status !== 'Up') drivers.push(['Backup path not passing traffic: no failover if primary drops', 22]);
+  if (x.cur.deg && !x.onBackup) drivers.push([`Main line unstable now: ${x.cur.loss.toFixed(1)}% loss, ${Math.round(x.cur.jit)} ms jitter`, 26]);
+  if (x.onBackup) drivers.push(['Trading on the backup line: no second line if it drops', 16]);
   if (x.incs.length) drivers.push([`${x.incs.length} open incident${x.incs.length > 1 ? 's' : ''} at the branch`, 10 * x.incs.length]);
   if (hb.vul) drivers.push([`${hb.vul} device${hb.vul > 1 ? 's' : ''} with a critical vulnerability unpatched`, 6]);
   if (s.incidents.some(i => i.major && i.state !== 'Resolved' && D.BR[i.branchId].region === b.region)) drivers.push(['Severe weather major incident open in this region', 20]);
@@ -117,8 +129,8 @@ function DepGraph({ s, b, x }) {
   const sw = devs.filter(d => d.type === 'Switch').length, ap = devs.filter(d => d.type === 'AP').length;
   const cols = [
     ['Business service', [['Branch trading', `${b.name}`, 'up']]],
-    ['Applications', D.APPS.map(a => [a.short, a.host, x.down ? 'down' : (a.id === 'pos' && x.cur.pos > 400) ? 'degraded' : 'up'])],
-    ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['PCI segment', 'VLAN 20, POS path', x.down ? 'down' : 'up'], ['VLANs and DHCP', 'VLANs 10, 30, 40', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up']]],
+    ['Applications', D.APPS.map(a => [a.short, a.host, x.down ? 'down' : (a.id === 'pos' && x.cur.pay > 400) || (a.id === 'voice' && x.cur.mos < 3.6) || (a.id === 'erp' && x.cur.erp > 2) ? 'degraded' : 'up'])],
+    ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['PCI segment', 'VLAN 20, payment path', x.down ? 'down' : 'up'], ['VLANs and DHCP', 'VLANs 10, 30, 40', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up']]],
     ['Connectivity', [[`${b.code}-ec01`, b.dev.ec === 2 ? 'EdgeConnect HA pair' : 'EdgeConnect EC-XS', x.down ? 'down' : 'up'], [b.wan[0], `${x.p.carrier} ${x.p.type}, ${x.onBackup ? 'standby' : 'active'}`, x.p.status === 'Up' ? 'up' : x.p.status === 'Degraded' ? 'degraded' : 'down'], [b.wan[1], `${x.sc.carrier} ${x.sc.type}, ${x.onBackup ? 'active' : 'standby'}`, x.sc.status === 'Up' ? 'up' : 'down']]],
     ['Core', [['Orchestrator overlay', 'business intent policies', 'up'], ['Primary DC hub', 'ERP and pricing', 'up'], ['Azure (SRS tenant)', 'cloud applications', 'up']]],
     ['Destinations', [['ERP / pricing', 'Primary DC', 'up'], ['Payment processor', 'PCI path only', 'up'], ['Cloud applications', 'Azure', 'up'], ['Internet / M365', 'local breakout', 'up']]],
@@ -138,6 +150,8 @@ function DepGraph({ s, b, x }) {
 
 // Squeeze an SVG label into its node when the estimated width is too wide
 const fitLen = (t, cw, avail) => (Math.min(t.length, 30) * cw > avail ? { textLength: Math.max(20, avail), lengthAdjust: 'spacingAndGlyphs' } : {});
+
+const fmtD = iso => iso ? new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '';
 
 export function Branch360() {
   const { s, act } = useApp();
@@ -161,11 +175,14 @@ export function Branch360() {
   const hist30 = useMemo(() => { const r = rng(b.num * 7); return Array.from({ length: 30 }, (_, i) => ({ label: i % 5 === 4 ? dateShort(now - (29 - i) * DAY) : '', tip: dateShort(now - (29 - i) * DAY), Incidents: r() < 0.12 ? 1 + Math.floor(r() * 2) : 0, 'Auto-resolved': r() < 0.18 ? 1 : 0 })); }, [b.id]);
   const recent = s.resolved.filter(i => i.branchId === b.id).slice(0, 5);
   const health24 = useMemo(() => { const r = rng(b.num); return Array.from({ length: 48 }, (_, i) => Math.min(100, hb.score + (r() - 0.5) * 4 + (i > 40 ? 0 : 2))); }, [b.id, hb.score]);
-  const guidance = x.down ? `The network at ${b.name} is down. Please use the downtime procedure for orders and card payments. A technician is being arranged; next update in 30 minutes.` : x.onBackup ? `${b.name} is running on its backup line. Card payments and ERP work normally; cloud applications may be a little slower. No action needed from the branch.` : x.incs.length ? `We are working on: ${x.incs.map(i => i.title.toLowerCase()).slice(0, 2).join('; ')}. Trading is not affected unless we tell you otherwise.` : 'All systems are working. No action needed.';
+  const guidance = x.down ? `The network at ${b.name} is down on both lines. Please use the downtime procedure for orders and card payments. A technician is being arranged; next update in 30 minutes.`
+    : x.onBackup ? `${b.name} is running on its backup line (${x.path.carrier} ${x.path.type}). Card payments, ERP and calls are working; large downloads may be slower. No action needed from the branch.`
+    : x.cur.deg ? `The main line at ${b.name} (${x.p.carrier}) is unstable: ${x.cur.loss.toFixed(1)}% packet loss and ${Math.round(x.cur.jit)} ms jitter. Card payments and ERP may be slower and calls may break up. We are moving them to the backup line within a few minutes; no action needed unless we contact you.`
+    : x.incs.length ? `We are working on: ${x.incs.map(i => i.title.toLowerCase()).slice(0, 2).join('; ')}. Card payments and ERP are working normally.` : 'Both lines are healthy and all systems are working. No action needed.';
   const [guide, setGuide] = useState(null);
   const vulnRows = D.ADVISORIES.map(a => ({ a, devs: devs.filter(d => a.affects(d)) })).filter(r => r.devs.length);
   const devRows = devs.map(d => ({ ...d, life: D.lifecycleOf(d), vulns: D.vulnsOf(d) }));
-  const lifeYears = useMemo(() => { const yrs = [2025, 2026, 2027, 2028, 2029, 2030]; return yrs.map(y => ({ label: String(y), 'Warranty ends': devs.filter(d => new Date(d.warranty).getFullYear() === y).length, 'Support ends': devs.filter(d => (D.MODEL_INFO[d.model] || {}).eosup && new Date(D.MODEL_INFO[d.model].eosup).getFullYear() === y).length })); }, [b.id]);
+  const lifeYears = useMemo(() => { const yrs = [2026, 2027, 2028, 2029, 2030, 2031]; return yrs.map(y => ({ label: String(y), 'Warranty ends': devs.filter(d => new Date(d.warranty).getFullYear() === y).length, 'End of support': devs.filter(d => { const e = D.lifeInfo(d).eosup; return e && new Date(e).getFullYear() === y; }).length })); }, [b.id]);
   const runDiag = () => { const base = baseReadiness(s, b); setDiag(base.results.map(r => ({ ...r, st: 'running' }))); base.results.forEach((r, k) => setTimeout(() => setDiag(cur => cur && cur.map(y => y.id === r.id ? r : y)), 350 * (k + 1))); act.audit(`Branch diagnostics run: ${b.name}`, b.id); };
   const toolOpen = t => { act.toast(`${t}: opened ${b.code} (deep link)`, 'info'); act.audit(`Opened ${t} for ${b.name}`, b.id); };
   const g = gate(s, { kind: 'change', conf: 1, branchId: b.id, now });
@@ -199,11 +216,11 @@ export function Branch360() {
 
       <Card title="Branch metrics" sub="Live from Orchestrator, synthetic probes and Aruba Central. Outer bands show normal, warning and critical." right={<span className="text-[12px] text-ok font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-ok animate-pulse" />Live</span>}>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <Gauge value={x.cur.lat} max={150} warn={60} crit={100} unit="ms" fmt={v => Math.round(v)} label="Latency to DC" sub={`${x.path.carrier} ${x.path.type}, active path`} />
-          <Gauge value={x.cur.loss} max={5} warn={1} crit={2} unit="%" fmt={v => v >= 10 ? '100' : v.toFixed(2)} label="Packet loss" sub="active path" />
-          <Gauge value={x.cur.pos} max={1200} warn={300} crit={400} unit="ms" fmt={v => Math.round(v)} label="POS path p95" sub="synthetic, PCI segment" />
-          <Gauge value={x.cur.jit} max={60} warn={20} crit={30} unit="ms" fmt={v => v.toFixed(1)} label="Jitter" sub="active path, Orchestrator" />
-          <Gauge value={x.cur.wifi} max={100} warn={80} crit={65} invert fmt={v => Math.round(v)} label="Wi-Fi experience" sub="Aruba Central, all zones" />
+          <Gauge value={x.cur.lat} max={200} warn={x.path.lat + 25} crit={x.path.lat + 60} unit="ms" fmt={v => Math.round(v)} label="Latency to data centre" sub={`${x.path.carrier} ${x.path.type}, line in use (normal ${x.path.lat} ms)`} />
+          <Gauge value={x.cur.loss} max={5} warn={1} crit={2} unit="%" fmt={v => v >= 10 ? '100' : v.toFixed(2)} label="Packet loss" sub="line in use, Orchestrator" />
+          <Gauge value={x.cur.jit} max={60} warn={20} crit={30} unit="ms" fmt={v => v.toFixed(1)} label="Jitter" sub="line in use, Orchestrator" />
+          <Gauge value={x.cur.util} max={100} warn={70} crit={85} unit="%" fmt={v => Math.round(v)} label="WAN use" sub={`of ${x.path.bw} Mb/s on the line in use`} />
+          <Gauge value={x.cur.wifi} max={100} warn={80} crit={65} invert fmt={v => Math.round(v)} label="Wi-Fi experience" sub="inside the branch, Aruba Central" />
         </div>
       </Card>
 
@@ -249,7 +266,7 @@ export function Branch360() {
           <div className="text-[12px] text-ink2 mt-2 flex items-center gap-1.5"><Dot tone={x.down ? 'red' : 'green'} /><span className="font-mono">{b.code}-ec01</span> EdgeConnect {b.dev.ec === 2 ? 'HA pair' : 'EC-XS'}, ECOS {(devs.find(d => d.type === 'SD-WAN') || {}).fw}</div>
         </Card>
         <Card title="Applications" sub="As this branch sees them">
-          {[['ERP (order, inventory, invoicing)', `${(1.1 + hashOf(b) * 0.4).toFixed(1)} s login`, 'Primary DC'], ['POS and card payments', `${Math.round(x.cur.pos)} ms`, 'PCI segment'], ['Pricing and quoting', `${(0.7 + hashOf(b) * 0.3).toFixed(1)} s`, 'Primary DC'], ['Cloud applications (Azure)', `${Math.round(x.cur.lat + 9)} ms path`, 'Azure'], ['Voice', 'MOS 4.3', 'Cloud voice'], ['Microsoft 365', '86 ms', 'Local breakout']].map(([n, v, w], i) => { const bad = x.down || (i === 1 && x.cur.pos > 400); return <div key={n} className="flex items-center gap-2 py-1 border-b border-line/60 last:border-0 text-[12.5px]"><Dot tone={bad ? (x.down ? 'red' : 'amber') : 'green'} /><span className="flex-1 text-ink">{n}</span><span className="text-ink2">{x.down ? 'unreachable' : v}</span><span className="text-ink3 w-24 text-right text-[11.5px]">{w}</span></div>; })}
+          {[['ERP (order, inventory, invoicing)', `${x.cur.erp.toFixed(1)} s login`, 'Primary DC'], ['Card payments', `${Math.round(x.cur.pay)} ms round trip`, 'PCI segment'], ['Pricing and quoting', `${(0.4 + x.cur.erp * 0.35).toFixed(1)} s`, 'Primary DC'], ['Cloud applications (Azure)', `${Math.round(x.cur.lat * 0.9 + 4)} ms path`, 'Azure'], ['Voice', `call quality ${x.cur.mos.toFixed(1)} of 4.4`, 'Cloud voice'], ['Microsoft 365', `${Math.round(x.cur.lat * 0.5 + 22 + x.cur.loss * 30)} ms`, 'Local breakout']].map(([n, v, w], i) => { const bad = x.down || (i === 0 && x.cur.erp > 2) || (i === 1 && x.cur.pay > 400) || (i === 4 && x.cur.mos < 3.6); return <div key={n} className="flex items-center gap-2 py-1 border-b border-line/60 last:border-0 text-[12.5px]"><Dot tone={bad ? (x.down ? 'red' : 'amber') : 'green'} /><span className="flex-1 text-ink">{n}</span><span className="text-ink2">{x.down ? 'unreachable' : v}</span><span className="text-ink3 w-24 text-right text-[11.5px]">{w}</span></div>; })}
         </Card>
         <Card title="Network today" sub="Traffic and clients at this branch since opening">
           <div className="grid grid-cols-2 gap-2">{[['WAN use, peak', `${38 + (b.num % 41)}%`], ['Data through EdgeConnect', `${(4 + (b.num % 17) * 0.6).toFixed(1)} GB`], ['Wi-Fi clients now', 12 + (b.num % 30) + (b.size === 'L' ? 25 : 0)], ['Path changes today', (b.num % 4)], ['Switch ports in use', `${60 + (b.num % 33)}%`], ['Config backup', '02:00, matches golden']].map(([k, v]) => <div key={k} className="bg-chip/60 rounded-md px-2.5 py-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[16px] font-bold text-ink tabular-nums">{v}</div></div>)}</div>
@@ -279,20 +296,20 @@ export function Branch360() {
       <div className="mt-3">
         <Tabs value={tab} onChange={setTab} className="mb-2" tabs={[{ id: 'devices', label: 'Devices and lifecycle', count: devs.length }, { id: 'vulns', label: 'Vulnerabilities', count: vulnRows.reduce((a, r) => a + r.devs.length, 0) }, { id: 'work', label: 'Open work and history' }]} />
         {tab === 'devices' && <div className="grid grid-cols-1 min-[1700px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
-          <Card pad={false} title="Every device at this branch" sub="Make, model, firmware, lifecycle and open vulnerabilities" right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV(`${b.code}-devices.csv`, devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Make', get: d => (D.MODEL_INFO[d.model] || {}).make }, { label: 'Model', key: 'desc' }, { label: 'SKU', get: d => d.sku || '' }, { label: 'Serial/MAC', key: 'serial' }, { label: 'Firmware', key: 'fw' }, { label: 'Lifecycle', get: d => d.life.status }, { label: 'Warranty end', get: d => new Date(d.warranty).toISOString().slice(0, 10) }, { label: 'Advisories', get: d => d.vulns.map(v => v.id).join(' ') }])}>Export</Btn>}>
+          <Card pad={false} title="Every device at this branch" sub="Make, model, firmware, lifecycle and open vulnerabilities" right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV(`${b.code}-devices.csv`, devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Make', get: d => (D.MODEL_INFO[d.model] || {}).make }, { label: 'Model', key: 'desc' }, { label: 'SKU', get: d => d.sku || '' }, { label: 'Serial/MAC', key: 'serial' }, { label: 'Firmware', key: 'fw' }, { label: 'Lifecycle', get: d => d.life.status }, { label: 'Warranty end', get: d => D.warrantyText(d) }, { label: 'Advisories', get: d => d.vulns.map(v => v.id).join(' ') }])}>Export</Btn>}>
             <div className="px-3 pb-3"><Table dense rows={devRows} cols={[
               { key: 'id', label: 'Hostname', render: d => <span className="font-mono font-bold">{d.id}</span> },
               { key: 'make', label: 'Make', get: d => 'HPE Aruba', className: 'whitespace-nowrap', render: () => <span className="text-[12px] text-ink2" title="HPE Aruba Networking">HPE Aruba</span> },
               { key: 'desc', label: 'Model', className: 'whitespace-nowrap', render: d => <span><span className="text-ink">{d.desc}</span><span className="block text-[11px] text-ink3">{d.sku ? `${d.sku} · ` : ''}{d.role}</span></span> },
               { key: 'fw', label: 'Firmware', className: 'whitespace-nowrap', render: d => <span className="font-mono text-[12px]">{d.fw}</span> },
-              { key: 'life', label: 'Lifecycle', className: 'whitespace-nowrap', get: d => d.life.status, render: d => <span title={d.life.note}><Badge tone={d.life.tone}>{d.life.status}</Badge>{d.life.eosup && <span className="block text-[11px] text-ink3">support ends {d.life.est ? 'est. ' : ''}{d.life.eosup}</span>}</span> },
-              { key: 'warranty', label: 'Warranty end', render: d => <span className={cx('text-[12px]', d.warranty < now ? 'text-bad font-semibold' : 'text-ink2')}>{new Date(d.warranty).toISOString().slice(0, 10)}</span> },
+              { key: 'life', label: 'Lifecycle', className: 'whitespace-nowrap', get: d => d.life.status, render: d => <span title={d.life.note}><Badge tone={d.life.tone}>{d.life.status}</Badge>{d.life.eosup && <span className="block text-[11px] text-ink3">End of sale {fmtD(d.life.eos)} · End of support {fmtD(d.life.eosup)}</span>}</span> },
+              { key: 'warranty', label: 'Warranty / contract end', render: d => <span className={cx('text-[12px]', d.warranty < now ? 'text-bad font-semibold' : 'text-ink2')}>{D.warrantyText(d)}</span> },
               { key: 'v', label: 'Vulnerabilities', get: d => d.vulns.length, render: d => d.vulns.length ? <div className="flex flex-wrap gap-1">{d.vulns.map(v => <Badge key={v.id} tone={v.sev === 'Critical' ? 'red' : v.sev === 'High' ? 'amber' : 'gray'} title={v.title}>{v.cvss ? `${v.cvss} ` : ''}{v.cves[0] || v.id}</Badge>)}</div> : <span className="text-[12px] text-ok">None known</span> },
             ]} /></div>
           </Card>
           <div className="space-y-3">
-            <Card title="Lifecycle outlook" sub="Devices at this branch reaching warranty end or end of support, by year" right={<Legend items={[['Warranty ends', C.grey], ['Support ends', C.s1]]} />}>
-              <Bars data={lifeYears} keys={['Warranty ends', 'Support ends']} colors={[C.grey, C.s1]} stacked={false} h={160} />
+            <Card title="Lifecycle outlook" sub="Devices at this branch reaching warranty end or end of support, by year" right={<Legend items={[['Warranty ends', C.grey], ['End of support', C.s1]]} />}>
+              <Bars data={lifeYears} keys={['Warranty ends', 'End of support']} colors={[C.grey, C.s1]} stacked={false} h={160} />
             </Card>
             <Card title="Make and model mix">
               {Object.entries(devs.reduce((m, d) => { m[d.desc] = (m[d.desc] || 0) + 1; return m; }, {})).map(([k, n]) => <div key={k} className="flex justify-between text-[12.5px] py-0.5"><span className="text-ink">{k}</span><b className="text-ink">{n}</b></div>)}
@@ -332,7 +349,7 @@ export function Branch360() {
         {diag && diag.map(r => <div key={r.id} className="flex items-center gap-2 py-1.5 border-b border-line/60 text-[13px]">{r.st === 'running' ? <I.Loader2 size={15} className="animate-spin text-info" /> : r.st === 'pass' ? <I.CheckCircle2 size={15} className="text-ok" /> : r.st === 'warn' ? <I.AlertTriangle size={15} className="text-warn" /> : <I.XCircle size={15} className="text-bad" />}<span className="flex-1 text-ink">{r.name}</span><span className="text-ink3 text-[12px]">{r.st === 'running' ? 'checking' : r.detail}</span></div>)}
       </Modal>
       <Modal open={steerOpen} onClose={() => setSteerOpen(false)} title={x.steer ? 'Return traffic to the primary path' : 'Steer critical apps to the backup path'} sub={`${b.name}. POS, ERP and voice business-intent classes move; guest and bulk stay put.`} footer={<><Btn kind="brand" icon={I.Check} onClick={() => { act.map('steer', b.id, !x.steer); act.audit(`${x.steer ? 'Returned to primary' : 'Steered to backup'} at ${b.name} (engineer action, RB-10${x.steer ? 2 : 1})`, b.id); act.toast(x.steer ? 'Traffic back on primary, verification running' : 'Critical apps on backup path, verification running'); setSteerOpen(false); }}>{x.steer ? 'Return to primary' : 'Steer now'}</Btn><Btn onClick={() => setSteerOpen(false)}>Cancel</Btn></>}>
-        <div className="text-[13px] text-ink space-y-2"><p>Runbook RB-10{x.steer ? 2 : 1}. Rollback: {x.steer ? 're-apply the override' : 'remove the override; traffic returns to primary'}. Verification: POS path under 400 ms, ERP login probe OK.</p><p className="text-ink2">You are making this change yourself, so the agent autonomy gate does not apply; it is recorded in the audit log against your name.</p></div>
+        <div className="text-[13px] text-ink space-y-2"><p>Runbook RB-10{x.steer ? 2 : 1}. Rollback: {x.steer ? 're-apply the override' : 'remove the override; traffic returns to primary'}. Verification: payment path under 400 ms, ERP login probe OK.</p><p className="text-ink2">You are making this change yourself, so the agent autonomy gate does not apply; it is recorded in the audit log against your name.</p></div>
       </Modal>
     </div>
   );

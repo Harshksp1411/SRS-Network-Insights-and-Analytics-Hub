@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
-import { useApp, useNow, healthOf, circuitOf, branchClock, filteredBranches, inScope, slaClock } from './store.jsx';
+import { useApp, useNow, healthOf, circuitOf, branchClock, filteredBranches, inScope, slaClock, lineOf, onBackupOf } from './store.jsx';
 import { Card, Badge, Btn, Stat, Table, Dot, Pri, PageHead, Section, Progress, cx, healthTone, Modal, Illus, ExportBtn, Tabs } from './ui.jsx';
 import { NAMap, Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from './util.js';
@@ -24,13 +24,13 @@ export function Overview() {
   const byPri = { P1: 0, P2: 0, P3: 0, P4: 0 }; open.forEach(i => byPri[i.pri]++);
   const health = { up: 0, degraded: 0, down: 0 }; list.forEach(b => health[healthOf(s, b)]++);
   const openNow = list.filter(b => branchClock(b, now).open).length;
-  const circ = list.flatMap(b => b.wan.map(id => circuitOf(s, id)));
+  const circ = list.flatMap(b => [0, 1].map(k => lineOf(s, b, k)));
   const circDown = circ.filter(c => c.status === 'Down'), circDeg = circ.filter(c => c.status === 'Degraded');
   const downDevices = list.filter(b => healthOf(s, b) === 'down').reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0) + open.filter(i => i.kind === 'apdown').length;
   const suppressed = L.counters.suppressed;
   const clocks = open.map(i => slaClock(i, now));
   const atRisk = clocks.filter(c => c.used > 0.75 && c.resLeft > 0).length, breached = clocks.filter(c => c.resLeft <= 0 || c.respBreached).length;
-  const onBackup = list.filter(b => circuitOf(s, b.wan[0]).status !== 'Up').length;
+  const onBackup = list.filter(b => onBackupOf(s, b)).length;
 
   // every branch on the map
   const points = useMemo(() => D.BRANCHES.map(b => {
@@ -58,8 +58,8 @@ export function Overview() {
           <div className="flex flex-wrap gap-x-1.5 gap-y-1 mt-2">{Object.entries(byPri).map(([p, n]) => <span key={p} className="flex items-center gap-1 text-[11.5px]"><Pri p={p} /><b className="text-ink">{n}</b></span>)}</div>
         </Stat>
         <Stat label="Devices down" icon={I.ServerCrash} value={downDevices} tone={downDevices ? 'red' : 'green'} sub={`of ${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))} in view`} />
-        <Stat label="Circuits down / degraded" icon={I.Cable} value={<span><span className="text-bad">{circDown.length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{circDeg.length}</span></span>} sub={`${onBackup} branches on backup path`} onClick={() => act.go('carriers')} />
-        <Stat label="Alerts suppressed today" icon={I.BellOff} value={num(suppressed)} sub={`${Math.round(L.series.raw.at(-1))} events/min now, 71% cut`}><Spark data={L.series.raw.slice(-60)} color={C.info} w={150} h={22} className="mt-1.5" /></Stat>
+        <Stat label="Circuits down / degraded" icon={I.Cable} value={<span><span className="text-bad">{circDown.length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{circDeg.length}</span></span>} sub={`${onBackup} branches on the backup line`} onClick={() => act.go('carriers')} />
+        <Stat label="Noise removed today" icon={I.BellOff} value={num(suppressed)} sub={`of ${num(L.counters.events)} events (${Math.round(suppressed / Math.max(1, L.counters.events) * 100)}%); ${Math.round(L.series.raw.at(-1))} events/min now`}><Spark data={L.series.raw.slice(-60)} color={C.info} w={150} h={22} className="mt-1.5" /></Stat>
         <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
       </div>
 
@@ -148,7 +148,7 @@ export function baseReadiness(s, b) {
   const R = rng(b.num * 13);
   const res = [
     { id: 'sdwan', st: h === 'down' ? 'fail' : (p.status !== 'Up' || sc.status !== 'Up') ? 'warn' : 'pass', detail: h === 'down' ? 'EdgeConnect unreachable' : p.status !== 'Up' ? `Primary ${p.carrier} ${p.status.toLowerCase()} – on backup` : sc.status !== 'Up' ? `Backup ${sc.carrier} ${sc.type} failed test` : 'Both paths up, tunnels to DC and Azure OK' },
-    { id: 'erp', st: h === 'down' ? 'fail' : has('pos') ? 'fail' : 'pass', detail: h === 'down' ? 'No path' : has('pos') ? 'POS RTT 1.9 s (limit 0.4 s)' : `ERP login 1.${Math.floor(R() * 9)} s, POS RTT ${180 + Math.floor(R() * 120)} ms` },
+    { id: 'erp', st: h === 'down' ? 'fail' : has('pos') ? 'fail' : 'pass', detail: h === 'down' ? 'No path' : has('pos') ? 'Payment path 1.9 s (limit 0.4 s)' : `ERP login 1.${Math.floor(R() * 9)} s, payment path ${100 + Math.floor(R() * 90)} ms` },
     { id: 'wifi', st: h === 'down' ? 'fail' : has('apdown') ? 'warn' : 'pass', detail: has('apdown') ? 'One AP offline (yard/warehouse)' : `${b.dev.ap}/${b.dev.ap} APs up` },
     { id: 'scan', st: h === 'down' ? 'fail' : has('dhcp') ? 'fail' : 'pass', detail: has('dhcp') ? 'VLAN 30 pool full: new devices cannot get an address' : `Largest pool ${55 + Math.floor(R() * 25)}% used` },
     { id: 'print', st: h === 'down' ? 'fail' : has('scanner') ? 'warn' : 'pass', detail: has('scanner') ? 'Roaming failures above baseline in the aisles' : 'Roaming within baseline' },

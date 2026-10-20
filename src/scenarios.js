@@ -36,7 +36,7 @@ export const SCENARIOS = [
           signals: [sig(T, 'Orchestrator', `${c.p} jitter 34 ms, loss 1.2%, latency 96 ms (AT&T MPLS)`, 'Major')], corr: 1 }));
       } },
       { at: 10, label: 'More events: BFD flaps, tunnel quality, ERP and POS path latency', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'OpsRamp', 'BFD session flap on overlay tunnel to Primary DC (x6)', 'Minor'), sig(T + 2e3, 'Orchestrator', 'Tunnel quality score 61 (was 98)', 'Major'), sig(T + 4e3, 'New Relic', 'ERP path latency 180 ms from this branch (baseline 40 ms)', 'Major'), sig(T + 6e3, 'Synthetic', 'POS path RTT 640 ms (threshold 400 ms)', 'Critical')], 26);
+        addSignals(act, c.id, [sig(T, 'OpsRamp', 'BFD session flap on overlay tunnel to Primary DC (x6)', 'Minor'), sig(T + 2e3, 'Orchestrator', 'Tunnel quality score 61 (was 98)', 'Major'), sig(T + 4e3, 'New Relic', 'ERP path latency 180 ms from this branch (baseline 40 ms)', 'Major'), sig(T + 6e3, 'Synthetic', 'Payment path round trip 640 ms (threshold 400 ms)', 'Critical')], 26);
       } },
       { at: 15, label: '09:12:15 Correlation Agent: 43 events → 1 incident; CI and site mapped', run(act, c, T) {
         act.upd('incidents', c.id, x => ({ pri: 'P2', title: 'SD-WAN degradation – AT&T MPLS: POS and ERP at risk', corr: 43, suppressed: 41, state: 'In Progress', acked: T, assignee: 'Mova iO', group: 'Movate NOC – L2 Network', impact: ['Card payments at risk of slowing at the counter', 'ERP order entry at risk'] }));
@@ -52,8 +52,8 @@ export const SCENARIOS = [
         act.upd('incidents', c.id, { runbook: 'RB-101', rbState: 'done' });
       } },
       { at: 85, label: '09:13:25 Verification: synthetic POS and voice pass; evidence pack; AT&T ticket raised', run(act, c, T) {
-        act.upd('incidents', c.id, { verify: [{ v: 'POS RTT < 400 ms', st: 'pass', val: '180 ms' }, { v: 'ERP path < 80 ms', st: 'pass', val: '42 ms' }, { v: 'Voice MOS > 3.8', st: 'pass', val: '4.2' }] });
-        addSignals(act, c.id, [sig(T, 'Synthetic', 'POS path RTT 180 ms via wan2; voice MOS 4.2', 'Info')]);
+        act.upd('incidents', c.id, { verify: [{ v: 'Payment path < 400 ms', st: 'pass', val: '180 ms' }, { v: 'ERP path < 80 ms', st: 'pass', val: '42 ms' }, { v: 'Voice MOS > 3.8', st: 'pass', val: '4.2' }] });
+        addSignals(act, c.id, [sig(T, 'Synthetic', 'Payment path round trip 120 ms via wan2; voice MOS 4.2', 'Info')]);
         const no = D.caseNo('AT&T');
         act.add('cases', { id: no, carrier: 'AT&T', circuit: c.p, inc: c.id, branchId: c.b.id, opened: T, status: 'Open – carrier testing', eta: T + 4 * HR, lastUpdate: T, evidence: ['60-min jitter/loss graph (Orchestrator)', 'MTR from EdgeConnect to PE', 'Config diff vs golden (none)', 'Synthetic test results', 'Timestamps UTC/CT'], escal: 0 });
         act.upd('incidents', c.id, { carrierCase: no });

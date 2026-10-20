@@ -90,6 +90,10 @@ export const useNow = () => useContext(NowCtx);
 // ---------- derived helpers ----------
 export const healthOf = (s, b) => s.branchHealth[b.id] || b.health;
 export const circuitOf = (s, id) => ({ ...D.CIR[id], ...(s.circuitState[id] || {}) });
+// A line as the business sees it: both lines count as down when the branch is unreachable
+export const lineOf = (s, b, k) => healthOf(s, b) === 'down' ? { ...circuitOf(s, b.wan[k]), status: 'Down' } : circuitOf(s, b.wan[k]);
+// On the backup line: the primary is down (or traffic was steered off it) and the branch still has a working line
+export const onBackupOf = (s, b) => healthOf(s, b) !== 'down' && (circuitOf(s, b.wan[0]).status === 'Down' || !!(s.steer && s.steer[b.id]));
 
 const toMin = hm => { const [h, m] = hm.split(':').map(Number); return h * 60 + m; };
 export function branchClock(b, now) {

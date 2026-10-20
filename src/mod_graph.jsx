@@ -54,7 +54,7 @@ export function NetGraph() {
     const path = (b, cirIds) => { out.hl.add(`b:${b.id}`); cirIds.forEach(c => { out.hl.add(`c:${c}`); out.hl.add(`k:${circuitOf(s, c).carrier}`); }); };
     if (kind === 'k') {
       branches.forEach(b => { const on = b.wan.filter(x => circuitOf(s, x).carrier === id); if (!on.length) return; if (on.length === 2) { out.down.push(b); D.APPS.forEach(a => out.apps.add(a.id)); } else out.backup.push(b); path(b, on); });
-      out.title = id; out.sub = `${D.CIRCUITS.filter(c => c.carrier === id).length} circuits fleet-wide`;
+      out.title = id; out.sub = `${D.CIRCUITS.filter(c => c.carrier === id).length} circuits in total`;
       out.text = `If ${id} fails in ${city}, branches with both lines on ${id} go down. The others fail over to their second carrier.`;
     } else if (kind === 'c') {
       const c = circuitOf(s, id); const b = D.BR[c.branchId]; const other = circuitOf(s, b.wan.find(x => x !== id));

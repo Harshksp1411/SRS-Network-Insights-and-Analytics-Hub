@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import * as D from './data.js';
-import { useApp } from './store.jsx';
+import { useApp, lineOf, onBackupOf } from './store.jsx';
 import { parts, MIN } from './util.js';
 import { seedX, tickX } from './liveext.js';
 import { setSpeedVar } from './speed.js';
@@ -15,7 +15,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const walk = (prev, target, vol, lo, hi) => Math.max(lo, Math.min(hi, prev + (target - prev) * 0.18 + rnd(-vol, vol)));
 
-function seedSeries(base, vol, lo, hi) { const a = []; let v = base; for (let i = 0; i < KEEP; i++) { v = walk(v, base, vol, lo, hi); a.push(+v.toFixed(1)); } return a; }
+function seedSeries(base, vol, lo, hi) { const a = []; let v = base; for (let i = 0; i < KEEP; i++) { v = walk(v, base, vol, lo, hi); a.push(+v.toFixed(2)); } return a; }
 function eventsSoFarToday() { const p = parts(Date.now()); return Math.round((p.h * 60 + p.m) * 52 + p.s * 0.8); }
 
 const EV = [
@@ -24,13 +24,13 @@ const EV = [
   { w: 12, cat: 'inventory', src: 'Aruba Central', make: (b) => ({ msg: `${b.code}-ap0${pick([1, 2, 3])} radio channel change (AirMatch) – ${pick(['ch 36 → 44', 'ch 149 → 157', 'ch 1 → 6'])}`, sev: 'Info', out: 'Info – no action' }) },
   { w: 10, cat: 'inventory', src: 'Aruba Central', make: (b) => ({ msg: `${b.code}-sw01 PoE port 1/1/${Math.floor(rnd(5, 44))} renegotiated (yard AP)`, sev: 'Minor', out: 'Duplicate – grouped' }) },
   { w: 9, cat: 'predict', src: 'OpsRamp', make: (b) => ({ msg: `${b.code}-sw01 uplink utilisation ${Math.floor(rnd(70, 88))}% (5 min)`, sev: 'Minor', out: 'Watch – capacity trend' }) },
-  { w: 8, cat: 'readiness', src: 'Synthetic', make: (b) => ({ msg: `POS path test ${Math.floor(rnd(150, 320))} ms, ERP login ${rnd(0.9, 1.7).toFixed(1)} s`, sev: 'Info', out: 'OK' }) },
+  { w: 8, cat: 'readiness', src: 'Synthetic', make: (b) => ({ msg: `Payment path test ${Math.floor(rnd(110, 190))} ms, ERP login ${rnd(0.9, 1.4).toFixed(1)} s`, sev: 'Info', out: 'OK' }) },
   { w: 7, cat: 'readiness', src: 'New Relic', make: (b) => ({ msg: `ERP path from ${b.name}: ${Math.floor(rnd(22, 48))} ms to the data centre, loss 0.0%`, sev: 'Info', out: 'OK' }) },
   { w: 5, cat: 'predict', src: 'Orchestrator', make: (b) => ({ msg: `${b.code}-ec01 wan2 LTE signal RSRP -${Math.floor(rnd(84, 104))} dBm, stable over 24 h`, sev: 'Info', out: 'Info – no action' }) },
   { w: 4, cat: 'inventory', src: 'Aruba Central', make: (b) => ({ msg: `${b.code}-ap0${pick([1, 2])} rebooted (watchdog), back in 2 m`, sev: 'Major', out: 'Auto-healed – RB-104 not needed' }) },
   { w: 4, cat: 'automation', src: 'OpsRamp', make: (b) => ({ msg: `Config backup ${b.code}-sw01 retried OK (hash verified)`, sev: 'Info', out: 'Auto-healed – RB-109' }) },
   { w: 3, cat: 'carriers', src: 'Orchestrator', make: (b) => ({ msg: `${b.code}-ec01 tunnel to Azure re-keyed`, sev: 'Info', out: 'Info – no action' }) },
-  { w: 6, cat: 'readiness', src: 'Synthetic', make: (b) => ({ msg: `Readiness probe: primary, backup, tunnels, DHCP, POS and ERP paths – ${pick(['10/10 pass', '10/10 pass', '10/10 pass', '9/10 pass, LTE retest OK'])}`, sev: 'Info', out: 'OK' }) },
+  { w: 6, cat: 'readiness', src: 'Synthetic', make: (b) => ({ msg: `Readiness probe: primary, backup, tunnels, DHCP, payment and ERP paths – ${pick(['10/10 pass', '10/10 pass', '10/10 pass', '9/10 pass, LTE retest OK'])}`, sev: 'Info', out: 'OK' }) },
   { w: 5, cat: 'dispatch', src: 'Field app', make: (b) => { const t = pick(D.TECHS); return pick([{ msg: `${t.name} en route to ${b.name}, ETA ${Math.floor(rnd(18, 70))} min`, sev: 'Info', out: 'ETA updated' }, { msg: `${t.name} on site at ${b.name}, work started`, sev: 'Info', out: 'On site' }, { msg: `${t.name} closed the visit at ${b.name}; photos and serials attached`, sev: 'Info', out: 'Work order closed' }]); } },
   { w: 4, cat: 'changes', src: 'ServiceNow', make: (b) => { const c = pick(D.CHANGES); return pick([{ msg: `${c.id} pre-checks passed for ${b.name} (freeze and calendar clear)`, sev: 'Info', out: 'Validation passed' }, { msg: `${c.id} Network-as-Code pipeline: lint, policy and diff checks passed`, sev: 'Info', out: 'Validation passed' }]); } },
   { w: 4, cat: 'vuln', src: 'Aruba Central', make: (b) => ({ msg: `Firmware inventory read for ${b.name}: ${b.dev.ec + b.dev.sw + b.dev.ap} devices, ${pick(['no change', 'no change', '1 AP still on AOS 10.5.1.4 (HPESBNW04712)'])}`, sev: 'Info', out: 'Inventory synced' }) },
@@ -50,11 +50,13 @@ export function LiveProvider({ children }) {
   const sRef = useRef(s); sRef.current = s;
   const L = useRef(null);
   if (!L.current) {
+    const s0 = sRef.current; const ld0 = D.BRANCHES.reduce((a, b) => a + (lineOf(s0, b, 0).status === 'Down') + (lineOf(s0, b, 1).status === 'Down'), 0);
+    const on0 = D.BRANCHES.filter(b => (s0.branchHealth[b.id] || b.health) !== 'down').length, bk0 = D.BRANCHES.filter(b => onBackupOf(s0, b)).length;
     L.current = {
       series: {
-        wan: seedSeries(27, 1.2, 18, 60), pos: seedSeries(215, 9, 140, 900), roofhub: seedSeries(0.78, 0.04, 0.4, 4), erp: seedSeries(1.25, 0.05, 0.6, 5),
+        wan: seedSeries(D.AVG_LAT, 0.6, 10, 120), jit: seedSeries(D.AVG_JIT, 0.08, 0.3, 40), online: seedSeries(on0, 0, 0, 900), onbackup: seedSeries(bk0, 0, 0, 900), pos: seedSeries(2 * D.AVG_LAT + 75, 4, 60, 900), roofhub: seedSeries(0.78, 0.04, 0.4, 4), erp: seedSeries(1.25, 0.05, 0.6, 5),
         dispatch: seedSeries(0.42, 0.03, 0.2, 3), voice: seedSeries(4.3, 0.03, 3.5, 4.5), m365: seedSeries(88, 4, 50, 400), scan: seedSeries(1.6, 0.25, 0, 30),
-        raw: seedSeries(52, 8, 20, 400), corr: seedSeries(15, 3, 4, 120), tunnels: seedSeries(1858, 0.6, 1700, 1866), lte: seedSeries(81, 0, 80, 100), clients: seedSeries(6400, 60, 4000, 9000),
+        raw: seedSeries(52, 8, 20, 400), corr: seedSeries(15, 3, 4, 120), tunnels: seedSeries(1866 - ld0, 0.15, 1700, 1866), lte: seedSeries(81, 0, 80, 100), clients: seedSeries(6400, 60, 4000, 9000),
         crit: seedSeries(0.4, 0.4, 0, 12), major: seedSeries(2.2, 0.8, 0, 30), minor: seedSeries(9, 2, 0, 60),
         probes: seedSeries(99.3, 0.15, 96, 100), reporting: seedSeries(99.6, 0.08, 97, 100), loss: seedSeries(0.12, 0.03, 0, 5), enroute: seedSeries(7, 0.6, 2, 14), onsite: seedSeries(5, 0.5, 1, 12),
         exposed: seedSeries(820, 40, 500, 1200), risk: seedSeries(31, 0.8, 10, 80), kbhits: seedSeries(3.2, 0.5, 0, 12), runs: seedSeries(4.1, 0.6, 0, 20), success: seedSeries(96.4, 0.4, 85, 100),
@@ -84,9 +86,10 @@ export function LiveProvider({ children }) {
       const posBad = open.some(i => ['pos', 'jitter'].includes(i.kind) || (i.kind === 'scenario' && /jitter|POS/i.test(i.title)));
       const storm = open.some(i => i.major);
       const S = Lc.series;
-      const push = (k, v) => { S[k] = [...S[k].slice(1), +(+v).toFixed(k === 'roofhub' || k === 'erp' || k === 'dispatch' || k === 'voice' ? 2 : 1)]; };
-      push('wan', walk(S.wan.at(-1), storm ? 34 : 27, 1.4, 18, 60));
-      push('pos', walk(S.pos.at(-1), posBad ? 290 : 212, 10, 140, 900));
+      const push = (k, v) => { S[k] = [...S[k].slice(1), +(+v).toFixed(k === 'roofhub' || k === 'erp' || k === 'dispatch' || k === 'voice' || k === 'loss' ? 2 : 1)]; };
+      push('wan', walk(S.wan.at(-1), storm ? D.AVG_LAT + 6 : D.AVG_LAT, 0.6, 10, 120));
+      push('jit', walk(S.jit.at(-1), storm ? D.AVG_JIT + 2.5 : D.AVG_JIT + (Lc.flaps.length ? 0.4 : 0), 0.08, 0.3, 40));
+      push('pos', walk(S.pos.at(-1), (posBad ? 30 : 0) + 2 * S.wan.at(-1) + 75 + S.loss.at(-1) * 140, 4, 60, 900));
       push('roofhub', walk(S.roofhub.at(-1), posBad ? 0.95 : 0.78, 0.04, 0.4, 4));
       push('erp', walk(S.erp.at(-1), 1.25, 0.05, 0.6, 5));
       push('dispatch', walk(S.dispatch.at(-1), 0.42, 0.03, 0.2, 3));
@@ -94,12 +97,15 @@ export function LiveProvider({ children }) {
       push('m365', walk(S.m365.at(-1), 88, 4, 50, 400));
       push('scan', walk(S.scan.at(-1), open.some(i => i.kind === 'scanner') ? 3.2 : 1.4, 0.3, 0, 30));
       const down = D.BRANCHES.filter(b => (st.branchHealth[b.id] || b.health) === 'down').length;
-      push('tunnels', 1866 - down * 2 - Math.round(rnd(0, 3)) - (storm ? 10 : 0));
+      const linesDown = D.BRANCHES.reduce((a, b) => a + (lineOf(st, b, 0).status === 'Down') + (lineOf(st, b, 1).status === 'Down'), 0);
+      push('tunnels', 1866 - linesDown - (rnd(0, 1) < 0.2 ? 1 : 0));
+      push('online', 900 - down);
+      push('onbackup', D.BRANCHES.filter(b => onBackupOf(st, b)).length);
       push('clients', walk(S.clients.at(-1), 6400, 70, 4000, 9000));
       push('lte', Math.min(100, S.lte.at(-1) + (storm ? 0.05 : 0.002)));
       push('probes', walk(S.probes.at(-1), posBad ? 98.4 : 99.3, 0.15, 96, 100));
       push('reporting', walk(S.reporting.at(-1), 99.6 - down * 0.05, 0.08, 97, 100));
-      push('loss', walk(S.loss.at(-1), storm ? 0.9 : (Lc.flaps.length ? 0.22 : 0.12), 0.03, 0, 5));
+      push('loss', walk(S.loss.at(-1), storm ? 0.6 : (Lc.flaps.length ? D.AVG_LOSS + 0.08 : D.AVG_LOSS + 0.02), 0.01, 0, 5));
       push('enroute', walk(S.enroute.at(-1), 7 + (storm ? 3 : 0), 0.5, 2, 14));
       push('onsite', walk(S.onsite.at(-1), 5, 0.4, 1, 12));
       push('exposed', walk(S.exposed.at(-1), 820, 40, 500, 1200));

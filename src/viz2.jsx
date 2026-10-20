@@ -43,7 +43,7 @@ export function ServiceTiles() {
     ['Card payments (POS)', 'POS path p95', S.pos, v => `${Math.round(v)} ms`, 'pos', 400],
     ['Cloud applications', 'Azure, p95 from branches', S.roofhub, v => `${v.toFixed(2)} s`, 'cloud', 1.2],
     ['Pricing and quoting', 'Pricing API p95', S.erp.map(x => x * 0.62), v => `${v.toFixed(2)} s`, 'pricing', 1.2],
-    ['Branch WAN', 'Fleet latency to DC', S.wan, v => `${Math.round(v)} ms`, 'branch', 40],
+    ['Branch WAN', 'Average latency to data centre', S.wan, v => `${Math.round(v)} ms`, 'branch', 40],
     ['Warehouse Wi-Fi', 'Roam failures per min', S.scan, v => v.toFixed(1), 'roaming', 3],
     ['Voice', 'Call quality (MOS)', S.voice, v => v.toFixed(2), 'phone', null],
     ['Microsoft 365', 'Response from branches', S.m365, v => `${Math.round(v)} ms`, 'm365', 250],
@@ -236,19 +236,22 @@ export function CorrelationEngine() {
 
 // ── From alerts to tickets (funnel) ──────────────────────────────────
 function todayCounts(L, s) {
-  const raw = Math.round(L.counters.events * 0.04), auto = Math.round(raw * 0.71), digest = Math.round(raw * 0.17), corr = Math.max(0, raw - auto - digest);
+  // One pipeline for every screen: events in, noise removed (duplicates, flaps, info), alerts left,
+  // then alerts auto-cleared, rolled to the digest or correlated into incidents.
+  const events = L.counters.events, suppressed = Math.min(events, L.counters.suppressed);
+  const raw = Math.max(0, events - suppressed), auto = Math.round(raw * 0.70), digest = Math.round(raw * 0.17), corr = Math.max(0, raw - auto - digest);
   const sod = new Date(); sod.setHours(0, 0, 0, 0);
   const inc = [...s.incidents, ...s.resolved].filter(i => i.opened >= sod.getTime()).length || s.incidents.length;
-  return { raw, auto, digest, corr, inc, autoRes: L.counters.autoRes };
+  return { events, suppressed, noise: suppressed / Math.max(1, events), raw, auto, digest, corr, inc, autoRes: L.counters.autoRes };
 }
 export { todayCounts };
 export function AlertFunnel() {
   const { L } = useLive(); const { s } = useApp();
   const c = todayCounts(L, s);
-  const rows = [['Raw alerts', c.raw, C.s2, 'Received today from Orchestrator, Aruba Central, OpsRamp and New Relic'], ['Auto-cleared', c.auto, C.ok, 'Transient: checked by ping and SNMP and cleared after the hold-down'], ['Rolled to digest', c.digest, C.s3, 'Warnings bundled into the daily digest instead of tickets'], ['Correlated alerts', c.corr, C.s1, 'Grouped into correlation groups across areas'], ['Incidents', c.inc, C.warn, 'One ServiceNow incident per branch per event'], ['Auto-resolved', c.autoRes, C.ok, 'Closed by an approved runbook with verification']];
-  const max = c.raw || 1;
+  const rows = [['Events received', c.events, C.grey, 'Every trap, syslog line and threshold crossing from Orchestrator, Aruba Central, OpsRamp and New Relic'], ['Alerts', c.raw, C.s2, `Left after noise removal: ${Math.round(c.noise * 100)}% were duplicates, flaps or information only`], ['Auto-cleared', c.auto, C.ok, 'Recovered by themselves: checked by ping and SNMP after the hold-down'], ['Rolled to digest', c.digest, C.s3, 'Warnings bundled into the morning digest instead of tickets'], ['Correlated', c.corr, C.s1, 'Grouped by topology, time, change and carrier into incidents'], ['Incidents', c.inc, C.brand, 'One ServiceNow incident per branch per event']];
+  const max = c.events || 1;
   return (
-    <Card title="From alerts to tickets" sub="Live counts since 00:00 CT" right={<LiveTag />}>
+    <Card title="From events to incidents" sub="Live counts since 00:00 CT" right={<LiveTag />}>
       <div className="space-y-2">{rows.map(([l, v, col, note]) => (
         <div key={l} className="grid grid-cols-[130px_minmax(0,1fr)] md:grid-cols-[130px_minmax(0,1fr)_minmax(0,0.9fr)] items-center gap-3 text-[12.5px]">
           <span className="text-ink font-semibold text-right">{l}</span>
@@ -381,7 +384,7 @@ export function AgentStream({ h = 820 }) {
 // ── Tools: status and event rate per source system ───────────────────
 export function ToolsStrip({ only }) {
   const { L } = useLive(); const { s } = useApp(); const now = useNow();
-  const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(3142 - Math.round((100 - L.series.reporting.at(-1)) * 31))} devices reporting`, 'switches and access points'], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
+  const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(D.CENTRAL_N - Math.round((100 - L.series.reporting.at(-1)) * 10))} devices reporting`, `of ${num(D.CENTRAL_N)} in Central; 2,080 standalone`], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
   const list = TOOLS.filter(t => !only || only.includes(t.id));
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">

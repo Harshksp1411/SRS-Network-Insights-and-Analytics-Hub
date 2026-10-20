@@ -115,7 +115,7 @@ export function answer(s, q, now) {
   }
   if (/slow|why is/.test(t)) {
     const b = /my branch/.test(t) || role === 'bm' ? D.BR[s.bmBranch] : findBranchInText(q);
-    if (b) { const r = readinessOf(s, b, now); return { title: `What's affecting ${bl(b)}`, lines: r.issues.length ? r.issues : ['Nothing open. Both WAN paths clean; POS path 190 ms; ERP path 41 ms.'], src: 'OpsRamp, Orchestrator, synthetic tests', links: [L('Overview for this branch', 'overview', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] }; }
+    if (b) { const r = readinessOf(s, b, now); return { title: `What's affecting ${bl(b)}`, lines: r.issues.length ? r.issues : ['Nothing open. Both WAN paths clean; payment path 150 ms; latency to the data centre normal.'], src: 'OpsRamp, Orchestrator, synthetic tests', links: [L('Overview for this branch', 'overview', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] }; }
   }
   if (/technician arriving|tech arriving|when is the tech/.test(t)) {
     const b = D.BR[s.bmBranch];
