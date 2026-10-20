@@ -22,7 +22,6 @@ import { Predictive, Knowledge, Automation, SLATracker, Reports } from './mod_mo
 import { LiveOps, Correlation, Agents } from './mod_live.jsx';
 
 export const MODULES = [
-  { id: 'demos', label: 'Live Demos', icon: I.PlayCircle, group: 'Start here', C: LiveDemos, badge: () => DEMOS.length },
   { id: 'overview', label: 'Operations Overview', icon: I.LayoutDashboard, group: 'Operate', C: Overview },
   { id: 'live', label: 'Live Operations', icon: I.Radio, group: 'Operate', C: LiveOps },
   { id: 'correlation', label: 'Correlation', icon: I.GitMerge, group: 'Operate', C: Correlation },
@@ -42,6 +41,7 @@ export const MODULES = [
   { id: 'automation', label: 'Automation Library', icon: I.Workflow, group: 'Improve', C: Automation },
   { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
+  { id: 'demos', label: 'Live Demos', icon: I.PlayCircle, group: 'Demos', C: LiveDemos, badge: () => DEMOS.length },
 ];
 
 export function RoofMark({ size = 40, dark = false }) {

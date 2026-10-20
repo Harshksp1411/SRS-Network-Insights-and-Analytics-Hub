@@ -17,7 +17,7 @@ function init() {
   const theme = (() => { try { return localStorage.getItem('srs-hub-theme') || 'light'; } catch { return 'light'; } })();
   const bmBranch = D.findBranch('Dallas', 'SRS Building Products');
   return {
-    role: 'noc', theme, module: 'demos', tab: {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {},
+    role: 'noc', theme, module: 'overview', tab: {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {},
     bmBranch: bmBranch.id,
     branchHealth: {}, // id -> 'up' | 'degraded' | 'down'
     circuitState: {}, // id -> {status, jit, loss, lat}
