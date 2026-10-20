@@ -34,7 +34,7 @@ export function LiveDemos() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; const cnt = DEMOS.filter(x => x.who === n).length; const on = who === n; return (
         <button key={n} onClick={() => setWho(on ? 'Anyone' : n)} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
           <div className="flex items-center gap-2"><Ic size={16} className={k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn'} /><span className="font-bold text-[14px] text-ink flex-1">{n}</span><span className="text-[12px] font-bold text-ink2 bg-chip rounded px-1.5">{cnt} demos</span></div>
-          <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{{ auto: 'Mova iO fixes it on its own and records what it did.', stop: 'Mova iO fixes it and tells a person straight away, who can stop it within 5 minutes.', approve: 'Mova iO prepares the fix and waits. Nothing changes until a person approves.' }[k]}</div>
+          <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{{ auto: 'Mova iO fixes it on its own and records what it did.', stop: 'Mova iO takes the action and notifies a person of what it did.', approve: 'Mova iO prepares the fix and waits. Nothing changes until a person approves.' }[k]}</div>
           <div className="text-[11.5px] text-ink3 mt-1.5 leading-[15px]">For example: {t}</div>
         </button>); })}</div>
       <div className="flex flex-wrap gap-1.5 mb-3">
