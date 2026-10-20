@@ -125,7 +125,6 @@ function Sidebar() {
                 {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#b23a3f] rounded-r" />}
                 <m.icon size={16} className="shrink-0" />{!collapsed && <span className="flex-1 truncate">{m.label}</span>}
                 {!collapsed && b > 0 && <span className={cx('text-[10.5px] font-bold rounded px-1.5', m.alertBadge ? 'bg-brand text-white' : 'bg-white/15 text-white')}>{b}</span>}
-                {m.id === 'biab' && !collapsed && <span className="text-[9.5px] font-bold bg-brand text-white rounded px-1">FLAGSHIP</span>}
               </button>
             );
           })}

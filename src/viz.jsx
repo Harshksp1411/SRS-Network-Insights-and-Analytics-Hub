@@ -273,7 +273,7 @@ export function ThroughputCard() {
   );
 }
 export function SlipCard() {
-  const { s } = useApp(); const now = useNow();
+  const { s } = useApp(); const now = useMemo(() => Date.now(), []);
   const rows = s.projects.filter(p => p.stage !== 'BAU' && p.stage !== 'Hypercare').map(p => { const v = P.slipProb(p, now); return { label: p.brand, sub: p.site, value: Math.round(v * 100), color: v >= 0.6 ? C.bad : v >= 0.3 ? C.s4 : C.s1 }; }).sort((a, b) => b.value - a.value);
   return <Card title="Chance of missing go-live" sub="From RAG, open blockers, failed gates and time left"><HBars rows={rows} fmt={v => `${v}%`} max={100} labelW={190} /></Card>;
 }

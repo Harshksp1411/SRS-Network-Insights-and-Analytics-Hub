@@ -9,6 +9,7 @@ import { C } from './charts.jsx';
 import { LiveBadge, LiveFeed, AlertsPerMinCard, EventFlowCard } from './liveui.jsx';
 import { todayCounts, LiveKpis, AreaTimeline, HeartbeatGrid, AreaHourHeat, ScoreHistogram, CorrelationEngine, AlertFunnel, AlertSankey, GroupingSwimlane, CorrMatrix, AgentActivity, AgentCards, AgentStream, ToolsStrip, TopBranches } from './viz2.jsx';
 import { AGENT_DEF } from './liveext.js';
+import { AgentMixCards } from './viz3.jsx';
 import { num, hhmmss } from './util.js';
 
 export function LiveOps() {
@@ -80,6 +81,7 @@ export function Agents() {
     <div>
       <PageHead icon={I.Bot} title="Mova iO Agents" sub="Thirteen agents: what each one is doing now, how often it acts and how often it gets it right. Every action follows the gate rules and lands in the audit log." right={<span className="inline-flex items-center gap-3 text-[12.5px]"><Badge tone="brand"><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />{working} working now</Badge><span className="text-ink2"><b className="text-ink tabular-nums">{num(today)}</b> actions today</span></span>} />
       <AgentActivity />
+      <AgentMixCards L={L} defs={AGENT_DEF} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-3 mt-3 items-start"><AgentCards /><AgentStream /></div>
     </div>
   );

@@ -6,7 +6,9 @@ import * as D from './data.js';
 import { useApp, useNow, gate, slaClock, branchClock, healthOf, circuitOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Conf, GateBox, Modal, KV, cx, Progress, Select, SearchBox, Illus, ExportBtn, Pri, Dot, Logo } from './ui.jsx';
 import { Spark, LineChart, Bars, Legend, C } from './charts.jsx';
-import { num, pct, dur, ago, dt, hhmm, dateShort, MIN, HR, DAY, exportCSV, downloadFile, rng } from './util.js';
+import { num, pct, dur, ago, dt, hhmm, dateShort, MIN, HR, DAY, exportCSV, downloadFile, rng, parts } from './util.js';
+import { KnowledgeUseCards, SLAScorecard, SLAStatusCard, SLAPriorityCard, SLAHeatCard, CreditHeadroomCard, MTTRTrendCard, TicketsAutoCard, RDonut, RBars, RHBars, RRow, RC } from './viz3.jsx';
+import { lineOf, onBackupOf } from './store.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -73,6 +75,7 @@ export function Knowledge() {
       <LivePanel kind="knowledge" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'search', label: 'Search' }, { id: 'drafts', label: 'Auto-generated drafts', count: s.kbDrafts.filter(d => d.status === 'Awaiting review').length }, { id: 'problems', label: 'Problem records', count: s.problems.length }]} />
       {tab === 'search' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><ClustersCard /><DeflectionCard /></div>}
+      {tab === 'search' && <KnowledgeUseCards kb={s.kb} />}
       {tab === 'search' && <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
         <Card title="Knowledge base" icon={I.Search}><SearchBox value={q} onChange={setQ} placeholder="Symptom, device, carrier… e.g. roaming, LTE, POS" className="w-full mb-3" />
           {res.map(k => <button key={k.id} onClick={() => act.set({ kbOpen: k.id })} className="w-full text-left py-2 border-b border-line/60 last:border-0 hover:bg-chip/50 px-1 rounded"><div className="flex items-center gap-2"><span className="font-mono text-[11.5px] text-ink3">{k.id}</span>{k.tags.map(t => <Badge key={t}>{t}</Badge>)}<span className="ml-auto text-[11.5px] text-ink3">★ {k.rating || '—'}, {num(k.views)} views</span></div><div className="text-[13px] font-semibold text-ink mt-0.5">{k.title}</div></button>)}
@@ -174,8 +177,11 @@ export function SLATracker() {
         <Stat label="Critical availability (#29)" icon={I.Activity} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
       </div>
       <LivePanel kind="sla" className="mb-3 mt-3" />
+      <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><SLAStatusCard /><SLAPriorityCard /><CreditHeadroomCard /></div>
       <div className="mb-3"><ErrorBudgets /></div>
-      <div className="mb-3"><CalendarHeat /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard /><TicketsAutoCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><SLAHeatCard onSel={setSel} /><CalendarHeat /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
@@ -211,10 +217,13 @@ export function Reports() {
   const open = s.incidents.filter(i => i.state !== 'Resolved');
   const res24 = s.resolved.filter(i => i.resolved > now - DAY);
   const titles = { handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
-  const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML.replace(/<svg[\s\S]*?<\/svg>/g, '')}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
+  const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
   const H = ({ children }) => <h2 className="text-[15px] font-extrabold text-ink border-b-2 border-brand pb-1 mt-5 mb-2">{children}</h2>;
   const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => <tr key={k}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>)}</tbody></table>;
   const bl = id => `${D.BR[id].name}, ${D.BR[id].brand}`;
+  const PRI_C = { P1: RC.red, P2: RC.amber, P3: RC.blue, P4: RC.grey };
+  const allInc = [...s.incidents, ...s.resolved];
+  const hourly = (hrs, list, keyFn) => Array.from({ length: hrs }, (_, k) => { const t0 = now - (hrs - k) * HR; const row = { label: String(parts(t0 + HR).h).padStart(2, '0') }; list.filter(x => x.t >= t0 && x.t < t0 + HR).forEach(x => { const kk = keyFn(x); row[kk] = (row[kk] || 0) + 1; }); return row; });
   return (
     <div>
       <PageHead icon={I.FileText} title="Reports" sub="Built from live console data. Download as HTML (opens in Word or a browser), CSV, or print to PDF."
@@ -223,6 +232,11 @@ export function Reports() {
       <div className="bg-panel border border-line rounded-md p-6 print-area" ref={ref}>
         <div className="flex items-start gap-3 border-b border-line pb-3"><div className="flex-1"><h1 className="text-[22px] font-black text-brand dark:text-[#e8a3a5]">SRS Distribution – {titles[tab]}</h1><div className="text-[12px] text-ink3">Managed Network Services, operated by Movate, generated {dt(now)} CT by {act.me()}</div></div></div>
         {tab === 'handover' && <>
+          <RRow>
+            <RDonut title="Open incidents by priority" data={['P1', 'P2', 'P3', 'P4'].map(p => ({ label: p, value: open.filter(i => i.pri === p).length, color: PRI_C[p] }))} center={open.length} sub="open" />
+            <RHBars title="SLA clock used, P1 and P2" rows={open.filter(i => i.pri <= 'P2').slice(0, 8).map(i => { const c = slaClock(i, now); const u = Math.round(c.used * 100); return { label: `${i.id.slice(-4)} ${D.BR[i.branchId].name}`, value: u, color: u >= 100 ? RC.red : u > 75 ? RC.amber : RC.green }; })} max={100} fmt={v => `${v}%`} mark={75} markLabel="75% used: at risk" />
+            <RBars title="Incidents opened per hour, last 12 hours" data={hourly(12, allInc.map(i => ({ t: i.opened, pri: i.pri })), x => x.pri)} keys={['P1', 'P2', 'P3', 'P4']} colors={[RC.red, RC.amber, RC.blue, RC.grey]} />
+          </RRow>
           <H>Summary</H>
           <p className="text-[13px] text-ink">{open.length} incidents open ({['P1', 'P2', 'P3', 'P4'].map(p => `${open.filter(i => i.pri === p).length} ${p}`).join(', ')}). {res24.length} resolved in the last 24 h. {s.approvals.filter(a => a.status === 'Pending').length} actions waiting for approval. {s.cases.filter(c => !c.closed).length} carrier cases open. {s.workOrders.filter(w => w.status !== 'Completed').length} field visits open.</p>
           <H>Open P1 / P2 and anything near breach</H>
@@ -233,6 +247,12 @@ export function Reports() {
           <T rows={s.cases.filter(c => !c.closed)} cols={[['Ticket', c => c.id], ['Carrier', c => c.carrier], ['Branch', c => bl(c.branchId)], ['Status', c => c.status], ['ETA', c => c.eta ? (now > c.eta ? `late ${dur(now - c.eta)}` : dur(c.eta - now)) : '—']]} />
         </>}
         {tab === 'daily' && <>
+          {(() => { const h = { up: 0, degraded: 0, down: 0 }; D.BRANCHES.forEach(b => h[healthOf(s, b)]++); const byCar = {}; D.BRANCHES.forEach(b => [0, 1].forEach(k => { const c = lineOf(s, b, k); if (c.status !== 'Up') byCar[c.carrier] = (byCar[c.carrier] || 0) + 1; })); const cats = {}; [...res24, ...open.filter(i => i.opened > now - DAY)].forEach(i => { cats[i.cat] = (cats[i.cat] || 0) + 1; }); const pal = [RC.blue, RC.navy, RC.teal, RC.amber, RC.brand, RC.grey, RC.green]; return <RRow>
+            <RDonut title="Branch health now" data={[{ label: 'Healthy', value: h.up, color: RC.green }, { label: 'Degraded', value: h.degraded, color: RC.amber }, { label: 'Down', value: h.down, color: RC.red }]} center={num(h.up)} sub="healthy" />
+            <RBars title="Incidents opened per hour, last 24 hours" data={hourly(24, allInc.map(i => ({ t: i.opened, st: i.state === 'Resolved' ? 'Resolved' : 'Still open' })), x => x.st)} keys={['Resolved', 'Still open']} colors={[RC.green, RC.amber]} />
+            <RDonut title="Incidents by category, last 24 hours" data={Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v], i) => ({ label: k, value: v, color: pal[i] }))} />
+            <RHBars title="Lines down or degraded, by carrier" rows={Object.entries(byCar).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: k, value: v, color: RC.amber }))} />
+          </RRow>; })()}
           <H>Network health</H>
           {(() => { const h = { up: 0, degraded: 0, down: 0 }; D.BRANCHES.forEach(b => h[healthOf(s, b)]++); return <p className="text-[13px] text-ink">{num(h.up)} branches healthy, {h.degraded} degraded, {h.down} down. {D.BRANCHES.filter(b => circuitOf(s, b.wan[0]).status !== 'Up').length} branches on their backup path. Alert noise reduced 71% by correlation.</p>; })()}
           <H>Incidents – last 24 hours</H>
@@ -241,6 +261,17 @@ export function Reports() {
           <p className="text-[13px] text-ink">Pre-opening checks ran at 05:30 local across all time zones. See Branch Readiness for the branches that did not fully pass.</p>
         </>}
         {tab === 'weekly' && <>
+          {(() => { const st = { 'Meets ESL': 0, 'Between MSL and ESL': 0, 'Below target': 0, 'Below MSL': 0 }; D.SLA.forEach(m => { const v = m.lower ? (m.act <= m.esl ? 'Meets ESL' : 'Below target') : m.act >= m.esl ? 'Meets ESL' : m.msl != null && m.act >= m.msl ? 'Between MSL and ESL' : m.msl == null ? 'Below target' : 'Below MSL'; st[v]++; }); const tm = D.TICKET_MONTHS.slice(-6).map(t => ({ label: t.m, 'After-hours mended': t.afterHours, NTF: t.ntf, 'Carrier / LEC': t.carrier, Other: t.customer + t.reboot })); return <>
+            <RRow>
+              <RDonut title="Annexure B metrics this month" data={[{ label: 'Meets ESL', value: st['Meets ESL'], color: RC.green }, { label: 'Between MSL and ESL', value: st['Between MSL and ESL'], color: RC.amber }, { label: 'Below target (KPI)', value: st['Below target'], color: '#F0B35A' }, { label: 'Below MSL', value: st['Below MSL'], color: RC.red }].filter(x => x.value)} center={`${st['Meets ESL']}/${D.SLA.length}`} sub="meet ESL" />
+              <RHBars title="Risk-reward SLAs, actual" rows={D.SLA.filter(m => m.cls === 'Risk Reward SLA').map(m => ({ label: `#${m.n} ${m.name}`, value: +(m.act * 100).toFixed(2), color: m.act >= m.esl ? RC.green : m.act >= m.msl ? RC.amber : RC.red }))} max={100} fmt={v => `${v.toFixed(1)}%`} />
+            </RRow>
+            <RRow>
+              <RBars title="Network tickets per month, by close code" data={tm} keys={['After-hours mended', 'NTF', 'Carrier / LEC', 'Other']} colors={[RC.blue, RC.amber, RC.brand, RC.grey]} h={150} />
+              <RHBars title="Carrier restore commitment met, 6 months" rows={D.SCORECARD.map(x => ({ label: x.carrier, value: Math.round(x.slaMet * 100), color: x.slaMet >= 0.9 ? RC.green : RC.amber }))} max={100} fmt={v => `${v}%`} mark={90} markLabel="90% commitment" />
+              <RHBars title="Carrier mean time to restore, hours" rows={D.SCORECARD.map(x => ({ label: x.carrier, value: x.mttr, color: RC.navy }))} fmt={v => `${v} h`} />
+            </RRow>
+          </>; })()}
           <H>Service levels (Annexure B)</H>
           <T rows={D.SLA} cols={[['#', m => m.n], ['Metric', m => m.name], ['MSL', m => m.msl == null ? '—' : pct(m.msl, m.fmt || 1)], ['ESL', m => pct(m.esl, m.fmt || 1)], ['Actual', m => pct(m.act, m.fmt || 1)]]} />
           <H>Ticket mix, last 6 months</H>
@@ -251,12 +282,21 @@ export function Reports() {
           <T rows={s.problems} cols={[['Problem', p => p.id], ['Title', p => p.title], ['State', p => p.state], ['Owner', p => p.owner]]} />
         </>}
         {tab === 'biab' && <>
+          <RRow>
+            <RBars title="Projects by stage" data={D.STAGES.map(st => ({ label: st.replace('Site audit', 'Audit').replace('Kit staged', 'Kit').replace('Hypercare', 'Hyper'), Greenfield: s.projects.filter(p => p.stage === st && p.track === 'Greenfield').length, Acquired: s.projects.filter(p => p.stage === st && p.track === 'Acquired').length }))} keys={['Greenfield', 'Acquired']} colors={[RC.blue, RC.brand]} h={140} />
+            <RDonut title="Project health (RAG)" data={[['Green', RC.green], ['Amber', RC.amber], ['Red', RC.red]].map(([k, c]) => ({ label: k, value: s.projects.filter(p => p.rag === k).length, color: c })).filter(x => x.value)} center={s.projects.length} sub="projects" />
+            <RHBars title="Cutover gates passed, of 13" rows={s.projects.slice(0, 9).map(p => { const n = p.gates.filter(g => g.st === 'Pass').length; return { label: `${p.brand.split(' ')[0]} – ${p.site}`, value: n, color: n === 13 ? RC.green : RC.blue }; })} max={13} />
+          </RRow>
           <H>Portfolio</H>
           <T rows={s.projects} cols={[['ID', p => p.id], ['Track', p => p.track], ['Brand', p => p.brand], ['Site', p => p.site], ['Stage', p => p.stage], ['RAG', p => p.rag], ['Gates', p => `${p.gates.filter(g => g.st === 'Pass').length}/13`], ['Go-live', p => dateShort(p.golive)], ['Blockers', p => p.blockers.join('; ') || '—']]} />
           <H>This weekend's cutover gates</H>
           {s.projects.filter(p => p.stage === 'Cutover').map(p => <div key={p.id}><div className="text-[13px] font-bold text-ink mb-1">{p.brand} – {p.site}</div><T rows={p.gates} cols={[['#', g => g.i + 1], ['Time', g => g.when], ['Gate', g => g.name], ['Owner', g => g.owner], ['Result', g => g.st]]} /></div>)}
         </>}
         {tab === 'audit' && <>
+          {(() => { const kind = a => /Agent|Mova iO/.test(a.who || '') ? 'Mova iO agents' : /system|Console/i.test(a.who || '') ? 'System' : 'People'; const by = { 'Mova iO agents': 0, People: 0, System: 0 }; s.audit.forEach(a => { by[kind(a)]++; }); return <RRow>
+            <RDonut title="Who acted" data={[{ label: 'Mova iO agents', value: by['Mova iO agents'], color: RC.brand }, { label: 'People', value: by.People, color: RC.blue }, { label: 'System', value: by.System, color: RC.grey }].filter(x => x.value)} center={s.audit.length} sub="actions" />
+            <RBars title="Actions per hour, last 12 hours" data={hourly(12, s.audit.map(a => ({ t: a.t, k: kind(a) })), x => x.k)} keys={['Mova iO agents', 'People', 'System']} colors={[RC.brand, RC.blue, RC.grey]} />
+          </RRow>; })()}
           <H>Every human and agent action this session</H>
           <T rows={s.audit} cols={[['Time (CT)', a => dt(a.t)], ['Who', a => a.who], ['Action', a => a.what], ['Ref', a => a.ref]]} />
         </>}

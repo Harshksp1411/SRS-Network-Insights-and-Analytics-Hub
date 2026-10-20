@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import * as I from 'lucide-react';
-import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Modal, KV, cx, Progress, Select, Illus, ExportBtn, Dot, Logo } from './ui.jsx';
@@ -13,7 +12,8 @@ const daysTo = (t, now) => Math.round((t - now) / DAY);
 
 export function BiaB() {
   const { s, act } = useApp();
-  const now = useNow();
+  // A project board, not a live feed: the page reads the time once when it opens
+  const now = useMemo(() => Date.now(), []);
   const [tab, setTab] = useState(s.tab.biab || 'portfolio');
   useEffect(() => { if (s.tab.biab && s.tab.biab !== tab) setTab(s.tab.biab); }, [s.tab.biab]);
   const go = t => { setTab(t); act.setTab('biab', t); };
@@ -39,7 +39,6 @@ export function BiaB() {
         <Stat label="Amber / red" icon={I.AlertTriangle} value={<span><span className="text-warn">{P.filter(p => p.rag === 'Amber').length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{P.filter(p => p.rag === 'Red').length}</span></span>} sub="each with owner + fix date" />
         <Stat label="In hypercare" icon={I.HeartHandshake} value={P.filter(p => p.stage === 'Hypercare').length} sub="14 days, tighter thresholds" />
       </div>
-      <LivePanel kind="biab" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'portfolio', label: 'Portfolio', icon: I.LayoutGrid }, { id: 'tracks', label: 'Two tracks', icon: I.Split }, { id: 'kit', label: 'Kit & VLANs', icon: I.Package }, { id: 'floor', label: 'Floor plan', icon: I.Map }, { id: 'steps', label: 'Acquired-branch steps', icon: I.ListTodo }, { id: 'cutover', label: 'Cutover weekend', icon: I.Timer }, { id: 'parity', label: 'Day-1 parity', icon: I.Scale }]} />
       {tab === 'portfolio' && <Portfolio track={track} setTrack={setTrack} onOpen={setOpen} now={now} />}
       {tab === 'tracks' && <TracksView onOpen={setOpen} now={now} />}
