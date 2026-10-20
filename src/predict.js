@@ -143,14 +143,14 @@ export function preventiveCalendar(now) {
   return items.map(([d, t, what, b, ref, kind], i) => ({ id: i, when: now + d * DAY, day: d, t, what, b, ref, kind }));
 }
 export function recurringClusters() {
-  return [['Primary circuit loss, Southeast LECs', 46], ['Yard AP offline after heat / storms', 31], ['Nightly backup TACACS+ timeouts', 22], ['Scanner roaming in racking aisles', 18], ['LTE SIM suspended / plan issues', 11], ['Back-office loops (unmanaged switches)', 7]].map(([label, value]) => ({ label, value }));
+  return [['Primary circuit loss, Southeast LECs', 46], ['Yard AP offline after heat / storms', 31], ['Nightly backup TACACS+ timeouts', 22], ['Wi-Fi roaming in racking aisles', 18], ['LTE SIM suspended / plan issues', 11], ['Back-office loops (unmanaged switches)', 7]].map(([label, value]) => ({ label, value }));
 }
 export function kbDeflection() { return { labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'], v: [0.18, 0.22, 0.25, 0.27, 0.31, 0.34] }; }
 export function automationRuns(now) { const R = rng(17); return Array.from({ length: 14 }, (_, i) => ({ label: dateShort(now - (13 - i) * DAY).split(' ')[1], tip: dateShort(now - (13 - i) * DAY), 'Zero touch': 60 + Math.round(R() * 30) + i * 2, 'Human approved': 18 + Math.round(R() * 10) })); }
 export function hoursSaved() { return { labels: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'], v: [118, 164, 212, 251, 296, 338] }; }
 export const AUTO_CANDIDATES = [
   { pattern: 'Return-to-primary after carrier fix', freq: 41, saved: 27, risk: 'Low', note: 'Same 4 steps every time; 30-min clean check already exists' },
-  { pattern: 'DHCP scope expansion on scanner VLAN', freq: 9, saved: 6, risk: 'Medium', note: 'Needs IPAM check; propose L2 (act with approval)' },
+  { pattern: 'DHCP scope expansion on the warehouse Wi-Fi VLAN', freq: 9, saved: 6, risk: 'Medium', note: 'Needs IPAM check; propose L2 (act with approval)' },
   { pattern: 'LTE SIM re-activation request', freq: 14, saved: 9, risk: 'Low', note: 'Carrier API available for Verizon and AT&T' },
   { pattern: 'Loop-protect port shutdown in back office', freq: 7, saved: 4, risk: 'Medium', note: 'Off-hours only; template BPDU guard prevents most' },
 ];

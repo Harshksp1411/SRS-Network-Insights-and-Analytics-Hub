@@ -150,11 +150,11 @@ export function baseReadiness(s, b) {
     { id: 'sdwan', st: h === 'down' ? 'fail' : (p.status !== 'Up' || sc.status !== 'Up') ? 'warn' : 'pass', detail: h === 'down' ? 'EdgeConnect unreachable' : p.status !== 'Up' ? `Primary ${p.carrier} ${p.status.toLowerCase()} – on backup` : sc.status !== 'Up' ? `Backup ${sc.carrier} ${sc.type} failed test` : 'Both paths up, tunnels to DC and Azure OK' },
     { id: 'erp', st: h === 'down' ? 'fail' : has('pos') ? 'fail' : 'pass', detail: h === 'down' ? 'No path' : has('pos') ? 'POS RTT 1.9 s (limit 0.4 s)' : `ERP login 1.${Math.floor(R() * 9)} s, POS RTT ${180 + Math.floor(R() * 120)} ms` },
     { id: 'wifi', st: h === 'down' ? 'fail' : has('apdown') ? 'warn' : 'pass', detail: has('apdown') ? 'One AP offline (yard/warehouse)' : `${b.dev.ap}/${b.dev.ap} APs up` },
-    { id: 'scan', st: h === 'down' ? 'fail' : has('scanner') || has('dhcp') ? 'fail' : 'pass', detail: has('dhcp') ? 'Scanners cannot get IP (VLAN 30 scope full)' : has('scanner') ? 'Roaming drops in aisles' : 'All handhelds checked in' },
-    { id: 'print', st: h === 'down' ? 'fail' : R() < 0.005 ? 'fail' : 'pass', detail: 'MFP + label printers respond' },
-    { id: 'track', st: h === 'down' ? 'fail' : R() < 0.004 ? 'warn' : 'pass', detail: 'Truck tablets / telematics reporting' },
+    { id: 'scan', st: h === 'down' ? 'fail' : has('dhcp') ? 'fail' : 'pass', detail: has('dhcp') ? 'VLAN 30 pool full: new devices cannot get an address' : `Largest pool ${55 + Math.floor(R() * 25)}% used` },
+    { id: 'print', st: h === 'down' ? 'fail' : has('scanner') ? 'warn' : 'pass', detail: has('scanner') ? 'Roaming failures above baseline in the aisles' : 'Roaming within baseline' },
+    { id: 'track', st: has('backup') ? 'warn' : 'pass', detail: has('backup') ? 'Last night\'s backup failed' : 'Backup taken 02:00, matches golden config' },
   ];
-  res.forEach(r => { r.name = D.READY_CHECKS.find(c => c.id === r.id).name; if (r.id === 'print' && r.st === 'fail') r.detail = 'Label printer offline (warehouse)'; if (r.id === 'track' && r.st === 'warn') r.detail = '1 truck tablet not reporting'; });
+  res.forEach(r => { r.name = D.READY_CHECKS.find(c => c.id === r.id).name; });
   return { at: null, results: res };
 }
 const stIcon = st => st === 'pass' ? <I.CheckCircle2 size={15} className="text-ok" /> : st === 'warn' ? <I.AlertTriangle size={15} className="text-warn" /> : st === 'fail' ? <I.XCircle size={15} className="text-bad" /> : <I.Loader2 size={15} className="text-info animate-spin" />;

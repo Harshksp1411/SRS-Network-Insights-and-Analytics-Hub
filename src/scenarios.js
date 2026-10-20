@@ -90,7 +90,7 @@ export const SCENARIOS = [
     steps: [
       { at: 0, label: 'Orchestrator: EC unreachable, both tunnels down', run(act, c, T) {
         act.map('branchHealth', c.b.id, 'down');
-        act.add('incidents', baseInc({ id: c.id, pri: 'P1', cat: 'Hardware', title: 'Branch down – EdgeConnect EC-XS unreachable, both paths', branchId: c.b.id, ci: c.ec, opened: T, signals: [sig(T, 'Orchestrator', `${c.ec} heartbeat lost; tunnels down on wan1 and wan2`, 'Critical'), sig(T + 15e3, 'OpsRamp', 'Switches/APs at site unreachable (children)', 'Critical')], corr: 19, suppressed: 18, impact: ['ERP, POS, Roof Hub and delivery tracking down at branch'] }));
+        act.add('incidents', baseInc({ id: c.id, pri: 'P1', cat: 'Hardware', title: 'Branch down – EdgeConnect EC-XS unreachable, both paths', branchId: c.b.id, ci: c.ec, opened: T, signals: [sig(T, 'Orchestrator', `${c.ec} heartbeat lost; tunnels down on wan1 and wan2`, 'Critical'), sig(T + 15e3, 'OpsRamp', 'Switches/APs at site unreachable (children)', 'Critical')], corr: 19, suppressed: 18, impact: ['ERP, POS and voice down at branch'] }));
       } },
       { at: 50, label: 'Diagnosis: not the carriers – both circuits up at the modems', run(act, c, T) {
         act.upd('incidents', c.id, { state: 'In Progress', acked: T, assignee: 'Arjun M.', group: 'Movate NOC – Major Incident', conf: 0.74, rca: [{ cause: 'EdgeConnect hardware / OS fault', conf: 0.74, ev: 'Carrier portals show both circuits up; LTE router online via OOB; UPS shows EC outlet drawing 9 W (normal 28 W)' }, { cause: 'Power to EC outlet', conf: 0.15, ev: 'Outlet on, low draw' }, { cause: 'Carrier outage', conf: 0.03, ev: 'Both carriers clean' }] });
@@ -121,7 +121,7 @@ export const SCENARIOS = [
       { at: 5200, label: 'Tech on site; spare installed; zero-touch registers', run(act, c, T) {
         addSignals(act, c.id, [sig(T, 'Orchestrator', `${c.ec} (new serial) registered; template applied`, 'Info'), sig(T + 60e3, 'Orchestrator', 'Tunnels up on wan1 and wan2', 'Info')]);
         act.map('branchHealth', c.b.id, 'up');
-        act.upd('incidents', c.id, { verify: [{ v: 'EC registered (zero-touch)', st: 'pass', val: 'template v41' }, { v: 'Tunnels both paths', st: 'pass', val: 'up' }, { v: 'POS / ERP / Roof Hub probes', st: 'pass', val: 'OK' }, { v: 'CMDB serial updated', st: 'pass', val: 'auto' }], rbState: 'done' });
+        act.upd('incidents', c.id, { verify: [{ v: 'EC registered (zero-touch)', st: 'pass', val: 'template v41' }, { v: 'Tunnels both paths', st: 'pass', val: 'up' }, { v: 'POS / ERP / voice probes', st: 'pass', val: 'OK' }, { v: 'CMDB serial updated', st: 'pass', val: 'auto' }], rbState: 'done' });
       } },
       { at: 5700, label: 'Resolved – P1 restored inside 4 h', run(act, c, T) {
         act.upd('incidents', c.id, { state: 'Resolved', resolved: T, closeCode: 'Hardware replaced' });
@@ -201,7 +201,7 @@ export const SCENARIOS = [
         act.upd('projects', c.pid, x => ({ gates: x.gates.map(g => g.i === 8 ? { ...g, fix: 'NaC change: sites/ls-building-products/il-01.yaml → ssid SRS-SCAN bands [5GHz] → [2.4GHz, 5GHz]; min-RSSI -75. Low risk; site not trading.' } : g) }));
       } },
       { at: 2900, when: 'Sat 17:10', label: 'Re-test gate 9: 14/14 handhelds online – PASS', run(act, c, T) {
-        act.upd('projects', c.pid, x => ({ rag: 'Amber', gates: x.gates.map(g => g.i === 8 ? { ...g, st: 'Pass', at: T, note: 'Re-tested after NaC fix: 14/14 handhelds online, label print OK. Fix added to kit template for acquired sites with legacy handhelds.' } : g) }));
+        act.upd('projects', c.pid, x => ({ rag: 'Amber', gates: x.gates.map(g => g.i === 8 ? { ...g, st: 'Pass', at: T, note: 'Re-tested after NaC fix: 14/14 handhelds online, roaming walk-test passed. Fix added to kit template for acquired sites with legacy handhelds.' } : g) }));
       } },
       ...[9, 10, 11, 12].map((i, k) => ({ at: 3100 + k * 160, when: D.GATE_TEMPLATE[i][0], label: `Gate ${i + 1}: ${D.GATE_TEMPLATE[i][1]}`, run(act, c, T) {
         act.upd('projects', c.pid, x => ({ gates: x.gates.map(g => g.i === i ? { ...g, st: 'Pass', at: T, note: g.evidence } : g), ...(i === 12 ? { stage: 'Hypercare', rag: 'Green', blockers: [] } : {}) }));

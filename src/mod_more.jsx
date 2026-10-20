@@ -74,7 +74,7 @@ export function Knowledge() {
       <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'search', label: 'Search' }, { id: 'drafts', label: 'Auto-generated drafts', count: s.kbDrafts.filter(d => d.status === 'Awaiting review').length }, { id: 'problems', label: 'Problem records', count: s.problems.length }]} />
       {tab === 'search' && <div className="grid xl:grid-cols-2 gap-3 mb-3"><ClustersCard /><DeflectionCard /></div>}
       {tab === 'search' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
-        <Card title="Knowledge base" icon={I.Search}><SearchBox value={q} onChange={setQ} placeholder="Symptom, device, carrier… e.g. scanner, LTE, POS" className="w-full mb-3" />
+        <Card title="Knowledge base" icon={I.Search}><SearchBox value={q} onChange={setQ} placeholder="Symptom, device, carrier… e.g. roaming, LTE, POS" className="w-full mb-3" />
           {res.map(k => <button key={k.id} onClick={() => act.set({ kbOpen: k.id })} className="w-full text-left py-2 border-b border-line/60 last:border-0 hover:bg-chip/50 px-1 rounded"><div className="flex items-center gap-2"><span className="font-mono text-[11.5px] text-ink3">{k.id}</span>{k.tags.map(t => <Badge key={t}>{t}</Badge>)}<span className="ml-auto text-[11.5px] text-ink3">★ {k.rating || '—'}, {num(k.views)} views</span></div><div className="text-[13px] font-semibold text-ink mt-0.5">{k.title}</div></button>)}
           {!res.length && <div className="text-ink3 text-[13px] py-4">No articles match.</div>}
         </Card>

@@ -487,8 +487,8 @@ const H5 = ({ children }) => <div className="text-[12px] font-bold text-brand mt
 const Li = ({ children }) => <li className="flex gap-2 text-[12.5px] leading-[18px]"><span className="w-1.5 h-1.5 rounded-full bg-ink3 mt-[6px] shrink-0" /><span>{children}</span></li>;
 export function ExplainBody({ demo, sp, c, view, measured, inc }) {
   const kind = gateOf(demo), role = roleOf(demo, sp);
-  const no = (sp.ticket && sp.ticket.no) || (c.id && !c.preview ? c.id : 'ServiceNow incident');
-  const recs = [`ServiceNow ${no}`, sp.systems.includes('carrier') && `${sp.carrier} case${inc && inc.carrierCase ? ` ${inc.carrierCase}` : ''}`, sp.systems.includes('field') && `work order${inc && inc.workOrder ? ` ${inc.workOrder}` : ''}`, sp.systems.includes('git') && 'Network-as-Code commit', `Teams card to ${sp.audience}`, 'Mova iO audit log'].filter(Boolean);
+  const no = (sp.ticket && sp.ticket.no) || (c.id && !c.preview ? c.id : null);
+  const recs = [no ? `ServiceNow ${no}` : 'ServiceNow incident', sp.systems.includes('carrier') && `${sp.carrier} case${inc && inc.carrierCase ? ` ${inc.carrierCase}` : ''}`, sp.systems.includes('field') && `work order${inc && inc.workOrder ? ` ${inc.workOrder}` : ''}`, sp.systems.includes('git') && 'Network-as-Code commit', `Teams card to ${sp.audience}`, 'Mova iO audit log'].filter(Boolean);
   const srcs = sp.systems.filter(k => SRCI[k] && (OBS.has(k) || sp.alerts.some(a => a[2] === k)));
   if (view === 'tech') { const t = sp.tech; return (
     <div className="text-ink">

@@ -278,7 +278,6 @@ export function BranchDrawer() {
           <KV k="Hours" v={`${b.hours.open}–${b.hours.close}${b.hours.sat ? `, Sat ${b.hours.sat}` : ''}`} />
           <KV k="Size profile" v={{ S: 'Small', M: 'Medium', L: 'Large' }[b.size]} />
           <KV k="Yard" v={b.yard ? 'Yes – outdoor APs' : 'No'} />
-          <KV k="Delivery fleet" v={`${b.fleet} trucks`} />
           <KV k="Health score" v={`${h === 'up' ? b.score : h === 'degraded' ? 78 : 30}/100`} />
         </div>
         <div>

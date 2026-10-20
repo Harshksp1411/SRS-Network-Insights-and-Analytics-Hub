@@ -104,7 +104,7 @@ export function AlertsPerMinCard() {
 export function AppsLive({ open }) {
   const { L } = useLive();
   const S = L.series;
-  const rows = [['erp', 'ERP login', S.erp, v => `${v.toFixed(2)} s`], ['pos', 'POS / payments', S.pos, v => `${Math.round(v)} ms`], ['pricing', 'Pricing & quoting', S.erp.map(x => x * 0.62), v => `${v.toFixed(2)} s`], ['roofhub', 'Roof Hub', S.roofhub, v => `${v.toFixed(2)} s`], ['dispatch', 'Delivery tracking', S.dispatch, v => `${v.toFixed(2)} s`], ['scan', 'Scanner roam failures', S.scan, v => `${v.toFixed(1)}/min`], ['voice', 'Voice MOS', S.voice, v => v.toFixed(2)], ['m365', 'Microsoft 365', S.m365, v => `${Math.round(v)} ms`]];
+  const rows = [['erp', 'ERP login', S.erp, v => `${v.toFixed(2)} s`], ['pos', 'POS / payments', S.pos, v => `${Math.round(v)} ms`], ['pricing', 'Pricing & quoting', S.erp.map(x => x * 0.62), v => `${v.toFixed(2)} s`], ['azure', 'Cloud applications (Azure)', S.roofhub, v => `${v.toFixed(2)} s`], ['scan', 'Warehouse Wi-Fi roam failures', S.scan, v => `${v.toFixed(1)}/min`], ['voice', 'Voice MOS', S.voice, v => v.toFixed(2)], ['m365', 'Microsoft 365', S.m365, v => `${Math.round(v)} ms`]];
   return (
     <Card title="Business apps from branches – live" sub="Fleet p95 from synthetic probes" icon={I.AppWindow}>
       {rows.map(([id, label, ser, f]) => { const a = D.APPS.find(x => x.id === id); const bad = open.filter(i => i.impact && i.impact.join(' ').toLowerCase().includes((a ? a.short : label).toLowerCase().split(/[ /]/)[0])).length; return (

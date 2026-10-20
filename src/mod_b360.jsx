@@ -115,7 +115,7 @@ function DepGraph({ s, b, x }) {
   const devs = D.devicesOf(b.id);
   const sw = devs.filter(d => d.type === 'Switch').length, ap = devs.filter(d => d.type === 'AP').length;
   const cols = [
-    ['Business service', [['Branch sales & delivery', `${b.name}`, 'up']]],
+    ['Business service', [['Branch trading', `${b.name}`, 'up']]],
     ['Applications', D.APPS.map(a => [a.short, a.host, x.down ? 'down' : (a.id === 'pos' && x.cur.pos > 400) ? 'degraded' : 'up'])],
     ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['PCI segment', 'VLAN 20, POS path', x.down ? 'down' : 'up'], ['Client VLANs and DHCP', 'VLANs 10, 30, 40', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up']]],
     ['Connectivity', [[`${b.code}-ec01`, b.dev.ec === 2 ? 'EdgeConnect HA pair' : 'EdgeConnect EC-XS', x.down ? 'down' : 'up'], [b.wan[0], `${x.p.carrier} ${x.p.type}, ${x.onBackup ? 'standby' : 'active'}`, x.p.status === 'Up' ? 'up' : x.p.status === 'Degraded' ? 'degraded' : 'down'], [b.wan[1], `${x.sc.carrier} ${x.sc.type}, ${x.onBackup ? 'active' : 'standby'}`, x.sc.status === 'Up' ? 'up' : 'down']]],

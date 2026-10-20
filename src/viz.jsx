@@ -144,7 +144,7 @@ export function PreventRecurrence({ inc }) {
   const [done, setDone] = useState({});
   const recs = {
     'Carrier / LEC': [['Add circuit to carrier monthly review', 'carrier'], ['Open problem record for repeat LEC faults', 'problem'], ['Order diverse backup (different carrier)', 'change']],
-    Wireless: [['Push channel plan + 2.4 GHz scanner profile to site', 'change'], ['Pre-stage spare AP at nearest depot', 'spare'], ['Add RF survey to next site visit', 'visit']],
+    Wireless: [['Push channel plan + 2.4 GHz handheld profile to site', 'change'], ['Pre-stage spare AP at nearest depot', 'spare'], ['Add RF survey to next site visit', 'visit']],
     Switching: [['Enable BPDU guard on access ports (template)', 'change'], ['Replace optics on uplinks with rising CRC', 'spare']],
     'Customer-caused': [['Enable BPDU guard on back-office ports', 'change'], ['Add IPAM check to device rollout runbook', 'kb']],
     'SD-WAN': [['Pre-stage spare EdgeConnect at nearest depot', 'spare'], ['Open problem record with Aruba TAC', 'problem']],

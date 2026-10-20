@@ -40,10 +40,10 @@ export function ServiceTiles() {
   const tiles = [
     ['ERP and invoicing', 'ERP login, synthetic', S.erp, v => `${v.toFixed(2)} s`, 'erp', 1.8],
     ['Card payments (POS)', 'POS path p95', S.pos, v => `${Math.round(v)} ms`, 'pos', 400],
-    ['Roof Hub orders', 'API p95 from branches', S.roofhub, v => `${v.toFixed(2)} s`, 'roof hub', 1.2],
-    ['Delivery tracking', 'Tracking API p95', S.dispatch, v => `${v.toFixed(2)} s`, 'delivery', 1],
+    ['Cloud applications', 'Azure, p95 from branches', S.roofhub, v => `${v.toFixed(2)} s`, 'cloud', 1.2],
+    ['Pricing and quoting', 'Pricing API p95', S.erp.map(x => x * 0.62), v => `${v.toFixed(2)} s`, 'pricing', 1.2],
     ['Branch WAN', 'Fleet latency to DC', S.wan, v => `${Math.round(v)} ms`, 'branch', 40],
-    ['Handheld scanners', 'Roam failures per min', S.scan, v => v.toFixed(1), 'scanner', 3],
+    ['Warehouse Wi-Fi', 'Roam failures per min', S.scan, v => v.toFixed(1), 'roaming', 3],
     ['Voice', 'Call quality (MOS)', S.voice, v => v.toFixed(2), 'phone', null],
     ['Microsoft 365', 'Response from branches', S.m365, v => `${Math.round(v)} ms`, 'm365', 250],
   ];
