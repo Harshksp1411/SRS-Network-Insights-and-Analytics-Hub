@@ -1,5 +1,5 @@
 // Branch opening readiness: per-branch device and path checks (primary internet, backup line, EdgeConnect,
-// switches, Wi-Fi, POS, ERP, Roof Hub, scanners, printers, truck tablets, UPS), opening schedule by time zone
+// switches, Wi-Fi, DHCP, config, POS and ERP paths), opening schedule by time zone
 // and what Mova iO fixed overnight. Results are derived from live console state; overnight fixes are illustrative.
 import React, { useMemo, useState } from 'react';
 import * as I from 'lucide-react';

@@ -188,9 +188,7 @@ export const APPS = [
   { id: 'erp', name: 'ERP (order, inventory, invoicing)', short: 'ERP', host: 'Primary DC', crit: 'High' },
   { id: 'pos', name: 'POS & card payments', short: 'POS/Payments', host: 'Payment processor (PCI)', crit: 'High' },
   { id: 'pricing', name: 'Pricing & quoting', short: 'Pricing', host: 'Primary DC', crit: 'High' },
-  { id: 'roofhub', name: 'Roof Hub contractor app – ordering, live pricing, JobNimbus integration', short: 'Roof Hub', host: 'Azure (SRS tenant)', crit: 'High' },
-  { id: 'dispatch', name: 'Delivery dispatch, real-time tracking & proof-of-delivery photos', short: 'Delivery tracking', host: 'Azure (SRS tenant)', crit: 'High' },
-  { id: 'scan', name: 'Handheld scanners (yard & warehouse)', short: 'Scanners', host: 'Branch + ERP', crit: 'Medium' },
+  { id: 'azure', name: 'Cloud applications in the SRS Azure tenant', short: 'Azure apps', host: 'Azure (SRS tenant)', crit: 'High' },
   { id: 'voice', name: 'Voice / contact', short: 'Voice', host: 'Cloud voice', crit: 'Medium' },
   { id: 'm365', name: 'Microsoft 365 / email', short: 'M365', host: 'Microsoft cloud', crit: 'Medium' },
 ];
@@ -211,14 +209,14 @@ export const AGENTS = {
 // ---------- runbooks ----------
 export const AUTONOMY = { L1: 'Recommend only', L2: 'Act with approval', L3: 'Act and notify', L4: 'Autonomous (off-hours only)' };
 export const RUNBOOKS = [
-  { id: 'RB-101', name: 'LTE / broadband failover', kind: 'change', autonomy: 'L3', runs30: 214, success: 0.986, avg: '38 s', desc: 'Steer business-intent policies (POS, ERP, Roof Hub) to the healthy secondary path on the EdgeConnect when primary loss > 2% or jitter > 30 ms for 3 minutes.', steps: ['Confirm secondary path health (loss < 0.5%, latency < 80 ms)', 'Apply BIO override: POS/ERP/Roof Hub → wan2', 'Keep bulk/guest on primary if usable', 'Start 30-min stability watch'], rollback: 'Remove BIO override; traffic returns to primary path.', verify: ['POS synthetic transaction < 1.5 s', 'ERP login probe OK', 'Tunnel to DC up on wan2'] },
+  { id: 'RB-101', name: 'LTE / broadband failover', kind: 'change', autonomy: 'L3', runs30: 214, success: 0.986, avg: '38 s', desc: 'Steer business-intent policies (POS, ERP, voice) to the healthy secondary path on the EdgeConnect when primary loss > 2% or jitter > 30 ms for 3 minutes.', steps: ['Confirm secondary path health (loss < 0.5%, latency < 80 ms)', 'Apply BIO override: POS/ERP/voice → wan2', 'Keep bulk/guest on primary if usable', 'Start 30-min stability watch'], rollback: 'Remove BIO override; traffic returns to primary path.', verify: ['POS synthetic transaction < 1.5 s', 'ERP login probe OK', 'Tunnel to DC up on wan2'] },
   { id: 'RB-102', name: 'Return to primary', kind: 'change', autonomy: 'L2', runs30: 171, success: 0.977, avg: '41 s', desc: 'Move traffic back to primary after 30 minutes of clean metrics and carrier case resolved.', steps: ['Check 30-min primary stats', 'Confirm carrier case status = Resolved', 'Remove BIO override', 'Verify'], rollback: 'Re-apply failover override.', verify: ['Loss < 0.5% for 10 min', 'POS synthetic OK'] },
   { id: 'RB-103', name: 'Switch port bounce', kind: 'change', autonomy: 'L3', runs30: 96, success: 0.906, avg: '22 s', desc: 'Shut / no-shut an access port feeding a PoE device (AP, camera, printer).', steps: ['Read port counters and PoE draw', 'Shut port, wait 10 s', 'No-shut, wait for LLDP neighbor', 'Confirm device online in Central'], rollback: 'Port returned to previous admin state.', verify: ['LLDP neighbor seen', 'Device online in Aruba Central'] },
   { id: 'RB-104', name: 'AP reboot', kind: 'change', autonomy: 'L3', runs30: 133, success: 0.917, avg: '3 m 10 s', desc: 'Reboot an AP from Aruba Central; outside branch hours unless the AP is already down.', steps: ['Check client count (skip if > 0 during hours)', 'Reboot via Central API', 'Wait for check-in', 'Check radio status'], rollback: 'None needed (stateless).', verify: ['AP up in Central', 'Clients re-associate'] },
   { id: 'RB-105', name: 'Config rollback', kind: 'change', autonomy: 'L2', runs30: 9, success: 1, avg: '1 m 40 s', desc: 'Restore last known-good config from the Network-as-Code repo / nightly backup.', steps: ['Diff running vs last good', 'Push last good via Central / Orchestrator', 'Re-run post-checks'], rollback: 'Re-apply the rolled-back config (stored).', verify: ['Diff = 0 vs golden', 'Post-checks pass'] },
   { id: 'RB-106', name: 'Carrier case raise', kind: 'readonly', autonomy: 'L3', runs30: 88, success: 0.989, avg: '55 s', desc: 'Build an evidence pack (loss/jitter graphs, traceroutes, demarc tests, timestamps) and open a case on the carrier portal / API.', steps: ['Collect 60-min path stats from Orchestrator', 'Run traceroute + MTR from EC', 'Attach LEC demarc test where available', 'Open carrier ticket, record ticket number in ServiceNow'], rollback: 'Case can be cancelled with carrier.', verify: ['Carrier ticket number stored', 'Case linked to INC'] },
   { id: 'RB-107', name: 'StoreOps notify', kind: 'readonly', autonomy: 'L3', runs30: 241, success: 1, avg: '4 s', desc: 'Tell StoreOps and the branch manager what is affected, what still works, and the next update time.', steps: ['Build plain-language impact summary', 'Send to StoreOps channel + branch manager', 'Schedule next update'], rollback: 'n/a', verify: ['Delivery receipt'] },
-  { id: 'RB-108', name: 'EdgeConnect remote recovery', kind: 'change', autonomy: 'L2', runs30: 14, success: 0.571, avg: '6 m', desc: 'Soft reboot via Orchestrator, then OOB console power-cycle via the managed UPS outlet.', steps: ['Orchestrator soft reboot', 'Wait 6 min for tunnels', 'If no check-in: OOB console', 'UPS outlet power-cycle'], rollback: 'n/a', verify: ['EC reachable in Orchestrator', 'Tunnels up'] },
+  { id: 'RB-108', name: 'EdgeConnect remote recovery', kind: 'change', autonomy: 'L2', runs30: 14, success: 0.571, avg: '6 m', desc: 'Soft reboot via Orchestrator, then out-of-band console reload and a managed-outlet power-cycle.', steps: ['Orchestrator soft reboot', 'Wait 6 min for tunnels', 'If no check-in: OOB console', 'Managed outlet power-cycle'], rollback: 'n/a', verify: ['EC reachable in Orchestrator', 'Tunnels up'] },
   { id: 'RB-109', name: 'Config backup re-run', kind: 'readonly', autonomy: 'L4', runs30: 61, success: 0.951, avg: '35 s', desc: 'Retry failed nightly backups with integrity check.', steps: ['Retry SSH/API pull', 'Hash compare', 'Store in repo'], rollback: 'n/a', verify: ['Backup hash stored'] },
   { id: 'RB-110', name: 'POS / payment path test', kind: 'readonly', autonomy: 'L3', runs30: 2702, success: 0.996, avg: '12 s', desc: 'Synthetic payment-path test from the PCI segment to the processor; no card data.', steps: ['Run TLS handshake + test auth to processor endpoint', 'Measure RTT'], rollback: 'n/a', verify: ['RTT < 400 ms', 'TLS OK'] },
 ];
@@ -230,11 +228,11 @@ export const slaOf = p => ({ resp: P_SLA[p][0] * MIN, res: P_SLA[p][1] * MIN });
 const TEMPLATES = {
   circuit: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `Primary circuit down – ${c.carrier} ${c.type}, branch on ${CIR[b.wan[1]].type}`, ci: c.id,
     signals: [[0, 'Orchestrator', `${c.id} (${c.carrier}) loss 100%, tunnel down`, 'Critical'], [20, 'OpsRamp', 'EdgeConnect wan1 interface down', 'Critical'], [32, 'Orchestrator', `Traffic moved to ${b.wan[1]}`, 'Info'], [70, 'Synthetic', 'POS path test OK via wan2', 'Info']],
-    corr: 17, rca: [['Carrier/LEC fault upstream of demarc', 0.86, 'Loss 100% both directions; EC port up/up; neighbouring branches on same LEC CO also alarmed'], ['Demarc / NTE lost power', 0.08, 'No UPS event at branch'], ['EC port / cable', 0.04, 'Port up/up, no CRC']],
+    corr: 17, rca: [['Carrier/LEC fault upstream of demarc', 0.86, 'Loss 100% both directions; EC port up/up; neighbouring branches on same LEC CO also alarmed'], ['Demarc / NTE lost power', 0.08, 'Out-of-band router at the branch still answers'], ['EC port / cable', 0.04, 'Port up/up, no CRC']],
     runbook: 'RB-106', impact: ['Running on backup; no business impact'], verify: ['Primary loss < 0.5% for 30 min', 'Return to primary approved'] }; },
   jitter: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `${c.type} jitter 38 ms / loss 2.4% – ${c.carrier}`, ci: c.id,
-    signals: [[0, 'Orchestrator', `${c.id} jitter 38 ms (threshold 30)`, 'Major'], [60, 'New Relic', 'Roof Hub API p95 from branch 2.8 s', 'Minor'], [90, 'Synthetic', 'POS path RTT 610 ms', 'Major']],
-    corr: 24, rca: [['Carrier congestion on access link', 0.83, 'Loss/jitter rises with carrier-side queueing; local util only 31%'], ['Local saturation', 0.09, 'Util 31%'], ['EC CPU', 0.03, 'CPU 12%']], runbook: 'RB-101', impact: ['POS slower at counter', 'Roof Hub orders slower'], verify: ['POS RTT < 400 ms', 'Jitter < 10 ms on active path'] }; },
+    signals: [[0, 'Orchestrator', `${c.id} jitter 38 ms (threshold 30)`, 'Major'], [60, 'New Relic', 'ERP path latency from branch 160 ms', 'Minor'], [90, 'Synthetic', 'POS path RTT 610 ms', 'Major']],
+    corr: 24, rca: [['Carrier congestion on access link', 0.83, 'Loss/jitter rises with carrier-side queueing; local util only 31%'], ['Local saturation', 0.09, 'Util 31%'], ['EC CPU', 0.03, 'CPU 12%']], runbook: 'RB-101', impact: ['POS slower at counter', 'ERP slower'], verify: ['POS RTT < 400 ms', 'Jitter < 10 ms on active path'] }; },
   apdown: b => { const ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Outdoor yard') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP'); return { pri: 'P4', cat: 'Wireless', title: `${ap.role === 'Outdoor yard' ? 'Yard' : 'Warehouse'} AP offline – ${ap.model}`, ci: ap.id,
     signals: [[0, 'Aruba Central', `${ap.id} down`, 'Major'], [15, 'Aruba Central', `PoE port ${b.code}-sw01 1/1/${R.int(10, 44)} drawing 0 W`, 'Minor']],
     corr: 3, rca: [['PoE / cable to outdoor AP', 0.64, 'PoE 0 W; port up/down flaps last night'], ['AP hardware', 0.22, '3 reboots in 7 days'], ['Switch PoE budget', 0.1, 'Budget 62% used']], runbook: 'RB-103', impact: ['Yard scanner coverage reduced'], verify: ['AP up in Central', 'Scanner sessions resume'] }; },
@@ -259,9 +257,9 @@ const TEMPLATES = {
   cpu: b => ({ pri: 'P2', cat: 'Customer-caused', title: 'High CPU 94% on core switch – broadcast storm', ci: `${b.code}-sw01`,
     signals: [[0, 'OpsRamp', 'CPU 94% sw01', 'Critical'], [20, 'OpsRamp', 'Broadcast 48k pps on 1/1/17', 'Critical'], [45, 'Aruba Central', 'Loop-protect triggered on 1/1/17', 'Major']],
     corr: 31, rca: [['Loop from unmanaged desk switch (back office)', 0.82, 'Loop-protect on 1/1/17; MAC flapping between 1/1/17 and 1/1/18'], ['STP misconfig', 0.11, 'STP consistent with golden']], runbook: 'RB-103', impact: ['Back office PCs and printers slow'], verify: ['CPU < 40%', 'Broadcast < 1k pps'] }),
-  ups: b => ({ pri: 'P3', cat: 'Power', title: 'Branch on UPS battery – utility power loss', ci: `${b.code}-ups01`,
-    signals: [[0, 'UPS (SNMP)', 'On battery, runtime 38 min', 'Major'], [30, 'OpsRamp', '11 downstream alerts suppressed (power parent)', 'Info']],
-    corr: 11, rca: [['Utility outage', 0.9, 'Utility outage map shows area event'], ['UPS fault', 0.05, 'Self-test passed last week']], runbook: 'RB-107', impact: ['Network up on battery; check runtime'], verify: ['Utility restored', 'UPS online'] }),
+  edgedown: b => ({ pri: 'P2', cat: 'SD-WAN', title: 'Branch unreachable – EdgeConnect not responding', ci: `${b.code}-ec01`,
+    signals: [[0, 'Orchestrator', 'EdgeConnect lost contact with Orchestrator', 'Critical'], [30, 'OpsRamp', '11 downstream alerts suppressed (EdgeConnect parent)', 'Info']],
+    corr: 11, rca: [['EdgeConnect hang or hardware fault', 0.72, 'No heartbeat; both carrier circuits up at the modems'], ['Local loop outage on both circuits', 0.18, 'Carrier portals show circuits up']], runbook: 'RB-108', impact: ['Branch offline until the EdgeConnect recovers'], verify: ['EdgeConnect reachable in Orchestrator', 'Tunnels up'] }),
 };
 export const TEMPLATE_W = [['circuit', 6], ['jitter', 3], ['apdown', 5], ['crc', 3], ['lte', 3], ['scanner', 3], ['pos', 1], ['dhcp', 1], ['backup', 4], ['cpu', 1]];
 const GROUPS = { P1: 'Movate NOC – Major Incident', P2: 'Movate NOC – L2 Network', P3: 'Movate NOC – L2 Network', P4: 'Movate NOC – L1' };
@@ -337,8 +335,8 @@ for (let i = 0; i < 168; i++) {
 let downN = 0;
 BRANCHES.forEach(b => { if (b.health === 'up') b.health = R() < 0.0035 && downN++ < 3 ? 'down' : R() < 0.02 ? 'degraded' : 'up'; b.score = b.health === 'up' ? R.int(93, 100) : b.health === 'degraded' ? R.int(70, 88) : R.int(20, 45); });
 BRANCHES.filter(b => b.health === 'down').forEach(b => {
-  const inc = buildIncident('ups', b, R.int(8, 70) * MIN, { pri: 'P2', title: 'Branch unreachable – EdgeConnect and switches down (power)' });
-  inc.signals.push({ t: inc.opened + 38 * MIN > T0 ? T0 - 60e3 : inc.opened + 38 * MIN, src: 'Orchestrator', msg: `${b.code}-ec01 unreachable – UPS runtime exhausted, site dark`, sev: 'Critical' });
+  const inc = buildIncident('edgedown', b, R.int(8, 70) * MIN, { pri: 'P2', title: 'Branch unreachable – EdgeConnect not responding' });
+  inc.signals.push({ t: inc.opened + 38 * MIN > T0 ? T0 - 60e3 : inc.opened + 38 * MIN, src: 'Orchestrator', msg: `${b.code}-ec01 unreachable – no heartbeat on either path, remote recovery queued`, sev: 'Critical' });
   b.wan.forEach(id => { CIR[id].status = 'Down'; });
   INCIDENTS.push(inc);
 });
@@ -378,20 +376,20 @@ export const TICKET_MONTHS = [
 
 // ---------- field ----------
 export const DEPOTS = [
-  { id: 'DEP-DAL', city: 'Dallas, TX', spares: { 'EC-XS': 6, '6100 48G': 5, '2530 24G': 3, 'AP-635': 14, 'AP-585': 4, 'LTE router': 5, 'UPS 1500VA': 3 } },
-  { id: 'DEP-HOU', city: 'Houston, TX', spares: { 'EC-XS': 4, '6100 48G': 3, '2530 24G': 2, 'AP-635': 9, 'AP-585': 2, 'LTE router': 3, 'UPS 1500VA': 2 } },
-  { id: 'DEP-ATL', city: 'Atlanta, GA', spares: { 'EC-XS': 5, '6100 48G': 4, '2530 24G': 2, 'AP-635': 12, 'AP-585': 3, 'LTE router': 4, 'UPS 1500VA': 3 } },
-  { id: 'DEP-TPA', city: 'Tampa, FL', spares: { 'EC-XS': 4, '6100 48G': 3, '2530 24G': 2, 'AP-635': 10, 'AP-565': 4, 'LTE router': 4, 'UPS 1500VA': 2 } },
-  { id: 'DEP-CHI', city: 'Chicago, IL', spares: { 'EC-XS': 4, '6100 48G': 4, '2530 24G': 3, 'AP-635': 10, 'AP-585': 2, 'LTE router': 3, 'UPS 1500VA': 2 } },
-  { id: 'DEP-PHX', city: 'Phoenix, AZ', spares: { 'EC-XS': 3, '6100 48G': 2, '2530 24G': 1, 'AP-635': 8, 'AP-565': 3, 'LTE router': 3, 'UPS 1500VA': 2 } },
-  { id: 'DEP-CLT', city: 'Charlotte, NC', spares: { 'EC-XS': 3, '6100 48G': 3, '2530 24G': 2, 'AP-635': 8, 'AP-585': 2, 'LTE router': 3, 'UPS 1500VA': 1 } },
-  { id: 'DEP-DEN', city: 'Denver, CO', spares: { 'EC-XS': 3, '6100 48G': 2, '2530 24G': 1, 'AP-635': 7, 'AP-585': 2, 'LTE router': 2, 'UPS 1500VA': 1 } },
-  { id: 'DEP-PHL', city: 'Philadelphia, PA', spares: { 'EC-XS': 3, '6100 48G': 3, '2530 24G': 2, 'AP-635': 8, 'AP-565': 2, 'LTE router': 2, 'UPS 1500VA': 2 } },
-  { id: 'DEP-SEA', city: 'Seattle, WA', spares: { 'EC-XS': 2, '6100 48G': 2, '2530 24G': 1, 'AP-635': 6, 'AP-585': 1, 'LTE router': 2, 'UPS 1500VA': 1 } },
+  { id: 'DEP-DAL', city: 'Dallas, TX', spares: { 'EC-XS': 6, '6100 48G': 5, '2530 24G': 3, 'AP-635': 14, 'AP-585': 4, 'LTE router': 5, 'SFP+ optic': 3 } },
+  { id: 'DEP-HOU', city: 'Houston, TX', spares: { 'EC-XS': 4, '6100 48G': 3, '2530 24G': 2, 'AP-635': 9, 'AP-585': 2, 'LTE router': 3, 'SFP+ optic': 2 } },
+  { id: 'DEP-ATL', city: 'Atlanta, GA', spares: { 'EC-XS': 5, '6100 48G': 4, '2530 24G': 2, 'AP-635': 12, 'AP-585': 3, 'LTE router': 4, 'SFP+ optic': 3 } },
+  { id: 'DEP-TPA', city: 'Tampa, FL', spares: { 'EC-XS': 4, '6100 48G': 3, '2530 24G': 2, 'AP-635': 10, 'AP-565': 4, 'LTE router': 4, 'SFP+ optic': 2 } },
+  { id: 'DEP-CHI', city: 'Chicago, IL', spares: { 'EC-XS': 4, '6100 48G': 4, '2530 24G': 3, 'AP-635': 10, 'AP-585': 2, 'LTE router': 3, 'SFP+ optic': 2 } },
+  { id: 'DEP-PHX', city: 'Phoenix, AZ', spares: { 'EC-XS': 3, '6100 48G': 2, '2530 24G': 1, 'AP-635': 8, 'AP-565': 3, 'LTE router': 3, 'SFP+ optic': 2 } },
+  { id: 'DEP-CLT', city: 'Charlotte, NC', spares: { 'EC-XS': 3, '6100 48G': 3, '2530 24G': 2, 'AP-635': 8, 'AP-585': 2, 'LTE router': 3, 'SFP+ optic': 1 } },
+  { id: 'DEP-DEN', city: 'Denver, CO', spares: { 'EC-XS': 3, '6100 48G': 2, '2530 24G': 1, 'AP-635': 7, 'AP-585': 2, 'LTE router': 2, 'SFP+ optic': 1 } },
+  { id: 'DEP-PHL', city: 'Philadelphia, PA', spares: { 'EC-XS': 3, '6100 48G': 3, '2530 24G': 2, 'AP-635': 8, 'AP-565': 2, 'LTE router': 2, 'SFP+ optic': 2 } },
+  { id: 'DEP-SEA', city: 'Seattle, WA', spares: { 'EC-XS': 2, '6100 48G': 2, '2530 24G': 1, 'AP-635': 6, 'AP-585': 1, 'LTE router': 2, 'SFP+ optic': 1 } },
 ];
 export const DEPOT_REGION = { 'Texas & South Central': ['DEP-DAL', 'DEP-HOU'], Southeast: ['DEP-ATL', 'DEP-TPA'], 'Carolinas & Mid-Atlantic': ['DEP-CLT', 'DEP-PHL'], Northeast: ['DEP-PHL'], 'Great Lakes': ['DEP-CHI'], 'Central Plains': ['DEP-CHI', 'DEP-DEN'], 'Mountain West': ['DEP-PHX', 'DEP-DEN'], Pacific: ['DEP-SEA', 'DEP-PHX'], Canada: ['DEP-CHI', 'DEP-SEA'] };
 const TECH_NAMES = ['Luis R.', 'Brandon K.', 'Jasmine T.', 'Carlos M.', 'Derek H.', 'Amanda P.', 'Tyrell J.', 'Megan S.', 'Omar F.', 'Hannah W.', 'Jake D.', 'Nina V.', 'Chris O.', 'Rosa G.', 'Ethan B.', 'Kayla N.', 'Andre L.', 'Sophie C.', 'Victor A.', 'Grace Y.'];
-const SKILLS = ['EdgeConnect swap', 'Aruba switching', 'Aruba wireless', 'Low-voltage cabling', 'LTE / cellular', 'Rack & power', 'Outdoor AP / lift'];
+const SKILLS = ['EdgeConnect swap', 'Aruba switching', 'Aruba wireless', 'Low-voltage cabling', 'LTE / cellular', 'Rack and closet', 'Outdoor AP / lift'];
 export const TECHS = TECH_NAMES.map((n, i) => {
   const region = REGIONS[i % 9];
   const s = R.shuffle(SKILLS).slice(0, R.int(2, 4));
@@ -401,7 +399,7 @@ export const TECHS = TECH_NAMES.map((n, i) => {
 export const WORK_ORDERS = [
   { id: 'WO0041872', branchId: INCIDENTS[4].branchId, inc: INCIDENTS[4].id, task: 'Replace PoE injector / re-terminate yard AP cable', skills: ['Outdoor AP / lift', 'Low-voltage cabling'], parts: ['AP-585'], tech: null, status: 'Unassigned', created: T0 - 3 * HR, window: 'Before 15:00 local', priority: 'P4' },
   { id: 'WO0041866', branchId: INCIDENTS[7].branchId, inc: INCIDENTS[7].id, task: 'Swap SFP and patch on uplink 1/1/49', skills: ['Aruba switching'], parts: ['SFP 10G-SR'], tech: TECHS[3].id, status: 'En route', created: T0 - 5 * HR, eta: T0 + 40 * MIN, window: 'Any time', priority: 'P4' },
-  { id: 'WO0041851', branchId: BRANCHES[220].id, inc: null, task: 'Install network-managed UPS temperature probe (IT closet)', skills: ['Rack & power'], parts: ['UPS temp probe'], tech: TECHS[8].id, status: 'Scheduled', created: T0 - 26 * HR, eta: T0 + 20 * HR, window: 'After 17:00 local', priority: 'P4' },
+  { id: 'WO0041851', branchId: BRANCHES[220].id, inc: null, task: 'Install out-of-band console server (IT closet)', skills: ['Rack and closet'], parts: ['OOB console server'], tech: TECHS[8].id, status: 'Scheduled', created: T0 - 26 * HR, eta: T0 + 20 * HR, window: 'After 17:00 local', priority: 'P4' },
 ];
 
 // ---------- approvals, changes, drift ----------
@@ -413,7 +411,7 @@ export const APPROVALS = [
 export const CHANGES = [
   { id: 'CHG0031874', title: 'AP firmware 10.7.1.0 – Wave 3 (Florida, 112 APs)', type: 'Normal', risk: 'Medium', state: 'Scheduled', start: T0 + 1 * DAY, end: T0 + 1 * DAY + 4 * HR, window: 'Tue 22:00–02:00 ET', scope: 'Southeast', devices: 112, owner: 'Network Eng L3', validation: 'Pending', nac: 'aps/firmware/wave3.yaml' },
   { id: 'CHG0031869', title: 'ECOS 9.5.4.1 – Texas wave 2 (64 EdgeConnects, HPESBNW04943 fixes)', type: 'Normal', risk: 'Medium', state: 'Approved', start: T0 + 2 * DAY, end: T0 + 2 * DAY + 5 * HR, window: 'Wed 23:00–04:00 CT', scope: 'Texas & South Central', devices: 64, owner: 'Network Eng L3', validation: 'Passed', nac: 'sdwan/ecos/tx-wave2.yaml' },
-  { id: 'CHG0031881', title: 'Business intent policy – Roof Hub priority class', type: 'Standard', risk: 'Low', state: 'Scheduled', start: T0 + 3 * DAY, end: T0 + 3 * DAY + 2 * HR, window: 'Thu 22:00–00:00 CT', scope: 'All regions', devices: 933, owner: 'Network Eng L3', validation: 'Passed', nac: 'sdwan/bio/roofhub.yaml' },
+  { id: 'CHG0031881', title: 'Business intent policy – cloud application priority class', type: 'Standard', risk: 'Low', state: 'Scheduled', start: T0 + 3 * DAY, end: T0 + 3 * DAY + 2 * HR, window: 'Thu 22:00–00:00 CT', scope: 'All regions', devices: 933, owner: 'Network Eng L3', validation: 'Passed', nac: 'sdwan/bio/roofhub.yaml' },
   { id: 'CHG0031890', title: 'VLAN 50 cameras ACL hardening (block east-west)', type: 'Normal', risk: 'Medium', state: 'Awaiting CAB', start: T0 + 5 * DAY, end: T0 + 5 * DAY + 3 * HR, window: 'Sat 20:00–23:00 local', scope: 'Great Lakes', devices: 204, owner: 'Security Lead', validation: 'Running', nac: 'switching/acl/vlan50.yaml' },
   { id: 'CHG0031895', title: 'LS Building Products – cutover weekend (Branch-in-a-Box)', type: 'Normal', risk: 'High', state: 'Approved', start: T0 + 4 * DAY, end: T0 + 6 * DAY + 13 * HR, window: 'Fri 17:00 → Mon 06:00 CT', scope: 'Great Lakes', devices: 9, owner: 'M&A Integration Lead', validation: 'Passed', nac: 'sites/ls-building-products/il-01.yaml' },
   { id: 'CHG0031852', title: '2530 YA.16.11.0021 – Northeast remediation (N-2 → N)', type: 'Normal', risk: 'Low', state: 'Implemented', start: T0 - 2 * DAY, end: T0 - 2 * DAY + 3 * HR, window: 'Sat 21:00–00:00 ET', scope: 'Northeast', devices: 81, owner: 'Network Eng L3', validation: 'Passed', nac: 'switching/firmware/ne-2530.yaml' },
@@ -436,10 +434,10 @@ export const PREDICTIONS = [
   { id: 'PRD-501', kind: 'Degrading circuit', target: findBranch('Charlotte').wan[0], branchId: findBranch('Charlotte').id, conf: 0.84, horizon: '48–72 h', signal: 'Packet loss trending 0.1% → 0.9% over 5 days, evening peaks', series: [0.1, 0.12, 0.2, 0.18, 0.35, 0.42, 0.6, 0.55, 0.78, 0.9], status: 'New', suggest: 'Open proactive carrier case (approval)' },
   { id: 'PRD-502', kind: 'Degrading circuit', target: findBranch('Houston').wan[0], branchId: findBranch('Houston').id, conf: 0.77, horizon: '3–5 days', signal: 'Latency baseline drift +14 ms, repeat-offender circuit (6 tickets / 90 d)', series: [22, 23, 25, 24, 28, 30, 31, 33, 35, 36], status: 'New', suggest: 'Watch; raise with carrier at weekly review' },
   { id: 'PRD-503', kind: 'AP failure risk', target: `${findBranch('Tampa').code}-ap04`, branchId: findBranch('Tampa').id, conf: 0.81, horizon: '7 days', signal: 'Outdoor AP: 5 reboots in 7 days, radio temp 71 °C midday', series: [0, 1, 0, 1, 0, 1, 2, 1, 2, 3], status: 'New', suggest: 'Schedule swap with spare from DEP-TPA (approval)' },
-  { id: 'PRD-504', kind: 'Switch failure risk', target: `${findBranch('Phoenix').code}-sw01`, branchId: findBranch('Phoenix').id, conf: 0.73, horizon: '14 days', signal: 'PSU fan RPM falling, closet temp 34 °C (UPS probe)', series: [30, 31, 31, 32, 33, 33, 34, 34, 35, 34], status: 'Watching', suggest: 'Watch; check closet cooling with branch' },
+  { id: 'PRD-504', kind: 'Switch failure risk', target: `${findBranch('Phoenix').code}-sw01`, branchId: findBranch('Phoenix').id, conf: 0.73, horizon: '14 days', signal: 'PSU fan RPM falling, chassis temp 61 °C', series: [52, 53, 54, 55, 56, 57, 58, 59, 61, 60], status: 'Watching', suggest: 'Watch; order spare PSU and plan swap in next window' },
   { id: 'PRD-505', kind: 'Capacity forecast', target: findBranch('Dallas').wan[0], branchId: findBranch('Dallas').id, conf: 0.88, horizon: '21 days', signal: 'WAN util p95 at 78%, +2.1%/week since storm season; hits 90% in ~3 weeks', series: [58, 60, 63, 64, 67, 69, 71, 74, 76, 78], status: 'New', suggest: 'Request bandwidth upgrade CHG (approval)' },
   { id: 'PRD-506', kind: 'Capacity forecast', target: 'LTE data pool – Verizon', branchId: null, conf: 0.9, horizon: '9 days', signal: 'Pooled LTE usage 81% of monthly plan; 3 long failovers this month', series: [20, 28, 35, 44, 52, 60, 66, 71, 77, 81], status: 'New', suggest: 'Raise plan uplift with carrier (approval)' },
-  { id: 'PRD-507', kind: 'UPS battery', target: `${findBranch('Atlanta').code}-ups01`, branchId: findBranch('Atlanta').id, conf: 0.86, horizon: '30 days', signal: 'Runtime at full load fell 41 → 18 min over 4 self-tests', series: [41, 39, 36, 33, 30, 27, 24, 22, 20, 18], status: 'New', suggest: 'Battery replacement work order (approval)' },
+  { id: 'PRD-507', kind: 'Backup path risk', target: `${findBranch('Atlanta').code}-lte01`, branchId: findBranch('Atlanta').id, conf: 0.86, horizon: '30 days', signal: 'LTE backup throughput in weekly test fell 41 → 18 Mb/s', series: [41, 39, 36, 33, 30, 27, 24, 22, 20, 18], status: 'New', suggest: 'Replace LTE antenna and re-test backup (approval)' },
   { id: 'PRD-508', kind: 'AP failure risk', target: `${findBranch('Las Vegas').code}-ap05`, branchId: findBranch('Las Vegas').id, conf: 0.69, horizon: '10 days', signal: 'Yard AP Ethernet errors + heat; 2 PoE renegotiations/day', series: [0, 0, 1, 1, 2, 1, 2, 2, 3, 2], status: 'Watching', suggest: 'Watch' },
 ];
 
@@ -449,7 +447,7 @@ export const KB = [
   { id: 'KB0012055', title: 'Yard AP offline: PoE, outdoor cable and lift requirements', tags: ['wireless', 'yard', 'poe'], views: 920, rating: 4.6, updated: T0 - 30 * DAY, status: 'Published', body: 'Check PoE draw on the switch port. Bounce port (RB-103). If 0 W persists, outdoor cable or injector; dispatch tech with lift skill.' },
   { id: 'KB0012070', title: 'Handheld scanners losing session in racking aisles', tags: ['wireless', 'scanners'], views: 610, rating: 4.4, updated: T0 - 21 * DAY, status: 'Published', body: 'Look for co-channel interference and late roaming. Enable 2.4 GHz on SRS-SCAN for older handhelds; adjust min RSSI; consider extra AP-635 near receiving.' },
   { id: 'KB0012088', title: 'POS slow at counter: separate processor issues from WAN issues', tags: ['pos', 'pci', 'sdwan'], views: 1310, rating: 4.7, updated: T0 - 8 * DAY, status: 'Published', body: 'Run RB-110 POS path test. If other branches are fine and wan1 shows loss, fail POS class to wan2 (RB-101).' },
-  { id: 'KB0012102', title: 'Branch power loss: suppress downstream alarms and confirm UPS runtime', tags: ['power', 'ups'], views: 480, rating: 4.5, updated: T0 - 44 * DAY, status: 'Published', body: 'UPS on battery is the parent; OpsRamp suppresses child alarms. Check runtime, utility outage map, and whether the branch can trade on battery.' },
+  { id: 'KB0012102', title: 'Branch unreachable: treat the EdgeConnect as parent and suppress downstream alarms', tags: ['edgeconnect', 'correlation'], views: 480, rating: 4.5, updated: T0 - 44 * DAY, status: 'Published', body: 'When the EdgeConnect stops reporting it is the parent; OpsRamp suppresses child alarms for the switches and APs behind it. Check both carrier portals, then the out-of-band console, then run RB-108.' },
   { id: 'KB0012119', title: 'Acquired branch: legacy kit triage and data destruction certificates', tags: ['branch-in-a-box', 'acquisition'], views: 210, rating: 4.9, updated: T0 - 16 * DAY, status: 'Published', body: 'Keep only kit on the SRS standard list. Replace everything else. Recycle via approved vendor and attach the data destruction certificate to the CMDB retirement record.' },
   { id: 'KB0012131', title: 'Nightly backup failures caused by TACACS+ timeouts', tags: ['backup', 'tacacs'], views: 330, rating: 4.3, updated: T0 - 5 * DAY, status: 'Published', body: 'If several devices fail at the same minute on the same TACACS node, retry with RB-109 and raise with Security for node health.' },
 ];
@@ -508,7 +506,7 @@ export const KIT = [
   { item: 'Aruba CX 6100 48G PoE switch (stack on L sites: 6200M)', qty: 'S: 1, M: 2, L: stack of 3–4', note: 'Golden config from Network-as-Code repo', group: 'LAN' },
   { item: 'AP-635 indoor (office, counter, warehouse)', qty: '2–6', note: 'Warehouse placed for racking aisles and receiving', group: 'Wireless' },
   { item: 'AP-565 / AP-585 rugged outdoor (yard)', qty: '1–3', note: 'Pole/wall mount, lift needed; covers yard scanners and loading', group: 'Wireless' },
-  { item: 'Network-managed UPS 1500VA + temperature probe', qty: '1', note: 'Gives power and closet-temp signals to OpsRamp; outlet control for remote power-cycle', group: 'Power' },
+  { item: 'Managed power outlet (PDU) with out-of-band control', qty: '1', note: 'Lets the NOC power-cycle the EdgeConnect and switches remotely', group: 'Management' },
   { item: 'Out-of-band console server (cellular)', qty: '1', note: 'Console to EC and switches when the WAN is down', group: 'Management' },
   { item: 'Patch panel, labelled patch leads, rack shelf', qty: '1 set', note: 'Colour code: red POS, blue corp, yellow scanners, green cameras', group: 'Physical' },
 ];
@@ -525,7 +523,7 @@ export const VLANS = [
 export const ZONES = [
   { id: 'counter', name: 'Counter / showroom', short: 'Counter / showroom', x: 20, y: 20, w: 240, h: 130, devices: ['AP-635 ×1', '2 POS terminals + PIN pads', 'Label printer', 'Desk phones ×3'], drops: 12, vlans: [10, 20, 40, 60] },
   { id: 'office', name: 'Back office', short: 'Back office', x: 20, y: 160, w: 150, h: 120, devices: ['AP-635 ×1', 'PCs ×6', 'MFP printer', 'Desk phones ×5'], drops: 16, vlans: [10, 40] },
-  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect EC-XS', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'UPS + temp probe', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
+  { id: 'closet', name: 'IT closet', short: 'IT closet', x: 180, y: 160, w: 80, h: 120, devices: ['EdgeConnect EC-XS', 'CX 6100 48G PoE (×2)', 'LTE/5G router', 'Managed PDU', 'OOB console', 'Patch panel'], drops: 0, vlans: [99] },
   { id: 'warehouse', name: 'Warehouse', short: 'Warehouse', x: 270, y: 20, w: 300, h: 260, devices: ['AP-635 ×3 (aisles + receiving)', 'Handheld scanners ×14', 'Label printers ×2', 'Cameras ×4'], drops: 14, vlans: [30, 50, 10] },
   { id: 'docks', name: 'Loading docks', short: 'Loading docks', x: 580, y: 20, w: 160, h: 260, devices: ['AP-635 ×1', 'Dock door sensors', 'Camera ×2'], drops: 6, vlans: [30, 50, 70] },
   { id: 'yard', name: 'Outdoor yard', short: 'Outdoor yard', x: 20, y: 290, w: 550, h: 160, devices: ['AP-585 rugged ×2 (poles)', 'Yard cameras ×6', 'Gate controller'], drops: 8, vlans: [30, 50, 70] },
@@ -543,7 +541,7 @@ export const GATE_TEMPLATE = [
   ['Fri 17:30', 'Branch closed; change freeze in effect for site', 'StoreOps Lead', 'Branch closed in ERP; doors secured'],
   ['Fri 18:00', 'Legacy config + data backed up', 'Movate NOC', 'Backup files hashed and stored'],
   ['Fri 19:00', 'Old edge off (legacy router/firewall)', 'Field Tech', 'Photo of powered-off legacy kit'],
-  ['Fri 21:00', 'Rack swap: switches, UPS, OOB console', 'Field Tech', 'Rack photo + UPS online'],
+  ['Fri 21:00', 'Rack swap: switches, PDU, OOB console', 'Field Tech', 'Rack photo + all devices online'],
   ['Fri 22:30', 'EdgeConnect up (zero-touch)', 'Movate Network Eng', 'EC registered in Orchestrator; tunnels to DC up'],
   ['Sat 08:00', 'Circuits verified: primary + LTE', 'Carrier Agent', 'Speed test + failover test both paths'],
   ['Sat 10:00', 'VLANs & policies applied (NaC)', 'Network Eng L3', 'Diff = 0 vs golden'],
@@ -571,7 +569,7 @@ export const PROJECTS = [
 export const GREEN_STEPS = [
   { id: 'plan', name: 'Profile & bill of materials', desc: 'Pick S/M/L profile from yard size, staff and fleet; ServiceNow project opened' },
   { id: 'circuits', name: 'Circuits ordered', desc: 'Primary + LTE ordered at lease signing; install dates tracked' },
-  { id: 'build', name: 'Closet & cabling', desc: 'Closet power/cooling, Cat6A drops, yard poles' },
+  { id: 'build', name: 'Closet & cabling', desc: 'Closet rack, Cat6A drops, yard poles' },
   { id: 'stage', name: 'Kit staged & shipped', desc: 'Zero-touch profile bound to site; switches/APs pre-claimed in Central' },
   { id: 'turnup', name: 'Turn-up day', desc: 'Same gate list as an acquisition, without legacy removal' },
   { id: 'hypercare', name: 'Hypercare (14 days)', desc: 'Tighter thresholds, then BAU' },

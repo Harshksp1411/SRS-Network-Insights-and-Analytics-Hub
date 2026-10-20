@@ -39,9 +39,9 @@ export function openingRisk(s) {
   const out = [];
   const pick = (city, brand) => D.BRANCHES.find(b => b.city === city && (!brand || b.brand === brand)) || D.BRANCHES.find(b => b.city === city);
   const add = (b, p, why, action, kind) => b && out.push({ id: b.id, b, p, why, action, kind });
-  (s.predictions || D.PREDICTIONS).forEach(pr => { if (!pr.branchId || /Dismissed/.test(pr.status)) return; const b = D.BR[pr.branchId]; const p = Math.min(0.92, pr.conf * (pr.kind === 'Capacity forecast' ? 0.4 : 0.75)); add(b, p, pr.signal, pr.kind === 'Degrading circuit' ? 'Pre-steer POS/ERP to backup at 05:00 and open carrier case' : pr.kind === 'UPS battery' ? 'Swap battery tonight (after close)' : pr.kind.includes('AP') ? 'Pre-stage spare AP, reboot outside hours' : 'Schedule closet check', pr.kind); });
+  (s.predictions || D.PREDICTIONS).forEach(pr => { if (!pr.branchId || /Dismissed/.test(pr.status)) return; const b = D.BR[pr.branchId]; const p = Math.min(0.92, pr.conf * (pr.kind === 'Capacity forecast' ? 0.4 : 0.75)); add(b, p, pr.signal, pr.kind === 'Degrading circuit' ? 'Pre-steer POS/ERP to backup at 05:00 and open carrier case' : pr.kind === 'Backup path risk' ? 'Swap LTE antenna tonight (after close)' : pr.kind.includes('AP') ? 'Pre-stage spare AP, reboot outside hours' : 'Schedule closet check', pr.kind); });
   add(pick('Pensacola'), 0.61, 'LTE backup failed weekly test; primary on repeat-offender list', 'Activate replacement SIM before 06:00', 'Backup path');
-  add(pick('Oklahoma City'), 0.48, 'Storm cell forecast over metro 04:00–07:00 local', 'Confirm UPS runtime; pre-arm storm runbook', 'Weather');
+  add(pick('Oklahoma City'), 0.48, 'Storm cell forecast over metro 04:00–07:00 local', 'Confirm LTE backup on every branch; pre-arm storm runbook', 'Weather');
   add(pick('Knoxville'), 0.44, 'Nightly backup failing 3 nights (TACACS+)', 'Re-run backup with RB-109 now', 'Config');
   add(pick('Sacramento'), 0.37, 'Handheld roam failures trending up 4 days', 'Push 2.4 GHz override for SRS-SCAN overnight', 'Wireless');
   return out.sort((a, b) => b.p - a.p).slice(0, 9);
@@ -108,7 +108,7 @@ export function fieldDemand(now, storm) {
     else { const bump = (storm && i >= 1 && i <= 3 ? 7 : 0) + (i === 2 ? 3 : 0); const v = base + 2 + bump; actual.push(null); fc.push(v); lo.push(Math.max(0, v - 3 - i * 0.3)); hi.push(v + 3 + i * 0.5); } }
   return { labels, actual, fc, lo, hi, nowIndex: 7 };
 }
-export const SPARE_USE = { 'EC-XS': 0.35, '6100 48G': 0.3, '2530 24G': 0.12, 'AP-635': 0.9, 'AP-585': 0.22, 'AP-565': 0.2, 'LTE router': 0.25, 'UPS 1500VA': 0.18 };
+export const SPARE_USE = { 'EC-XS': 0.35, '6100 48G': 0.3, '2530 24G': 0.12, 'AP-635': 0.9, 'AP-585': 0.22, 'AP-565': 0.2, 'LTE router': 0.25, 'SFP+ optic': 0.3 };
 
 export function changeTrend() { const R = rng(31); return ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'].map((m, i) => ({ label: m, Successful: 38 + Math.round(R() * 12) + i * 2, 'Rolled back': 1 + Math.round(R() * 2), Failed: R() < 0.4 ? 1 : 0 })); }
 export function riskHistogram() { return [['0–20', 41], ['20–40', 33], ['40–60', 18], ['60–80', 7], ['80–100', 2]].map(([label, n]) => ({ label, Changes: n })); }
@@ -134,7 +134,7 @@ export function modelAccuracy() { return { labels: ['May', 'Jun', 'Jul', 'Aug', 
 export function preventiveCalendar(now) {
   const pick = c => D.BRANCHES.find(b => b.city === c);
   const items = [
-    [0, '22:00', 'UPS battery swap', pick('Atlanta'), 'PRD-507', 'Field'], [0, '23:30', 'Proactive Lumen case + loopback test', pick('Charlotte'), 'PRD-501', 'Carrier'],
+    [0, '22:00', 'LTE antenna swap and backup test', pick('Atlanta'), 'PRD-507', 'Field'], [0, '23:30', 'Proactive Lumen case + loopback test', pick('Charlotte'), 'PRD-501', 'Carrier'],
     [1, '21:00', 'Swap outdoor AP-585 (heat)', pick('Tampa'), 'PRD-503', 'Field'], [1, '23:00', 'Firmware remediation wave – Northeast 2530s', null, 'CHG', 'Change'],
     [2, '20:00', 'Closet cooling check + PSU order', pick('Phoenix'), 'PRD-504', 'Field'], [3, '22:00', 'WAN upgrade 200 → 500 Mb/s', pick('Dallas'), 'PRD-505', 'Carrier'],
     [4, '02:00', 'Config backup integrity audit (all sites)', null, 'RB-109', 'Automation'], [5, '21:00', 'Yard AP pole inspection – hail season', pick('Oklahoma City'), 'Storm prep', 'Field'],

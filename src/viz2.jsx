@@ -296,7 +296,7 @@ export function GroupingSwimlane() {
   const incs = s.incidents.filter(i => i.state !== 'Resolved').sort((a, b) => b.opened - a.opened).slice(0, 8);
   const lw = 230, rw = 10, laneH = 24, H = incs.length * laneH + 26, span = 90 * MIN;
   const X = t => lw + Math.max(0, 1 - (now - t) / span) * (W - lw - rw);
-  const srcC = { Orchestrator: C.s1, OpsRamp: C.s4, 'Aruba Central': C.s5, 'New Relic': C.s7, Synthetic: C.s7, 'UPS (SNMP)': C.s6 };
+  const srcC = { Orchestrator: C.s1, OpsRamp: C.s4, 'Aruba Central': C.s5, 'New Relic': C.s7, Synthetic: C.s7 };
   return (
     <Card title="How alerts were grouped" sub="Last 90 minutes. One lane per open incident; each dot is an alert grouped into it." right={<Legend items={[['Orchestrator', C.s1], ['OpsRamp', C.s4], ['Central', C.s5], ['New Relic', C.s7]]} />}>
       <div ref={ref}><svg width={W} height={H} className="block">
@@ -317,7 +317,7 @@ export function CorrMatrix() {
   const { s, act } = useApp();
   const names = ['WAN', 'Apps', 'LAN', 'Edge', 'Security', 'Field'];
   const M = names.map(() => names.map(() => 0));
-  s.incidents.filter(i => i.state !== 'Resolved').forEach(i => { const a = CAT2(i.cat); const imp = (i.impact || []).join(' '); const b = /POS|ERP|Roof Hub|payment/i.test(imp) ? 1 : /scanner|AP|Wi-Fi|printer/i.test(imp) ? 2 : /UPS|power|battery/i.test(imp) ? 3 : i.workOrder ? 5 : a; M[a][b]++; if (a !== b) M[b][a]++; });
+  s.incidents.filter(i => i.state !== 'Resolved').forEach(i => { const a = CAT2(i.cat); const imp = (i.impact || []).join(' '); const b = /POS|ERP|payment/i.test(imp) ? 1 : /scanner|AP|Wi-Fi|printer/i.test(imp) ? 2 : /UPS|power|battery/i.test(imp) ? 3 : i.workOrder ? 5 : a; M[a][b]++; if (a !== b) M[b][a]++; });
   const max = Math.max(1, ...M.flat());
   return (
     <Card title="Area-to-area correlations" sub="Open incidents that link two areas. The diagonal is incidents inside one area.">

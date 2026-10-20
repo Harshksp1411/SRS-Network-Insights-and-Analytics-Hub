@@ -82,52 +82,6 @@ export const SCENARIOS = [
     ],
     focus: c => ({ module: 'incidents', selInc: c.id }),
   },
-  // 2 ─────────────────────────────────────────────────────────────
-  {
-    id: 'power', title: 'Branch power loss', icon: 'Zap', sub: 'UPS goes on battery, downstream alerts are suppressed, a technician is dispatched',
-    span: 46 * 60,
-    setup(ctx) { ctx.b = branchBy('Tampa', 'Suncoast Roofers Supply'); ctx.id = D.nextInc(); },
-    steps: [
-      { at: 0, label: 'UPS: on battery, runtime 38 min', run(act, c, T) {
-        act.add('incidents', baseInc({ id: c.id, pri: 'P2', cat: 'Power', title: 'Branch on UPS battery – utility power loss', branchId: c.b.id, ci: `${c.b.code}-ups01`, opened: T, signals: [sig(T, 'UPS (SNMP)', 'On battery. Runtime 38 min. Input voltage 0 V', 'Critical')], corr: 1, impact: ['Network up on battery', 'Lights/POS power depends on branch UPS'] }));
-        act.map('branchHealth', c.b.id, 'degraded');
-      } },
-      { at: 40, label: 'Correlation: 23 downstream alerts suppressed (power is parent)', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'OpsRamp', 'Parent-child rule: UPS power event is parent for 23 CIs at this site', 'Info'), sig(T + 2e3, 'Aruba Central', '4 APs down (PoE switch on non-UPS circuit)', 'Minor')], 23, 23);
-        addStep(act, c.id, step('correlation', T, '23 child alerts (APs, printers, cameras) suppressed under the power parent – one incident, not 24.'));
-        act.upd('incidents', c.id, { state: 'In Progress', acked: T, assignee: 'Kevin T.' });
-      } },
-      { at: 90, label: 'Diagnosis: utility outage (90%)', run(act, c, T) {
-        act.upd('incidents', c.id, { conf: 0.9, rca: [{ cause: 'Utility outage in area', conf: 0.9, ev: 'Neighbouring branch (Tampa) also on battery; utility outage feed shows area event' }, { cause: 'Branch breaker trip', conf: 0.07, ev: 'Possible – one site only would be expected' }, { cause: 'UPS fault', conf: 0.02, ev: 'Self-test passed 6 days ago' }] });
-        addStep(act, c.id, step('diagnosis', T, 'Utility outage likely (90%). UPS runtime gives ~38 min of network; EC and switches on UPS outlets 1–3.'));
-      } },
-      { at: 150, label: 'Comms: branch manager asked to confirm site power', run(act, c, T) {
-        addStep(act, c.id, step('comms', T, `Branch manager ${c.b.name} asked to confirm: lights out? generator? Told network will stay up ~35 min on battery.`));
-        act.note(c.id, 'Branch confirms: whole building dark, utility truck seen on street.', 'Rick D. (Branch Manager)');
-      } },
-      { at: 1500, label: 'UPS runtime 5 min – graceful shutdown plan', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'UPS (SNMP)', 'Runtime 5 min remaining', 'Critical')]);
-        addStep(act, c.id, step('runbook', T, 'Shutdown order prepared: APs → access switches → EC last. No action needed: UPS will drop load; configs backed up 02:00.'));
-      } },
-      { at: 1800, label: 'Branch offline; Dispatch Agent sends technician', run(act, c, T) {
-        act.map('branchHealth', c.b.id, 'down');
-        addSignals(act, c.id, [sig(T, 'Orchestrator', `${c.b.code}-ec01 unreachable`, 'Critical')]);
-        const tech = D.TECHS.find(t => t.skills.includes('Rack & power') && t.region === 'Southeast') || D.TECHS[1];
-        const wo = `WO00${41900 + Math.floor(Math.random() * 90)}`;
-        act.add('workOrders', { id: wo, branchId: c.b.id, inc: c.id, task: 'Attend on power restore: confirm UPS recharge, power-on order, check closet temp, swap UPS battery if self-test fails', skills: ['Rack & power'], parts: ['UPS battery pack (spare)'], tech: tech.id, status: 'Dispatched', created: T, eta: T + 55 * MIN, window: 'On utility restore', priority: 'P2' });
-        act.upd('incidents', c.id, { workOrder: wo });
-        addStep(act, c.id, step('dispatch', T, `${wo}: ${tech.name} (Rack & power, ${tech.base}) dispatched; spare UPS battery from DEP-TPA; ETA 55 min.`));
-        act.audit(`Dispatched ${tech.name} – ${wo}`, c.id, 'Dispatch Agent');
-      } },
-      { at: 2760, label: 'Power restored; network back; verification', run(act, c, T) {
-        act.map('branchHealth', c.b.id, 'up');
-        act.upd('incidents', c.id, { verify: [{ v: 'Utility restored', st: 'pass', val: 'Input 121 V' }, { v: 'EC + tunnels up', st: 'pass', val: 'both paths' }, { v: 'POS path test', st: 'pass', val: '210 ms' }, { v: 'All 23 child CIs back', st: 'pass', val: '23/23' }], state: 'In Progress' });
-        addSignals(act, c.id, [sig(T, 'UPS (SNMP)', 'On line, charging (42%)', 'Info'), sig(T + 90e3, 'Orchestrator', 'Tunnels up on both paths', 'Info')]);
-        addStep(act, c.id, step('comms', T, 'StoreOps + branch: "Network is back. Tech on site to check the UPS."'));
-      } },
-    ],
-    focus: c => ({ module: 'incidents', selInc: c.id }),
-  },
   // 3 ─────────────────────────────────────────────────────────────
   {
     id: 'ec', title: 'EdgeConnect hardware failure', icon: 'Server', sub: 'Remote recovery fails, a work order goes out with a pre-staged spare',
@@ -149,11 +103,11 @@ export const SCENARIOS = [
       } },
       { at: 520, label: 'OOB console: boot loop, disk I/O errors', run(act, c, T) {
         addSignals(act, c.id, [sig(T, 'OOB console', 'Boot loop: "EXT4-fs error … I/O error, dev sda"', 'Critical')]);
-        addStep(act, c.id, step('runbook', T, 'Console shows disk I/O errors in boot loop. UPS outlet power-cycle attempted next.'));
+        addStep(act, c.id, step('runbook', T, 'Console shows disk I/O errors in boot loop. Managed-outlet power-cycle attempted next.'));
       } },
-      { at: 700, label: 'UPS outlet power-cycle – fails POST. Remote recovery failed', run(act, c, T) {
+      { at: 700, label: 'Managed-outlet power-cycle – fails POST. Remote recovery failed', run(act, c, T) {
         act.upd('incidents', c.id, { rbState: 'failed', conf: 0.93, rca: [{ cause: 'EdgeConnect hardware failure (storage)', conf: 0.93, ev: 'Disk I/O errors in boot; fails POST after power-cycle' }, { cause: 'Power to EC outlet', conf: 0.03, ev: 'Outlet cycled OK' }] });
-        addSignals(act, c.id, [sig(T, 'UPS (SNMP)', 'Outlet 1 cycled; EC fails POST', 'Critical')]);
+        addSignals(act, c.id, [sig(T, 'OpsRamp', 'PDU outlet 1 cycled; EC fails POST', 'Critical')]);
       } },
       { at: 760, label: 'Dispatch Agent: WO with pre-staged spare EC-XS from Phoenix depot', run(act, c, T) {
         const tech = D.TECHS.find(t => t.skills.includes('EdgeConnect swap') && (t.region === 'Mountain West' || t.region === 'Pacific')) || D.TECHS[0];

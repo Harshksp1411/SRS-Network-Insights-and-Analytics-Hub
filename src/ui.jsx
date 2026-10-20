@@ -204,7 +204,7 @@ export function GateBox({ g, compact }) {
 export function Logo({ k, h = 16, className }) {
   return <span className={cx('inline-flex items-center bg-white rounded px-1 py-0.5 border border-line/60', className)}><img src={LOGOS[k]} alt={k} style={{ height: h }} className="object-contain" /></span>;
 }
-export const SRC_LOGO = { OpsRamp: 'opsramp', 'Aruba Central': 'central', Orchestrator: 'aruba', ServiceNow: 'servicenow', 'Mova iO': 'movaio', 'New Relic': 'newrelic', 'Azure Monitor': 'azure', Synthetic: 'opsramp', 'UPS (SNMP)': 'opsramp' };
+export const SRC_LOGO = { OpsRamp: 'opsramp', 'Aruba Central': 'central', Orchestrator: 'aruba', ServiceNow: 'servicenow', 'Mova iO': 'movaio', 'New Relic': 'newrelic', 'Azure Monitor': 'azure', Synthetic: 'opsramp' };
 
 export function Empty({ icon: I, title, sub, children }) {
   return <div className="flex flex-col items-center justify-center text-center py-10 text-ink3">{I && <I size={28} className="mb-2" />}<div className="text-[14px] font-semibold text-ink2">{title}</div>{sub && <div className="text-[12.5px] mt-1 max-w-md">{sub}</div>}{children}</div>;

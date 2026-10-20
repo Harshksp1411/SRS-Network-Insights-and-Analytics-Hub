@@ -27,7 +27,7 @@ export const AGENT_DEF = [
   { id: 'prediction', name: 'Prediction', group: 1, does: 'Forecasts circuit decay, capacity and hardware failure.', tools: ['opsramp', 'movaio'], acts: b => [`Failure risk for ${b.code}-sw01 updated to ${rnd(0.2, 0.6).toFixed(2)}`, `Capacity forecast refreshed for ${b.code}-wan1`, `LTE signal trend checked at ${b.code}-wan2`] },
   { id: 'runbook', name: 'Runbook', group: 2, does: 'Runs approved runbooks inside the gate rules.', tools: ['aruba', 'central'], acts: b => [`RB-109 config backup re-run at ${b.name}: success`, `RB-104 AP reboot at ${b.name}: success in 2 m 41 s`, `RB-103 port bounce at ${b.name}: skipped, branch trading, sent for approval`] },
   { id: 'carrier', name: 'Carrier', group: 2, does: 'Raises and chases carrier cases with an evidence pack.', tools: ['servicenow'], acts: b => { const c = D.CIR[b.wan[0]]; return [`Updated ${c.carrier} case for ${b.name} with a fresh loss graph`, `Chased ${c.carrier} for an ETA on ${b.name}`, `Attached MTR from ${b.code}-ec01 to the ${c.carrier} case`]; } },
-  { id: 'dispatch', name: 'Dispatch', group: 2, does: 'Matches field visits to skills, parts and branch hours.', tools: ['servicenow'], acts: b => [`Matched a Rack & power technician for ${b.name}`, `Reserved a spare EC-XS at the nearest depot for ${b.name}`, `Moved the ${b.name} visit to after close`] },
+  { id: 'dispatch', name: 'Dispatch', group: 2, does: 'Matches field visits to skills, parts and branch hours.', tools: ['servicenow'], acts: b => [`Matched a Rack and closet technician for ${b.name}`, `Reserved a spare EC-XS at the nearest depot for ${b.name}`, `Moved the ${b.name} visit to after close`] },
   { id: 'verify', name: 'Verification', group: 3, does: 'Confirms recovery against the baseline before anything is closed.', tools: ['aruba', 'newrelic'], acts: b => [`Verified POS path at ${b.name}: 210 ms`, `Verified both tunnels up at ${b.name}`, `Verified handhelds re-associated at ${b.name}`] },
   { id: 'ticket', name: 'Ticket', group: 3, does: 'One ticket per event: merges duplicates, writes work notes, resolves.', tools: ['servicenow'], acts: b => [`Merged 2 duplicate tickets for ${b.name}`, `Wrote the work note for ${b.name}`, `Updated priority for ${b.name}: branch now open`] },
   { id: 'comms', name: 'Comms', group: 3, does: 'Keeps StoreOps and branch managers informed.', tools: ['servicenow'], acts: b => [`Sent a plain-language update to the ${b.name} manager`, `Posted the 30-minute update to StoreOps`, `Told ${b.name}: back on the main line, nothing to do`] },
@@ -47,7 +47,7 @@ export const TOOLS = [
 ];
 
 export const outcomeOf = e => e.inc ? 'Grouped' : /Watch/.test(e.out) ? 'Watching' : /Duplicate/.test(e.out) ? 'Grouped' : /Suppress|Auto-heal|Recovered|Patched/.test(e.out) ? 'Auto-cleared' : 'To the digest';
-export const MONITOR_SRC = new Set(['Orchestrator', 'OpsRamp', 'Aruba Central', 'New Relic', 'Synthetic', 'UPS (SNMP)']);
+export const MONITOR_SRC = new Set(['Orchestrator', 'OpsRamp', 'Aruba Central', 'New Relic', 'Synthetic']);
 
 export function seedX(now) {
   const R = rng(4242);
@@ -75,7 +75,7 @@ export function tickX(Lc, st, now) {
   // area lanes: last point walks every tick, a new minute starts every 30 ticks (60 s)
   AREAS.forEach(a => {
     const s = X.lanes[a.id];
-    const tgt = a.id === 'wan' ? a.base * (storm ? 4 : 1) + Lc.flaps.length * 0.05 : a.id === 'lan' ? a.base + open.filter(i => i.kind === 'apdown').length * 2 : a.id === 'power' ? a.base + open.filter(i => i.cat === 'Power').length * 3 : a.id === 'apps' ? a.base + (open.some(i => /POS|jitter/i.test(i.title)) ? 9 : 0) : a.base;
+    const tgt = a.id === 'wan' ? a.base * (storm ? 4 : 1) + Lc.flaps.length * 0.05 : a.id === 'lan' ? a.base + open.filter(i => i.kind === 'apdown').length * 2 : a.id === 'power' ? a.base + open.filter(i => /EdgeConnect/.test(i.title)).length * 3 : a.id === 'apps' ? a.base + (open.some(i => /POS|jitter/i.test(i.title)) ? 9 : 0) : a.base;
     s[s.length - 1] = +walk(s[s.length - 1], tgt, a.vol * 0.6, a.lo, a.hi).toFixed(a.dec + 1);
   });
   if (now - X.minute >= MIN) { X.minute = now; AREAS.forEach(a => { const s = X.lanes[a.id]; X.lanes[a.id] = [...s.slice(1), s[s.length - 1]]; }); X.agentSeries = X.agentSeries.map(s => [...s.slice(1), 0]); }

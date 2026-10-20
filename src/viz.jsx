@@ -113,7 +113,7 @@ const METRIC = {
   circuit: ['Primary path packet loss', '%', 0.1, 100, 0.08], jitter: ['Primary path jitter', 'ms', 3.2, 38, 0.8], pos: ['POS path p95', 'ms', 210, 1900, 18],
   apdown: ['Clients on the AP', '', 18, 0, 3], crc: ['Uplink CRC errors per 5 min', '', 2, 1240, 2], lte: ['Backup path loss', '%', 0.1, 100, 0.08],
   scanner: ['SRS-SCAN deauths per 10 min', '', 3, 41, 1.2], dhcp: ['VLAN 30 scope used', '%', 62, 100, 1.5], backup: ['Backup jobs succeeding', '%', 100, 83, 0.4],
-  cpu: ['Core switch CPU', '%', 22, 94, 3], ups: ['UPS input voltage', 'V', 121, 0, 0.8],
+  cpu: ['Core switch CPU', '%', 22, 94, 3], edgedown: ['EdgeConnect heartbeats per 5 min', '', 10, 0, 0.3],
 };
 export function IncidentTelemetryCard({ inc }) {
   const now = useNow();
@@ -147,7 +147,7 @@ export function PreventRecurrence({ inc }) {
     Wireless: [['Push channel plan + 2.4 GHz scanner profile to site', 'change'], ['Pre-stage spare AP at nearest depot', 'spare'], ['Add RF survey to next site visit', 'visit']],
     Switching: [['Enable BPDU guard on access ports (template)', 'change'], ['Replace optics on uplinks with rising CRC', 'spare']],
     'Customer-caused': [['Enable BPDU guard on back-office ports', 'change'], ['Add IPAM check to device rollout runbook', 'kb']],
-    Power: [['UPS battery health check and replacement plan', 'spare'], ['Move PoE switch to UPS outlet', 'visit']],
+    'SD-WAN': [['Pre-stage spare EdgeConnect at nearest depot', 'spare'], ['Open problem record with Aruba TAC', 'problem']],
     'Config management': [['Move backup window off TACACS+ peak', 'change'], ['Open problem record with Security', 'problem']],
   }[inc.cat] || [['Open problem record', 'problem'], ['Write KB from this incident', 'kb']];
   return (
@@ -282,10 +282,10 @@ export function SlipCard() {
 export function RiskMatrixCard({ onPick }) {
   const { s } = useApp();
   const kinds = { 'Degrading circuit': C.s1, 'Capacity forecast': C.s2, other: C.s3 };
-  const impact = { 'Degrading circuit': 0.78, 'AP failure risk': 0.42, 'Switch failure risk': 0.7, 'Capacity forecast': 0.55, 'UPS battery': 0.62 };
+  const impact = { 'Degrading circuit': 0.78, 'AP failure risk': 0.42, 'Switch failure risk': 0.7, 'Capacity forecast': 0.55, 'Backup path risk': 0.62 };
   const pts = s.predictions.map((p, i) => ({ id: p.id, x: p.conf * (p.horizon.includes('h') ? 1 : p.horizon.includes('30') ? 0.7 : 0.88), y: Math.min(0.95, (impact[p.kind] || 0.5) + (p.branchId ? 0 : 0.2) + (i % 3) * 0.03), label: `${p.id} ${p.kind}`, tag: p.id.replace('PRD-', ''), color: kinds[p.kind] || kinds.other }));
   return (
-    <Card title="Risk matrix" sub="Every open prediction by likelihood and business impact. Top-right gets acted on first." right={<Legend items={[['Circuit', C.s1], ['Capacity', C.s2], ['Hardware / power', C.s3]]} />}>
+    <Card title="Risk matrix" sub="Every open prediction by likelihood and business impact. Top-right gets acted on first." right={<Legend items={[['Circuit', C.s1], ['Capacity', C.s2], ['Hardware and backup path', C.s3]]} />}>
       <RiskMatrix points={pts} onPoint={onPick} />
     </Card>
   );

@@ -11,7 +11,7 @@ import { C, useWidth } from './charts.jsx';
 // Each branch shows its LAN, EdgeConnect and both WAN ports; links carry live status and moving traffic.
 const HOSTS = [
   { id: 'dc:primary', label: 'Primary data centre', sub: 'ERP, pricing', apps: ['erp', 'pricing'], kind: 'dc' },
-  { id: 'dc:azure', label: 'Azure (SRS tenant)', sub: 'Roof Hub, dispatch, Mova iO', apps: ['roofhub', 'dispatch'], kind: 'cloud' },
+  { id: 'dc:azure', label: 'Azure (SRS tenant)', sub: 'Cloud applications, Mova iO', apps: ['azure'], kind: 'cloud' },
   { id: 'dc:pci', label: 'Payment processor', sub: 'PCI segment only', apps: ['pos'], kind: 'dc' },
   { id: 'dc:saas', label: 'SaaS breakout', sub: 'Microsoft 365, voice', apps: ['m365', 'voice'], kind: 'cloud' },
 ];
@@ -65,8 +65,8 @@ export function NetGraph() {
       const b = D.BR[id]; path(b, b.wan); out.title = `${b.code}-ec01`; out.sub = b.dev.ec === 2 ? 'EC-XS HA pair' : 'EC-XS (single)';
       if (b.dev.ec === 2) { out.backup.push(b); out.text = 'HA pair: the second EdgeConnect takes over. No outage.'; } else { out.down.push(b); D.APPS.forEach(a => out.apps.add(a.id)); out.text = 'Single EdgeConnect: the branch loses its WAN until the unit is swapped (spare pre-staged, zero-touch).'; }
     } else if (kind === 'l') {
-      const b = D.BR[id]; out.lan.push(b); out.hl.add(`b:${b.id}`); ['pos', 'scan', 'voice'].forEach(a => out.apps.add(a)); out.title = `${b.name} LAN`; out.sub = `${b.dev.sw} switches, ${b.dev.ap} access points`;
-      out.text = 'LAN fault: the WAN stays up, but POS terminals, scanners and phones on the affected switch or access point lose service.';
+      const b = D.BR[id]; out.lan.push(b); out.hl.add(`b:${b.id}`); ['pos', 'voice'].forEach(a => out.apps.add(a)); out.title = `${b.name} LAN`; out.sub = `${b.dev.sw} switches, ${b.dev.ap} access points`;
+      out.text = 'LAN fault: the WAN stays up, but POS terminals, handhelds and phones on the affected switch or access point lose service.';
     } else if (kind === 'b') {
       const b = D.BR[id]; path(b, b.wan); D.APPS.forEach(a => out.hl.add(`a:${a.id}`)); HOSTS.forEach(h => out.hl.add(h.id)); out.title = b.name; out.sub = `${b.brand} · ${b.code}`;
       out.text = 'Full dependency path for this branch: LAN, EdgeConnect, both lines, carriers, hosting and applications.';
