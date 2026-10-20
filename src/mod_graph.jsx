@@ -114,7 +114,7 @@ export function NetGraph() {
         {[['Branches in view', branches.length, `${city}`], ['WAN lines up', `${upLinks} / ${branches.length * 2}`, 'both paths per branch'], ['On backup line', onBackup, onBackup ? 'primary line down or degraded' : 'all on primary'], ['Carriers', carriers.length, carriers.join(', ')], ['HA EdgeConnect', branches.filter(b => b.dev.ec === 2).length, 'branches with a second unit']].map(([l, v, sub]) => (
           <div key={l} className="px-4 py-3 min-w-0"><div className="text-[12px] text-ink3 font-semibold">{l}</div><div className="text-[24px] font-bold text-ink leading-tight tabular-nums">{v}</div><div className="text-[11.5px] text-ink3 truncate">{sub}</div></div>))}
       </div>
-      <div className="grid 2xl:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
+      <div className="grid grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_320px] gap-3 items-start">
         <Card pad={false}>
           <div ref={wref} className="overflow-x-auto">
             <svg width={W} height={H} className="block select-none">
@@ -209,7 +209,7 @@ export function NetGraph() {
               : <><span className="inline-flex items-center gap-1.5"><Dot tone="red" />High 30-day risk</span><span className="inline-flex items-center gap-1.5"><Dot tone="amber" />Elevated</span><span className="inline-flex items-center gap-1.5"><Dot tone="gray" />Normal</span><span className="text-ink3">Blends 90-day tickets, open predictions, carrier restore record and single points of failure.</span></>}
           </div>
         </Card>
-        <div className="grid md:grid-cols-2 2xl:grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-1 gap-3">
           <Card title={blast ? blast.title : 'What depends on it'} sub={blast ? blast.sub : 'Select a branch, line, carrier, host or application'} icon={I.Radar} right={blast && <Btn size="xs" kind="ghost" icon={I.X} onClick={() => setSel(null)} />}>
             {!blast ? <div className="text-[12.5px] text-ink2 space-y-2"><p>Click a carrier to see which branches would go down and which would fail over. Click a branch's LAN, EdgeConnect or W1 / W2 port to see what depends on it.</p><p className="text-ink3">Showing {branches.length} branches in {city}{scopeList.filter(b => `${b.city}, ${b.state}` === city).length > branches.length ? ' (first 14)' : ''}. Pick another metro above or use the filters.</p></div> : <>
               <p className="text-[12.5px] text-ink2 mb-2">{blast.text}</p>

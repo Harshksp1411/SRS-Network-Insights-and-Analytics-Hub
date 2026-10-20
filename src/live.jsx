@@ -3,6 +3,7 @@ import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { parts, MIN } from './util.js';
 import { seedX, tickX } from './liveext.js';
+import { setSpeedVar } from './speed.js';
 
 // Live simulation engine: every tick it streams telemetry, raw events and their correlation outcome,
 // moves the rolling metric series, and now and then raises / acknowledges / auto-resolves incidents
@@ -72,6 +73,8 @@ export function LiveProvider({ children }) {
   }
   const [ver, setVer] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  useEffect(() => { setSpeedVar(speed); }, [speed]);
 
   useEffect(() => {
     if (paused) return;
@@ -170,9 +173,9 @@ export function LiveProvider({ children }) {
       try { tickX(Lc, sRef.current, now); } catch (err) { console.warn('live x', err); }
       Lc.last = now;
       setVer(v => v + 1);
-    }, TICK);
+    }, TICK / speed);
     return () => clearInterval(id);
-  }, [paused]);
-  return <LiveCtx.Provider value={{ L: L.current, ver, paused, setPaused }}>{children}</LiveCtx.Provider>;
+  }, [paused, speed]);
+  return <LiveCtx.Provider value={{ L: L.current, ver, paused, setPaused, speed, setSpeed }}>{children}</LiveCtx.Provider>;
 }
 export const useLive = () => useContext(LiveCtx);

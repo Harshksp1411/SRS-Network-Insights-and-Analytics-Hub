@@ -118,7 +118,7 @@ function DepGraph({ s, b, x }) {
   const cols = [
     ['Business service', [['Branch trading', `${b.name}`, 'up']]],
     ['Applications', D.APPS.map(a => [a.short, a.host, x.down ? 'down' : (a.id === 'pos' && x.cur.pos > 400) ? 'degraded' : 'up'])],
-    ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['PCI segment', 'VLAN 20, POS path', x.down ? 'down' : 'up'], ['Client VLANs and DHCP', 'VLANs 10, 30, 40', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up']]],
+    ['Branch infrastructure', [[`${sw} switch${sw > 1 ? 'es' : ''}`, 'Aruba CX / 2530', x.down ? 'down' : 'up'], [`${ap} access points`, 'office, warehouse, yard', x.down ? 'down' : x.incs.some(i => i.kind === 'apdown') ? 'degraded' : 'up'], ['PCI segment', 'VLAN 20, POS path', x.down ? 'down' : 'up'], ['VLANs and DHCP', 'VLANs 10, 30, 40', x.down ? 'down' : x.incs.some(i => ['scanner', 'dhcp'].includes(i.kind)) ? 'degraded' : 'up']]],
     ['Connectivity', [[`${b.code}-ec01`, b.dev.ec === 2 ? 'EdgeConnect HA pair' : 'EdgeConnect EC-XS', x.down ? 'down' : 'up'], [b.wan[0], `${x.p.carrier} ${x.p.type}, ${x.onBackup ? 'standby' : 'active'}`, x.p.status === 'Up' ? 'up' : x.p.status === 'Degraded' ? 'degraded' : 'down'], [b.wan[1], `${x.sc.carrier} ${x.sc.type}, ${x.onBackup ? 'active' : 'standby'}`, x.sc.status === 'Up' ? 'up' : 'down']]],
     ['Core', [['Orchestrator overlay', 'business intent policies', 'up'], ['Primary DC hub', 'ERP and pricing', 'up'], ['Azure (SRS tenant)', 'cloud applications', 'up']]],
     ['Destinations', [['ERP / pricing', 'Primary DC', 'up'], ['Payment processor', 'PCI path only', 'up'], ['Cloud applications', 'Azure', 'up'], ['Internet / M365', 'local breakout', 'up']]],
@@ -131,10 +131,13 @@ function DepGraph({ s, b, x }) {
     <div ref={wref} className="overflow-x-auto"><svg width={W} height={H} className="block">
       {cols.map(([t], ci) => <text key={t} x={ci * colW + 14} y={16} fontSize="12" fontWeight="700" className="fill-ink3">{t}</text>)}
       {pos.slice(0, -1).map((ps, ci) => ps.map((a, i) => pos[ci + 1].map((bb, j) => (cols[ci + 1][1].length <= 3 || cols[ci][1].length <= 3 || (i + j) % 3 === 0) && <path key={`${ci}-${i}-${j}`} d={`M${a.x + colW - 34},${a.y} C${a.x + colW - 10},${a.y} ${bb.x - 14},${bb.y} ${bb.x},${bb.y}`} fill="none" className="stroke-line" strokeWidth="1" />)))}
-      {cols.map(([, items], ci) => items.map(([n, sub, st], k) => { const p = pos[ci][k]; return <g key={n} transform={`translate(${p.x},${p.y - 15})`}><rect width={colW - 34} height="30" rx="6" className="fill-panel stroke-line" /><circle cx={colW - 45} cy="9" r="3" fill={col(st)} /><text x="10" y="13" fontSize="11.5" fontWeight="700" className="fill-ink">{n.length > 26 ? n.slice(0, 25) + '…' : n}</text><text x="10" y="25" fontSize="10" className="fill-ink3">{sub.length > 30 ? sub.slice(0, 29) + '…' : sub}</text></g>; }))}
+      {cols.map(([, items], ci) => items.map(([n, sub, st], k) => { const p = pos[ci][k]; return <g key={n} transform={`translate(${p.x},${p.y - 15})`}><rect width={colW - 34} height="30" rx="6" className="fill-panel stroke-line" /><circle cx={colW - 45} cy="9" r="3" fill={col(st)} /><text x="10" y="13" fontSize="11.5" fontWeight="700" className="fill-ink" {...fitLen(n, 6.4, colW - 62)}>{n.length > 26 ? n.slice(0, 25) + '…' : n}</text><text x="10" y="25" fontSize="10" className="fill-ink3" {...fitLen(sub, 5.1, colW - 50)}>{sub.length > 30 ? sub.slice(0, 29) + '…' : sub}</text></g>; }))}
     </svg></div>
   );
 }
+
+// Squeeze an SVG label into its node when the estimated width is too wide
+const fitLen = (t, cw, avail) => (Math.min(t.length, 30) * cw > avail ? { textLength: Math.max(20, avail), lengthAdjust: 'spacingAndGlyphs' } : {});
 
 export function Branch360() {
   const { s, act } = useApp();
@@ -204,9 +207,9 @@ export function Branch360() {
         </div>
       </Card>
 
-      <div className="grid xl:grid-cols-4 gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-3 mt-3">
         <Card title="Health score">
-          <div className="flex items-center gap-3"><Ring value={hb.score / 100} size={92} stroke={9} color={hb.score >= 85 ? '#1f7a3a' : hb.score >= 70 ? C.warn : C.bad} label={String(hb.score)} /><div className="flex-1"><div className="text-[11.5px] text-ink3">Last 24 hours</div><Spark data={health24} w={150} h={40} color={hb.score >= 85 ? '#1f7a3a' : C.warn} /></div></div>
+          <div className="flex items-center gap-3"><Ring value={hb.score / 100} size={92} stroke={9} color={hb.score >= 85 ? '#1f7a3a' : hb.score >= 70 ? C.warn : C.bad} label={String(hb.score)} /><div className="flex-1 min-w-0"><div className="text-[11.5px] text-ink3">Last 24 hours</div><Spark data={health24} w={150} h={40} color={hb.score >= 85 ? '#1f7a3a' : C.warn} /></div></div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-2 text-[12.5px]">{hb.parts.map(([k, v]) => <div key={k} className="flex justify-between"><span className="text-ink2">{k}</span><b className={v < 70 ? 'text-bad' : v < 85 ? 'text-warn' : 'text-ink'}>{v}</b></div>)}</div>
         </Card>
         <Card title="Risk, next 4 hours">
@@ -228,7 +231,7 @@ export function Branch360() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3">
         <Card title="Event stream, this branch" sub={`${12 + (b.num % 9)} events/min across OpsRamp, Central, Orchestrator and New Relic`} pad={false}>
           <div className="max-h-[230px] overflow-y-auto">{x.h.ev.length ? x.h.ev.slice(0, 12).map(e => <Ev key={e.id} e={e} />) : <div className="text-[12.5px] text-ink3 p-4">{x.down ? 'No telemetry: branch unreachable.' : 'Waiting for the next event…'}</div>}</div>
         </Card>
@@ -239,9 +242,9 @@ export function Branch360() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-3 gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mt-3">
         <Card title="Connectivity" right={<Btn size="sm" kind={x.steer ? 'dark' : 'brand'} icon={I.Shuffle} onClick={() => setSteerOpen(true)}>{x.steer ? 'Return to primary' : 'Steer to backup'}</Btn>}>
-          <div className="grid grid-cols-2 gap-2">{[x.p, x.sc].map((c, i) => { const active = (i === 0) !== x.onBackup; return <div key={c.id} className={cx('rounded-md border p-2', active ? 'border-ink2' : 'border-line')}><div className="text-[12.5px] font-bold text-ink">{i ? 'Backup' : 'Primary'}, {c.carrier}</div><div className="text-[11px] text-ink3 font-mono">{c.cid}</div><div className="text-[11.5px] text-ink2">{c.type}, {c.bw} Mb/s</div><div className="flex gap-1 mt-1"><Badge tone={c.status === 'Up' ? 'green' : c.status === 'Degraded' ? 'amber' : 'red'}>{c.status}</Badge>{active && <Badge tone="blue">Active path</Badge>}</div></div>; })}</div>
+          <div className="grid grid-cols-2 gap-2">{[x.p, x.sc].map((c, i) => { const active = (i === 0) !== x.onBackup; return <div key={c.id} className={cx('rounded-md border p-2', active ? 'border-ink2' : 'border-line')}><div className="text-[12.5px] font-bold text-ink">{i ? 'Backup' : 'Primary'}, {c.carrier}</div><div className="text-[11px] text-ink3 font-mono break-all">{c.cid}</div><div className="text-[11.5px] text-ink2">{c.type}, {c.bw} Mb/s</div><div className="flex flex-wrap gap-1 mt-1"><Badge tone={c.status === 'Up' ? 'green' : c.status === 'Degraded' ? 'amber' : 'red'}>{c.status}</Badge>{active && <Badge tone="blue">Active path</Badge>}</div></div>; })}</div>
           <div className="grid grid-cols-3 gap-2 mt-2">{[['Latency', x.h.lat, 'ms', 0], ['Jitter', x.h.jit, 'ms', 1], ['Loss', x.h.loss, '%', 2]].map(([l, ser, u, d]) => { const v = ser.filter(y => y != null).at(-1); return <div key={l} className="bg-chip/60 rounded-md p-2"><div className="text-[11.5px] text-ink3">{l}</div><div className="text-[17px] font-bold text-ink">{v == null ? '—' : (+v).toFixed(d === 2 ? 2 : 0)} <span className="text-[11px] font-normal text-ink3">{u}</span></div><Spark data={ser.filter(y => y != null).slice(-60)} w={100} h={26} color="#1f7a3a" /></div>; })}</div>
           <div className="text-[12px] text-ink2 mt-2 flex items-center gap-1.5"><Dot tone={x.down ? 'red' : 'green'} /><span className="font-mono">{b.code}-ec01</span> EdgeConnect {b.dev.ec === 2 ? 'HA pair' : 'EC-XS'}, ECOS {(devs.find(d => d.type === 'SD-WAN') || {}).fw}</div>
         </Card>
@@ -254,7 +257,7 @@ export function Branch360() {
         </Card>
       </div>
 
-      <div className="grid gap-3 mt-3">
+      <div className="grid grid-cols-1 gap-3 mt-3">
         <Card title="LAN and Wi-Fi" sub={`${b.dev.sw} switches, ${b.dev.ap} access points (${b.dev.apOut} outdoor)`}>
           <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] gap-x-4 text-[12.5px]">
             {['', 'Switch', 'Role', 'Port errors', 'Throughput'].map((h, i) => <div key={i} className="text-[11.5px] font-semibold text-ink3 pb-1 border-b border-line">{h}</div>)}
@@ -275,7 +278,7 @@ export function Branch360() {
 
       <div className="mt-3">
         <Tabs value={tab} onChange={setTab} className="mb-2" tabs={[{ id: 'devices', label: 'Devices and lifecycle', count: devs.length }, { id: 'vulns', label: 'Vulnerabilities', count: vulnRows.reduce((a, r) => a + r.devs.length, 0) }, { id: 'work', label: 'Open work and history' }]} />
-        {tab === 'devices' && <div className="grid min-[1700px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
+        {tab === 'devices' && <div className="grid grid-cols-1 min-[1700px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
           <Card pad={false} title="Every device at this branch" sub="Make, model, firmware, lifecycle and open vulnerabilities" right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV(`${b.code}-devices.csv`, devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Make', get: d => (D.MODEL_INFO[d.model] || {}).make }, { label: 'Model', key: 'desc' }, { label: 'SKU', get: d => d.sku || '' }, { label: 'Serial/MAC', key: 'serial' }, { label: 'Firmware', key: 'fw' }, { label: 'Lifecycle', get: d => d.life.status }, { label: 'Warranty end', get: d => new Date(d.warranty).toISOString().slice(0, 10) }, { label: 'Advisories', get: d => d.vulns.map(v => v.id).join(' ') }])}>Export</Btn>}>
             <div className="px-3 pb-3"><Table dense rows={devRows} cols={[
               { key: 'id', label: 'Hostname', render: d => <span className="font-mono font-bold">{d.id}</span> },
@@ -307,7 +310,7 @@ export function Branch360() {
           </div>) : <div className="text-[12.5px] text-ok flex items-center gap-1.5"><I.ShieldCheck size={15} />No known vulnerabilities or lifecycle risks on this branch's devices.</div>}
           <div className="text-[11.5px] text-ink3 mt-2">Sources: {Object.values(D.SRC).join('; ')}.</div>
         </Card>}
-        {tab === 'work' && <div className="grid xl:grid-cols-2 gap-3">
+        {tab === 'work' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           <Card title="History, last 30 days" right={<Legend items={[['Incidents', C.s2], ['Auto-resolved', C.s1]]} />}>
             <Bars data={hist30} keys={['Incidents', 'Auto-resolved']} colors={[C.s2, C.s1]} h={150} />
             <div className="mt-2">{recent.length ? recent.map(i => <button key={i.id} onClick={() => act.openInc(i.id)} className="w-full text-left text-[12.5px] py-1 border-b border-line/60 flex gap-2"><span className="font-mono text-ink3">{i.id}</span><span className="flex-1 text-ink truncate">{i.title}</span><span className="text-ink3">{i.closeCode}</span></button>) : <div className="text-[12.5px] text-ink3">No incidents resolved here in the last 7 days.</div>}</div>

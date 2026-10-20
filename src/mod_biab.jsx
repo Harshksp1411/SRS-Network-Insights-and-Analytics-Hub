@@ -76,9 +76,9 @@ function Portfolio({ track, setTrack, onOpen, now }) {
     <Card title="Projects by stage" sub="Greenfield and acquired, from planned to business as usual" icon={I.BarChart3} right={<Legend items={[['Greenfield', C.info], ['Acquired', C.ai]]} />}>
       <Bars data={data} keys={['Greenfield', 'Acquired']} colors={[C.info, C.ai]} h={150} />
     </Card>
-    <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mt-3"><ThroughputCard /><SlipCard /></div>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mt-3"><ThroughputCard /><SlipCard /></div>
     <div className="flex items-center gap-2 mt-3 mb-2"><Tabs size="sm" value={track} onChange={setTrack} tabs={[{ id: 'All', label: 'Both tracks', count: s.projects.length }, { id: 'Greenfield', label: 'Greenfield', count: s.projects.filter(p => p.track === 'Greenfield').length }, { id: 'Acquired', label: 'Acquired', count: s.projects.filter(p => p.track === 'Acquired').length }]} /></div>
-    <div className="grid grid-flow-col auto-cols-[minmax(156px,1fr)] gap-2 overflow-x-auto pb-2">
+    <div className="grid grid-flow-col auto-cols-[minmax(168px,1fr)] gap-2 overflow-x-auto pb-2">
       {D.STAGES.map(st => { const list = P.filter(p => p.stage === st); return (
         <div key={st} className="bg-chip/60 border border-line rounded-md p-2 min-h-[200px]">
           <div className="flex items-center gap-1.5 px-1 pb-2"><span className="text-[12.5px] font-bold text-ink">{st}</span><Badge>{list.length}</Badge></div>
@@ -95,9 +95,9 @@ function TracksView({ onOpen, now }) {
     <Card title={title} sub={sub} icon={icon}>
       <ol className="relative border-l-2 border-line ml-2 space-y-3 mb-3">{steps.map((st, k) => <li key={st.id} className="ml-4"><span className={cx('absolute -left-[9px] w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center', tone === 'purple' ? 'bg-ai' : 'bg-info')}>{k + 1}</span><div className="text-[13px] font-bold text-ink">{st.name}</div><div className="text-[12px] text-ink2">{st.desc}</div></li>)}</ol>
       <div className="text-[11.5px] font-bold text-ink3 mb-1.5">Projects on this track</div>
-      <div className="grid sm:grid-cols-2 gap-2">{list.map(p => <ProjCard key={p.id} p={p} onOpen={onOpen} now={now} />)}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{list.map(p => <ProjCard key={p.id} p={p} onOpen={onOpen} now={now} />)}</div>
     </Card>);
-  return (<div className="grid xl:grid-cols-2 gap-3">
+  return (<div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
     {col('Greenfield branch', 'A new SRS branch on a blank site', I.Sprout, D.GREEN_STEPS, gf, 'blue')}
     {col('Acquired branch', 'An acquired distributor where staff, yard and customers stay – and the brand name stays', I.Building2, D.ACQ_STEPS, acq, 'purple')}
   </div>);
@@ -107,9 +107,9 @@ function Kit() {
   const [size, setSize] = useState('M');
   const groups = [...new Set(D.KIT.map(k => k.group))];
   const gi = { WAN: I.Globe, LAN: I.Network, Wireless: I.Wifi, Power: I.BatteryCharging, Management: I.Terminal, Physical: I.Cable };
-  return (<div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
+  return (<div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
     <Card title="Kit contents – bill of materials" sub="Same kit, same golden config, every site. Quantities follow the size profile." icon={I.Package} right={<Tabs size="sm" value={size} onChange={setSize} tabs={[{ id: 'S', label: 'Small' }, { id: 'M', label: 'Medium' }, { id: 'L', label: 'Large' }]} />}>
-      <div className="grid md:grid-cols-2 gap-2">{groups.map(g => { const Ic = gi[g] || I.Box; return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{groups.map(g => { const Ic = gi[g] || I.Box; return (
         <div key={g} className="border border-line rounded-md p-2.5"><div className="flex items-center gap-1.5 text-[12px] font-bold text-ink3 mb-1.5"><Ic size={14} />{g}</div>
           {D.KIT.filter(k => k.group === g).map(k => { const q = k.qty.includes('·') ? (k.qty.split('·').map(x => x.trim()).find(x => x.startsWith(size + ':') || x.startsWith(size === 'L' ? 'L' : 'S/M')) || k.qty) : k.qty; return <div key={k.item} className="py-1.5 border-b border-line/60 last:border-0"><div className="flex gap-2"><span className="text-[12.5px] font-semibold text-ink flex-1">{k.item}</span><Badge tone="dark">{q.replace(/^[SML/]+:\s*/, '')}</Badge></div><div className="text-[11.5px] text-ink2">{k.note}</div></div>; })}
         </div>); })}</div>
@@ -130,7 +130,7 @@ function FloorPlan() {
   const zone = D.ZONES.find(x => x.id === z);
   const vl = id => D.VLANS.find(v => v.id === id);
   const apDots = { counter: [[200, 115]], office: [[95, 245]], warehouse: [[340, 110], [420, 200], [510, 110]], docks: [[640, 170]], yard: [[130, 390], [430, 390]], trucks: [[610, 360]] };
-  return (<div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
+  return (<div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
     <Card title="Standard branch floor plan (medium profile)" sub="Click a zone to see devices, drops and VLANs. Layout is a template, not a specific SRS site." icon={I.Map}>
       <svg viewBox="0 0 760 470" className="w-full">
         <rect x="10" y="10" width="740" height="450" rx="8" className="fill-chip stroke-line" />
@@ -174,10 +174,10 @@ function Steps({ pid, setPid }) {
   const runOnb = () => onbItems.forEach((it, k) => setTimeout(() => setOnb(o => ({ ...o, [it]: true })), 450 * (k + 1)));
   return (<div>
     <div className="flex items-center gap-2 mb-3"><ProjectPicker pid={p.id} setPid={id => { setPid(id); }} filter={x => x.track === 'Acquired'} /><Badge tone="purple">Acquired, brand kept</Badge><span className="text-[12px] text-ink3">{p.acquired}</span></div>
-    <div className="grid xl:grid-cols-[300px_minmax(0,1fr)] gap-3">
+    <div className="grid grid-cols-1 xl:grid-cols-[300px_minmax(0,1fr)] gap-3">
       <Card title="Steps" icon={I.ListTodo} pad={false}><div className="p-2">{D.ACQ_STEPS.map((st, k) => { const v = p.steps[st.id] || 'todo'; return <button key={st.id} onClick={() => setSel(st.id)} className={cx('w-full text-left flex items-start gap-2 rounded-md px-2 py-2', sel === st.id ? 'bg-chip' : 'hover:bg-chip/60')}>{v === 'done' ? <I.CheckCircle2 size={17} className="text-ok mt-0.5" /> : v === 'active' ? <I.CircleDot size={17} className="text-info mt-0.5" /> : <I.Circle size={17} className="text-ink3 mt-0.5" />}<div><div className="text-[13px] font-semibold text-ink">{k + 1}. {st.name}</div><div className="text-[11.5px] text-ink3">{v}</div></div></button>; })}</div></Card>
       <Card title={step.name} sub={step.desc} icon={I.ClipboardList} right={(p.steps[sel] === 'active') && <Btn kind="ok" icon={I.Check} onClick={() => complete(sel)}>Complete step</Btn>}>
-        {sel === 'discovery' && <div className="grid md:grid-cols-2 gap-3">
+        {sel === 'discovery' && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><div className="text-[11.5px] font-bold text-ink3 mb-1">Legacy kit found</div>{(p.legacy.length ? p.legacy : [['Discovery scan pending', '—', '—']]).map(([k]) => <div key={k} className="text-[12.5px] py-1 border-b border-line/60 text-ink">{k}</div>)}</div>
           <div><div className="text-[11.5px] font-bold text-ink3 mb-1">Carriers & contracts</div>{(p.carriers.length ? p.carriers : ['Collecting invoices from acquired finance team']).map(c => <div key={c} className="text-[12.5px] py-1 border-b border-line/60 text-ink">{c}</div>)}<div className="text-[11.5px] text-ink3 mt-2">Imported into ServiceNow as "acquired – pending" CIs; nothing is monitored as SRS standard until cutover.</div></div>
         </div>}
@@ -244,7 +244,7 @@ function Parity({ pid, setPid }) {
   const doRun = () => { setRun(1); setTimeout(() => setRun(2), 1600); act.audit(`Day-1 parity check run: ${p.brand}`, p.id); };
   return (<div>
     <div className="flex items-center gap-2 mb-3"><ProjectPicker pid={p.id} setPid={setPid} filter={x => cands.includes(x)} /><Btn icon={I.RefreshCw} onClick={doRun}>{run === 1 ? 'Checking…' : 'Run parity check'}</Btn></div>
-    <div className="grid xl:grid-cols-[280px_minmax(0,1fr)] gap-3">
+    <div className="grid grid-cols-1 xl:grid-cols-[280px_minmax(0,1fr)] gap-3">
       <Card title="Parity with fleet" icon={I.Scale}><div className="flex flex-col items-center py-2"><Ring value={ok / rows.length} size={120} stroke={11} color={ok === rows.length ? C.ok : C.warn} label={pct(ok / rows.length, 0)} /><div className="text-[12.5px] text-ink2 mt-2 text-center">{ok === rows.length ? 'This branch sees the same telemetry, automation, runbooks and AI coverage as every other branch from day one.' : 'Parity completes at gate 12 of the cutover (Sun 16:00).'}</div></div></Card>
       <Card title={`${p.brand} – ${p.site}`} sub="New branch vs fleet baseline" icon={I.ListChecks}>
         <Table dense sortable={false} rows={rows.map((r, k) => ({ id: k, g: r[0], n: r[1], v: r[2], ok: run === 1 ? null : r[3] }))} cols={[{ key: 'g', label: 'Area', render: r => <span className="text-ink3 text-[12px]">{r.g}</span> }, { key: 'n', label: 'Check', render: r => <span className="font-semibold">{r.n}</span> }, { key: 'fleet', label: 'Fleet baseline', render: r => r.v }, { key: 'v', label: 'This branch', render: r => r.ok === null ? <I.Loader2 size={14} className="animate-spin text-info" /> : r.ok ? <span className="text-ok font-semibold">{r.v}</span> : <span className="text-warn font-semibold">pending</span> }, { key: 'ok', label: '', render: r => r.ok === null ? null : r.ok ? <I.CheckCircle2 size={15} className="text-ok" /> : <I.Clock size={15} className="text-warn" /> }]} />
@@ -261,7 +261,7 @@ function ProjectModal({ p, onClose, go, now }) {
     <Modal open onClose={onClose} title={<span className="flex items-center gap-2">{p.brand}<Badge tone={p.track === 'Acquired' ? 'purple' : 'blue'}>{p.track}</Badge><Badge tone={RAG[p.rag]}>{p.rag}</Badge></span>} sub={`${p.id}, ${p.site}, ${p.region}, size ${p.size}`} wide
       footer={<><Btn icon={I.Timer} onClick={() => go('cutover', p.id)}>Cutover tracker</Btn>{p.track === 'Acquired' && <Btn icon={I.ListTodo} onClick={() => go('steps', p.id)}>Steps</Btn>}<Btn icon={I.Scale} onClick={() => go('parity', p.id)}>Day-1 parity</Btn><div className="flex-1" /><Select label="RAG" value={p.rag} onChange={v => { act.upd('projects', p.id, { rag: v }); act.audit(`${p.id} RAG → ${v}`, p.id); }} options={['Green', 'Amber', 'Red']} />{idx < D.STAGES.length - 1 && <Btn kind="brand" icon={I.ArrowRight} onClick={() => { act.upd('projects', p.id, { stage: D.STAGES[idx + 1] }); act.audit(`${p.id} moved to ${D.STAGES[idx + 1]}`, p.id); act.toast(`${p.brand} → ${D.STAGES[idx + 1]}`); onClose(); }}>Move to {D.STAGES[idx + 1]}</Btn>}</>}>
       <div className="flex gap-1 mb-4">{D.STAGES.map((st, k) => <div key={st} className="flex-1"><div className={cx('h-1.5 rounded-full', k < idx ? 'bg-ok' : k === idx ? 'bg-info' : 'bg-chip')} /><div className={cx('text-[11px] mt-1', k === idx ? 'font-bold text-ink' : 'text-ink3')}>{st}</div></div>)}</div>
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div><KV k="Go-live" v={`${dt(p.golive)} (${daysTo(p.golive, now) >= 0 ? `in ${daysTo(p.golive, now)} days` : `${-daysTo(p.golive, now)} days ago`})`} /><KV k="Gates passed" v={`${p.gates.filter(g => g.st === 'Pass').length}/13`} />{p.acquired && <KV k="Acquisition" v={p.acquired} />}<KV k="Brand on the door" v={p.brand} />{p.note && <KV k="Note" v={p.note} />}</div>
         <div><div className="text-[11.5px] font-bold text-ink3 mb-1">Blockers</div>{p.blockers.length ? p.blockers.map(b => <div key={b} className="text-[12.5px] text-warn flex gap-1.5 py-0.5"><I.AlertTriangle size={14} className="mt-0.5 shrink-0" />{b}</div>) : <div className="text-[12.5px] text-ok">None</div>}
           <div className="text-[11.5px] font-bold text-ink3 mt-3 mb-1">Carriers</div>{p.carriers.length ? p.carriers.map(c => <div key={c} className="text-[12.5px] text-ink">{c}</div>) : <div className="text-[12.5px] text-ink3">To be confirmed</div>}</div>
@@ -288,7 +288,7 @@ function Wizard() {
     <Modal open onClose={close} title="Start new Branch-in-a-Box" sub="Creates a project from the standard template: kit, VLANs, steps, cutover gates, hypercare" wide
       footer={<>{st > 0 && <Btn icon={I.ArrowLeft} onClick={() => setSt(st - 1)}>Back</Btn>}<div className="flex-1" />{st < 3 ? <Btn kind="brand" disabled={!ok} onClick={() => setSt(st + 1)}>Next</Btn> : <Btn kind="brand" icon={I.Rocket} onClick={create}>Create project</Btn>}</>}>
       <div className="flex gap-2 mb-4">{STEPS.map((x, k) => <div key={x} className="flex-1"><div className={cx('h-1.5 rounded-full', k <= st ? 'bg-brand' : 'bg-chip')} /><div className={cx('text-[11.5px] mt-1', k === st ? 'font-bold text-ink' : 'text-ink3')}>{k + 1}. {x}</div></div>)}</div>
-      {st === 0 && <div className="grid md:grid-cols-2 gap-3">{[['Greenfield', I.Sprout, 'A new SRS branch on a blank site'], ['Acquired', I.Building2, 'An acquired distributor – staff, yard, customers and brand name stay']].map(([t, Ic, d]) => <button key={t} onClick={() => setF({ ...f, track: t })} className={cx('text-left border-2 rounded-md p-4', f.track === t ? 'border-brand bg-brand/5' : 'border-line hover:border-ink3')}><Ic size={22} className="text-brand dark:text-[#e8a3a5]" /><div className="font-bold text-ink mt-2">{t} branch</div><div className="text-[12.5px] text-ink2">{d}</div></button>)}</div>}
+      {st === 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{[['Greenfield', I.Sprout, 'A new SRS branch on a blank site'], ['Acquired', I.Building2, 'An acquired distributor – staff, yard, customers and brand name stay']].map(([t, Ic, d]) => <button key={t} onClick={() => setF({ ...f, track: t })} className={cx('text-left border-2 rounded-md p-4', f.track === t ? 'border-brand bg-brand/5' : 'border-line hover:border-ink3')}><Ic size={22} className="text-brand dark:text-[#e8a3a5]" /><div className="font-bold text-ink mt-2">{t} branch</div><div className="text-[12.5px] text-ink2">{d}</div></button>)}</div>}
       {st === 1 && <div className="space-y-3">
         <div><div className="text-[12px] font-semibold text-ink2 mb-1">Brand on the door</div><Select value={f.brand} onChange={v => setF({ ...f, brand: v })} options={[{ value: '', label: 'Choose…' }, ...D.BRANDS.map(b => ({ value: b, label: b })), { value: "Mingledorff's", label: "Mingledorff's" }, { value: 'Lohmiller & Company', label: 'Lohmiller & Company' }, { value: 'LS Building Products', label: 'LS Building Products' }, { value: '__new', label: '+ New acquired brand…' }]} className="w-full" /></div>
         {f.brand === '__new' && <input value={f.newBrand} onChange={e => setF({ ...f, newBrand: e.target.value })} placeholder="Acquired company name (kept on the branch)" className="w-full h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" />}
@@ -296,7 +296,7 @@ function Wizard() {
       </div>}
       {st === 2 && <div className="space-y-3"><div className="text-[12px] font-semibold text-ink2">Size profile</div><div className="grid grid-cols-3 gap-2">{[['S', 'Small', '1 EC, 1 switch, 2–3 APs'], ['M', 'Medium', '1 EC, 2 switches, 4–6 APs'], ['L', 'Large', 'HA EC pair, switch stack, 8+ APs']].map(([k, n, d]) => <button key={k} onClick={() => setF({ ...f, size: k })} className={cx('border-2 rounded-md p-3 text-left', f.size === k ? 'border-brand bg-brand/5' : 'border-line')}><div className="font-bold text-ink">{n}</div><div className="text-[12px] text-ink2">{d}</div></button>)}</div>
         <div className="text-[12px] font-semibold text-ink2">Target go-live (cutover weekend)</div><Select value={String(f.weeks)} onChange={v => setF({ ...f, weeks: +v })} options={[2, 4, 6, 8, 10, 12].map(w => ({ value: String(w), label: `${w} weeks from now – ${dateShort(Date.now() + w * 7 * DAY)}` }))} /></div>}
-      {st === 3 && <div className="grid md:grid-cols-2 gap-4"><div><KV k="Track" v={f.track} /><KV k="Brand" v={brand} /><KV k="Site" v={`${f.site}, ${f.state}`} /><KV k="Region" v={D.REGION_OF[f.state]} /><KV k="Size" v={f.size} /><KV k="Go-live" v={dateShort(Date.now() + f.weeks * 7 * DAY)} /></div><div className="text-[12.5px] text-ink2 space-y-1"><div className="font-bold text-ink">The template adds</div><div>• Kit BOM ({f.size} profile) and circuit orders</div><div>• 8 standard VLANs incl. isolated PCI segment</div><div>• {f.track === 'Acquired' ? '6 acquired-branch steps incl. legacy triage' : '6 greenfield steps'}</div><div>• 13 cutover gates, rollback plan</div><div>• 14-day hypercare + Day-1 parity check</div></div></div>}
+      {st === 3 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><KV k="Track" v={f.track} /><KV k="Brand" v={brand} /><KV k="Site" v={`${f.site}, ${f.state}`} /><KV k="Region" v={D.REGION_OF[f.state]} /><KV k="Size" v={f.size} /><KV k="Go-live" v={dateShort(Date.now() + f.weeks * 7 * DAY)} /></div><div className="text-[12.5px] text-ink2 space-y-1"><div className="font-bold text-ink">The template adds</div><div>• Kit BOM ({f.size} profile) and circuit orders</div><div>• 8 standard VLANs incl. isolated PCI segment</div><div>• {f.track === 'Acquired' ? '6 acquired-branch steps incl. legacy triage' : '6 greenfield steps'}</div><div>• 13 cutover gates, rollback plan</div><div>• 14-day hypercare + Day-1 parity check</div></div></div>}
     </Modal>
   );
 }

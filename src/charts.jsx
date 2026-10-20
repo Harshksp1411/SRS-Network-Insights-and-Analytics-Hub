@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import MAP from './mapdata.json';
 import { cx } from './ui.jsx';
+import { SPEED } from './speed.js';
 
 // Chart palette: reference categorical order + fixed status steps (validated – see dataviz skill)
 export const C = {
@@ -36,7 +37,8 @@ export function useScale(lo, hi) {
   return r.current;
 }
 // useTween: animates a number to its new value with requestAnimationFrame (ease-out)
-export function useTween(v, ms = 800) {
+export function useTween(v, ms0 = 800) {
+  const ms = Math.min(ms0, SPEED.tick * 0.85);
   const [x, setX] = useState(v); const cur = useRef(v); const raf = useRef(0);
   useEffect(() => {
     const a = cur.current, b = v;
@@ -61,17 +63,58 @@ export function TweenNum({ value }) {
 }
 const niceMax = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; };
 
-export function Spark({ data, w = 110, h = 30, color = C.info, fill = true, min, max, className }) {
+// Width of an element's parent, so fixed-size marks never spill out of narrow tiles
+export function useParentW(ref, w) {
+  const [pw, setPw] = useState(w);
+  useEffect(() => {
+    const el = ref.current && ref.current.parentElement; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => { const cs = getComputedStyle(el); const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); if (inner > 0) setPw(inner); });
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  return Math.max(30, Math.min(w, pw));
+}
+// FitText: one line that scales itself down (to 55% at most) instead of spilling past its box
+export function FitText({ children, className, min = 0.55 }) {
+  const box = useRef(null), inner = useRef(null); const [sc, setSc] = useState(1); const scRef = useRef(1);
+  useEffect(() => {
+    const b = box.current, i = inner.current; if (!b || !i || typeof ResizeObserver === 'undefined') return;
+    const fit = () => { const natural = i.offsetWidth, avail = b.clientWidth; const n = natural > avail + 0.5 ? Math.max(min, Math.floor((avail / natural) * 100) / 100) : 1; if (Math.abs(n - scRef.current) > 0.009) { scRef.current = n; setSc(n); } };
+    const ro = new ResizeObserver(fit); ro.observe(b); ro.observe(i); fit();
+    return () => ro.disconnect();
+  }, []);
+  return <div ref={box} data-fit="1" className={cx('min-w-0 max-w-full overflow-x-clip', className)}><span ref={inner} className="inline-block whitespace-nowrap origin-left" style={sc < 1 ? { transform: `scale(${sc})` } : undefined}>{children}</span></div>;
+}
+
+// x-axis labels that never overlap: evenly spaced, each kept only if it clears the one before
+export function pickLabels(labels, X, x0, x1, cw = 6) {
+  const n = labels.length; if (!n) return [];
+  const wd = l => String(l).length * cw;
+  const maxW = Math.max(...labels.map(wd));
+  const fit = Math.max(2, Math.floor((x1 - x0) / (maxW + 14)));
+  const step = Math.max(1, Math.ceil((n - 1) / (fit - 1)));
+  const out = []; let lastR = -1e9;
+  for (let i = 0; i < n; i += step) {
+    const x = X(i), w = wd(labels[i]);
+    const a = i === 0 ? 'start' : x + w / 2 > x1 ? 'end' : 'middle';
+    const left = a === 'start' ? x : a === 'end' ? x - w : x - w / 2;
+    if (left < lastR + 8) continue;
+    out.push([labels[i], i, a]); lastR = left + w;
+  }
+  return out;
+}
+
+export function Spark({ data, w: w0 = 110, h = 30, color = C.info, fill = true, min, max, className }) {
+  const ref = useRef(null); const w = useParentW(ref, w0);
   const k = useSlide(data); const cid = useId().replace(/:/g, '');
   const [lo0, hi0] = data && data.length ? [Math.min(...data), Math.max(...data)] : [0, 1];
   const [elo, ehi] = useScale(lo0, hi0);
-  if (!data || !data.length) return null;
+  if (!data || !data.length) return <svg ref={ref} width={0} height={h} />;
   const lo = min ?? elo, hi = max ?? ehi, r = hi - lo || 1;
   const step = (w - 4) / Math.max(1, data.length - 1);
   const pts = data.map((v, i) => [i * step + 1, h - 3 - ((v - lo) / r) * (h - 6)]);
   const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
   return (
-    <svg width={w} height={h} className={className} viewBox={`0 0 ${w} ${h}`}>
+    <svg ref={ref} width={w} height={h} className={cx('min-w-0', className)} style={{ maxWidth: '100%' }} preserveAspectRatio="none" viewBox={`0 0 ${w} ${h}`}>
       <defs><clipPath id={`sp${cid}`}><rect x="0" y="0" width={w} height={h} /></clipPath></defs>
       <g clipPath={`url(#sp${cid})`}>
         <g key={k} className={k ? 'slide-x' : ''} style={{ '--dx': `${step.toFixed(2)}px` }}>
@@ -110,7 +153,7 @@ export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [
         {forecastFrom != null && <g><rect x={X(forecastFrom)} y={T} width={W - Rr - X(forecastFrom)} height={H - T - B} className="fill-chip" opacity="0.6" /><line x1={X(forecastFrom)} x2={X(forecastFrom)} y1={T} y2={H - B} className="stroke-ink3" strokeWidth="1" /><text x={X(forecastFrom) + 5} y={T + 11} fontSize="10.5" className="fill-ink2" fontWeight="600">{nowLabel}</text><text x={W - Rr - 4} y={T + 11} fontSize="10.5" textAnchor="end" className="fill-ink3">forecast</text></g>}
         {band && <path d={bandPath} fill={band.color || C.info} opacity="0.15" />}
         {refLines.map(rl => <g key={rl.label}><line x1={L} x2={W - Rr} y1={Y(rl.v)} y2={Y(rl.v)} stroke={rl.color} strokeDasharray="5 4" strokeWidth="1.3" /><text x={L + 4} y={Y(rl.v) - 4} fontSize="10.5" className="fill-ink2" fontWeight="600">{rl.label}</text></g>)}
-        {labels.map((l, i) => (n <= 12 || i % Math.ceil(n / 7) === 0) && <text key={i} x={X(i)} y={H - 7} textAnchor={i === 0 ? 'start' : X(i) > W - Rr - 24 ? 'end' : 'middle'} className="fill-ink3" fontSize="10.5">{l}</text>)}
+        {pickLabels(labels, X, L, W - Rr).map(([l, i, a]) => <text key={i} x={X(i)} y={H - 7} textAnchor={a} className="fill-ink3" fontSize="10.5">{l}</text>)}
         <defs><clipPath id={`lc${cid}`}><rect x={L} y={0} width={Math.max(0, W - L - Rr + 6)} height={H} /></clipPath></defs>
         <g clipPath={`url(#lc${cid})`}><g key={live ? sk : 'static'} className={live ? 'slide-x' : ''} style={{ '--dx': `${((W - L - Rr) / Math.max(1, n - 1)).toFixed(2)}px` }}>
         {series.map(s => { const f = s.forecastFrom ?? forecastFrom; return <g key={s.name}>
@@ -185,7 +228,7 @@ export function Legend({ items, className }) {
 export function Ring({ value, size = 56, stroke = 6, color = C.ok, label }) {
   const r = (size - stroke) / 2, c = 2 * Math.PI * r;
   return (
-    <svg width={size} height={size}>
+    <svg width={size} height={size} className="shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-chip" strokeWidth={stroke} />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={`${c * value} ${c}`} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} />
       {label && <text x="50%" y="56%" textAnchor="middle" fontSize={size > 90 ? 24 : 14} fontWeight="600" className="fill-ink" style={{ fontFamily: 'Arial' }}>{label}</text>}

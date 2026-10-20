@@ -4,6 +4,7 @@ import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranch
 import * as D from './data.js';
 import { DEMOS as SCENARIOS } from './demos.js';
 import { DemoStage } from './stage.jsx';
+import { useLive } from './live.jsx';
 import { DEMOS } from './demos.js';
 import { LiveDemos } from './mod_demos.jsx';
 import { Branch360 } from './mod_b360.jsx';
@@ -62,7 +63,7 @@ function Header() {
   const pendingNotif = s.approvals.filter(a => a.status === 'Pending').length;
   const hb = 'h-8 rounded-[4px] border border-line text-ink hover:bg-chip';
   return (
-    <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 sticky top-0 z-40 border-b border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
+    <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 [&>*]:shrink-0 sticky top-0 z-40 border-b border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
       <div className="flex items-center gap-3 min-w-0 w-[220px] shrink-0">
         <RoofMark />
         <div className="leading-none min-w-0">
@@ -70,14 +71,14 @@ function Header() {
           <div className="text-[10.5px] text-ink2 mt-0.5 whitespace-nowrap uppercase tracking-[0.12em]">Distribution</div>
         </div>
       </div>
-      <div className="leading-tight min-w-0 border-l border-line pl-4">
-        <div className="font-display text-[19px] font-semibold text-ink whitespace-nowrap">Network Intelligence Hub</div>
+      <div className="leading-tight min-w-0 !shrink border-l border-line pl-4">
+        <div className="font-display text-[19px] font-semibold text-ink whitespace-nowrap truncate">Network Intelligence Hub</div>
       </div>
-      <div className="flex-1" />
-      <div className="hidden 2xl:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">
+      <div className="flex-1 !shrink" />
+      <div className="hidden min-[1800px]:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">
         {[['opsramp', 1], ['central', 2], ['servicenow', 1], ['movaio', 0]].map(([k, sec]) => <span key={k} className="inline-flex items-center gap-1.5"><span className="bg-white rounded-[3px] px-1 py-[2px] inline-flex border border-line"><img src={LOGOS[k]} alt={k} style={{ height: 11 }} /></span><span className="w-1.5 h-1.5 rounded-full bg-ok" />{(Math.floor(now / 1000) + sec) % 7 + 1}s</span>)}
       </div>
-      <button onClick={() => act.go('demos')} className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.PlayCircle size={15} />Live demos</button>
+      <button onClick={() => act.go('demos')} title="Live demos" className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.PlayCircle size={15} /><span className="hidden min-[1440px]:inline">Live demos</span></button>
       <button onClick={() => act.set({ askOpen: !s.askOpen })} className="h-8 rounded-[4px] px-3 text-[13px] font-semibold inline-flex items-center gap-1.5 bg-brand hover:brightness-110 text-white"><I.Sparkles size={15} />Ask Mova iO</button>
       <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px]'}>
         <I.UserRound size={14} className="text-ink3" />
@@ -90,8 +91,19 @@ function Header() {
         <I.Bell size={16} />{pendingNotif > 0 && <span className="absolute -top-1.5 -right-1.5 bg-bad text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{pendingNotif}</span>}
       </button>
       <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={hb + ' w-8 flex items-center justify-center'} title="Toggle light / dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
+      <SpeedControl />
       <div className="flex items-baseline gap-1.5 px-1 font-mono text-[14px] text-ink tabular"><span className="self-center w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />{hhmmss(now)}<span className="text-[10.5px] text-ink3">CT</span></div>
     </header>
+  );
+}
+
+function SpeedControl() {
+  const { speed, setSpeed } = useLive(); const { act } = useApp();
+  return (
+    <div className="shrink-0 inline-flex items-center h-8 rounded-[4px] border border-line overflow-hidden text-[12px]" role="group" aria-label="Live data speed" title="How fast live data refreshes">
+      <span className="inline-flex items-center gap-1 px-2 text-ink3 font-semibold h-full"><I.Gauge size={13} /><span className="hidden min-[1600px]:inline">Speed</span></span>
+      {[1, 5, 10].map(x => <button key={x} onClick={() => { setSpeed(x); act.toast(x === 1 ? 'Live data back to normal speed (every 2 s)' : `Live data at ${x}× speed (every ${(2 / x).toFixed(1)} s)`, 'info'); }} aria-pressed={speed === x} className={cx('px-2 h-full font-bold border-l border-line', speed === x ? 'bg-ink text-canvas' : 'text-ink2 hover:bg-chip')}>{x}×</button>)}
+    </div>
   );
 }
 
@@ -223,7 +235,7 @@ function ScenarioPicker() {
   const { s, act } = useApp();
   return (
     <Modal open={!!s.scenarioPicker} onClose={() => act.set({ scenarioPicker: false })} title="Scripted scenarios" sub="Each one replays a realistic event sequence into the live console. Timestamps are anchored so the last step lands at the current time." wide>
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {SCENARIOS.map(sc => { const Ic = SC_ICONS[sc.icon] || I.Play; return (
           <button key={sc.id} onClick={() => { act.set({ scenarioPicker: false, scenario: { id: sc.id, run: Date.now() } }); }} className="text-left border border-line rounded-md p-3.5 hover:border-brand hover:bg-chip/60 flex gap-3">
             <span className="w-9 h-9 rounded-md bg-brand/10 text-brand dark:text-[#e8a3a5] flex items-center justify-center shrink-0"><Ic size={18} /></span>
@@ -235,10 +247,15 @@ function ScenarioPicker() {
 }
 
 function Toasts() {
-  const { s } = useApp();
+  const { s, act } = useApp();
+  if (s.scenario) return null; // the demo stage shows its own events
   return (
-    <div className="fixed bottom-4 left-[252px] z-[90] flex flex-col gap-2 items-start pointer-events-none">
-      {s.toasts.map(t => <div key={t.id} className={cx('pointer-events-auto px-3.5 py-2 rounded-md shadow-xl text-[13px] font-semibold flex items-center gap-2 border', t.tone === 'bad' ? 'bg-bad text-white border-bad' : t.tone === 'warn' ? 'bg-warn text-white border-warn' : t.tone === 'info' ? 'bg-ink text-canvas border-ink' : 'bg-ok text-white border-ok')}>{t.tone === 'bad' ? <I.XCircle size={15} /> : t.tone === 'warn' ? <I.AlertTriangle size={15} /> : <I.CheckCircle2 size={15} />}{t.msg}</div>)}
+    <div className="fixed top-[68px] right-4 z-[90] flex flex-col gap-2 items-end pointer-events-none w-[360px] max-w-[calc(100vw-32px)]">
+      {s.toasts.map(t => <div key={t.id} role="status" className={cx('toast-in pointer-events-auto w-full pl-3.5 pr-1.5 py-2 rounded-md shadow-xl text-[13px] font-semibold flex items-start gap-2 border', t.tone === 'bad' ? 'bg-bad text-white border-bad' : t.tone === 'warn' ? 'bg-warn text-white border-warn' : t.tone === 'info' ? 'bg-ink text-canvas border-ink' : 'bg-ok text-white border-ok')}>
+        <span className="mt-[2px] shrink-0">{t.tone === 'bad' ? <I.XCircle size={15} /> : t.tone === 'warn' ? <I.AlertTriangle size={15} /> : t.tone === 'info' ? <I.Info size={15} /> : <I.CheckCircle2 size={15} />}</span>
+        <span className="flex-1 min-w-0 leading-snug">{t.msg}</span>
+        <button onClick={() => act.dismissToast(t.id)} aria-label="Close notification" title="Close" className="shrink-0 w-6 h-6 -my-0.5 rounded flex items-center justify-center opacity-80 hover:opacity-100 hover:bg-white/15"><I.X size={14} /></button>
+      </div>)}
     </div>
   );
 }
@@ -271,7 +288,7 @@ export function BranchDrawer() {
   return (
     <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}, {b.brand}</span>} sub={`${b.id}, ${b.city}, ${b.state}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
       footer={<><Btn icon={I.Sunrise} onClick={() => { close(); act.set(st => ({ module: 'readiness', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Readiness checks</Btn><Btn icon={I.Network} onClick={() => { close(); act.set({ module: 'graph', graphBranch: b.id }); }}>Show in network graph</Btn><Btn icon={I.Boxes} onClick={() => { close(); act.set(st => ({ module: 'inventory', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Devices</Btn><div className="flex-1" /><Btn kind="brand" icon={I.Filter} onClick={() => { close(); act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } }); }}>Filter console to this branch</Btn></>}>
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <div className="text-[12px] font-bold text-ink3 mb-1">Branch</div>
           <KV k="Hours" v={`${b.hours.open}–${b.hours.close}${b.hours.sat ? `, Sat ${b.hours.sat}` : ''}`} />

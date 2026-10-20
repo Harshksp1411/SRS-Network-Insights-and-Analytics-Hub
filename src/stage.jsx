@@ -307,7 +307,7 @@ function Stage({ demo }) {
           <div className="flex-1" /><span className="text-[12px] text-ink3 whitespace-nowrap">{v.ph < 0 ? 'Signals arriving' : `Run ${R.sess.replace('VLT', 'RUN')} · ${sp.rb}`}</span>
         </div>
         {/* system tiles */}
-        <div className="grid gap-px bg-line border-b border-line shrink-0" style={{ gridTemplateColumns: `repeat(${sp.systems.length}, minmax(0, 1fr))` }}>
+        <div className="grid grid-cols-1 gap-px bg-line border-b border-line shrink-0" style={{ gridTemplateColumns: `repeat(${sp.systems.length}, minmax(0, 1fr))` }}>
           {sp.systems.map(k => { let x = v.sys[k];
             if (k === 'servicenow') x = v.tkt ? [`${R.no} · ${v.tkt.state}`, `${pri} · ${v.tkt.acts.length} work note${v.tkt.acts.length === 1 ? '' : 's'}`, v.tkt.state === 'Resolved' ? 'ok' : 'info'] : ['No ticket yet', 'one per event', 'idle'];
             if (k === 'audit') x = v.aud.length ? [`${v.aud.length} entr${v.aud.length === 1 ? 'y' : 'ies'}`, v.aud[v.aud.length - 1], 'ok'] : ['0 entries', 'records every action', 'idle'];
@@ -322,7 +322,7 @@ function Stage({ demo }) {
               </div>); })}
         </div>
         {/* business strip */}
-        <div className="grid md:grid-cols-4 gap-x-5 gap-y-1 px-4 py-2 border-b border-line shrink-0 text-[12.5px] leading-[17px]">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-5 gap-y-1 px-4 py-2 border-b border-line shrink-0 text-[12.5px] leading-[17px]">
           {[['The problem', demo.story.problem, 'text-info'], ['Impact', demo.story.impact, 'text-warn'], [v.done && !v.declined ? 'Protected' : 'At risk', sp.risk, v.done && !v.declined ? 'text-ok' : 'text-bad'], [v.done && !v.declined ? 'Result' : 'Expected result', sp.result, 'text-ok']].map(([k, t, tc]) => <div key={k} className="min-w-0"><div className={cx('text-[11px] font-bold uppercase tracking-wide', tc)}>{k}</div><div className="line-clamp-2 text-ink" title={t}>{t}</div></div>)}
         </div>
         {/* gate bar */}
@@ -334,7 +334,7 @@ function Stage({ demo }) {
           <I.Timer size={18} className="text-info" /><div className="flex-1 text-[13px]"><b>Human-on-the-loop.</b> Mova iO runs this in <b>{countdown} s</b> unless someone stops it. <span className="text-ink2">{sp.why} In production the stop window is 5 minutes; the demo shortens it.</span></div>
           <button onClick={decline} className="h-8 px-3 rounded-md border border-bad/60 text-bad text-[13px] font-bold inline-flex items-center gap-1.5"><I.OctagonX size={14} />Stop</button></div>}
         {/* body */}
-        <div className="flex-1 min-h-0 relative"><div className="h-full grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_minmax(0,1.02fr)] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 min-h-0 relative"><div className="grid-cols-1 h-full grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_minmax(0,1.02fr)] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
           {/* left: telemetry */}
           <div className="flex flex-col gap-3 min-h-0 min-w-0 lg:overflow-y-auto stage-col">
             <div className="rounded-lg border border-line bg-panel p-3">
@@ -384,7 +384,7 @@ function Stage({ demo }) {
             {sp.tech.note && <span className="text-ink3 text-[12px] hidden md:inline">{sp.tech.note}</span>}
             <div className="flex-1" />
             <span className="text-[12px] text-ink3">Demo {idx + 1} of {DEMOS.length}</span>
-            <button onClick={() => setSpeed(x => x === 1 ? 2 : 1)} className="h-8 px-2.5 rounded-md border border-line font-bold hover:bg-chip">{speed}×</button>
+            <div className="inline-flex h-8 rounded-md border border-line overflow-hidden" role="group" aria-label="Demo speed">{[1, 2, 5, 10].map(x => <button key={x} onClick={() => setSpeed(x)} aria-pressed={speed === x} className={cx('px-2.5 font-bold text-[12.5px] border-l border-line first:border-l-0', speed === x ? 'bg-ink text-canvas' : 'text-ink2 hover:bg-chip')}>{x}×</button>)}</div>
             <button onClick={skip} className="h-8 px-3 rounded-md border border-line font-bold hover:bg-chip inline-flex items-center gap-1.5 whitespace-nowrap"><I.SkipForward size={14} />Skip to end</button>
           </>}
         </div>
@@ -522,7 +522,7 @@ export function ExplainBody({ demo, sp, c, view, measured, inc }) {
       </div>
       <ol className="mt-3 space-y-2">{[['Summary', demo.story.problem], ['Root cause', `${sp.cause} (${pct(sp.conf)} confidence).`], ['Actions taken', sp.tasks.map(x => x[0]).join('; ') + '.'], ['Records', recs.join(', ') + '.'], ['Resolution', demo.story.resolution]].map(([k, t], i) => (
         <li key={k} className="flex gap-2.5 text-[12.5px] leading-[18px]"><span className="w-5 h-5 rounded-full bg-ink text-canvas text-[11px] font-bold flex items-center justify-center shrink-0">{i + 1}</span><span><b>{k}:</b> {t}</span></li>))}</ol>
-      <div className="grid sm:grid-cols-2 gap-2 mt-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
         <div className="rounded-md border border-line p-2.5"><div className="text-[12px] font-bold mb-1">How Mova iO knows</div><ul className="space-y-1">{sp.evidence.map(x => <li key={x} className="flex gap-2 text-[12px] leading-[16px]"><span className="w-1.5 h-1.5 rounded-full bg-ok mt-[5px] shrink-0" />{x}</li>)}</ul></div>
         <div className="rounded-md border border-line p-2.5"><div className="text-[12px] font-bold mb-1">What was ruled out</div><ul className="space-y-1">{sp.ruled.map(x => <li key={x} className="flex gap-2 text-[12px] leading-[16px]"><span className="w-1.5 h-1.5 rounded-full bg-ink3 mt-[5px] shrink-0" />{x}</li>)}</ul></div>
       </div>

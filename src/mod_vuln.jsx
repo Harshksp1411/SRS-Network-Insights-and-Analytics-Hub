@@ -50,7 +50,7 @@ export function Vulns() {
         <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days" />
       </div>
       <LivePanel kind="vuln" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-3 gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mt-3">
         <Card title="Exposure by severity" sub="Each device counted once at its worst finding"><Donut data={sevMix} center={num(anyDevs)} sub="with a CVE" /></Card>
         <Card title="Vulnerable devices, now and projected" sub="If the scheduled remediation waves run as planned">
           <LineChart labels={burn.labels} series={[{ name: 'Vulnerable devices', data: burn.act0, color: C.bad }, { name: 'Projected', data: burn.fc, color: C.bad, forecastFrom: 6 }]} band={{ lo: burn.lo, hi: burn.hi, color: C.bad }} forecastFrom={6} h={170} yMin={0} yFmt={v => Math.round(v)} />
@@ -60,12 +60,12 @@ export function Vulns() {
         </Card>
       </div>
       <Tabs value={tab} onChange={setTab} className="mt-3 mb-2" tabs={[{ id: 'advisories', label: 'Advisories', count: rows.filter(r => r.n).length }, { id: 'models', label: 'Models and lifecycle' }, { id: 'regions', label: 'Exposure by region' }, { id: 'branches', label: 'Most exposed branches' }]} />
-      {tab === 'advisories' && <div className="space-y-2">{rows.filter(r => r.n).map(r => <Card key={r.id} pad={false}><div className="p-4 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
+      {tab === 'advisories' && <div className="space-y-2">{rows.filter(r => r.n).map(r => <Card key={r.id} pad={false}><div className="grid-cols-1 p-4 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap"><Badge tone={sevTone(r.sev)}>{r.sev}{r.cvss ? ` CVSS ${r.cvss}` : ''}</Badge><span className="text-[12px] text-ink3">{r.id}, published {r.published}</span>{plan[r.id] && <Badge tone="blue">{plan[r.id]}</Badge>}{plan[r.id + ':m'] && <Badge tone="green">Mitigated</Badge>}</div>
           <div className="text-[15px] font-bold text-ink mt-1">{r.title}</div>
           {r.cves.length > 0 && <div className="text-[12.5px] text-ink2 mt-0.5">{r.cves.join(', ')}</div>}
-          <div className="grid md:grid-cols-3 gap-3 mt-2 text-[12.5px]"><div><div className="text-ink3">Product</div><div className="text-ink">{r.product}</div></div><div><div className="text-ink3">Fixed in</div><div className="text-ink">{r.fixed}</div></div><div><div className="text-ink3">Mitigation until patched</div><div className="text-ink">{r.mitigation}</div></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 text-[12.5px]"><div><div className="text-ink3">Product</div><div className="text-ink">{r.product}</div></div><div><div className="text-ink3">Fixed in</div><div className="text-ink">{r.fixed}</div></div><div><div className="text-ink3">Mitigation until patched</div><div className="text-ink">{r.mitigation}</div></div></div>
           <div className="text-[11.5px] text-ink3 mt-2">Source: {D.SRC[r.src]}</div>
         </div>
         <div className="space-y-2">

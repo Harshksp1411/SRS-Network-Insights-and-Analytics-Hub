@@ -51,9 +51,12 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 .num-flash { animation: numFlash 1.2s ease-out; }
 /* streaming charts: each new point slides in over one live tick (2 s), so lines move continuously */
 @keyframes slideX { from { transform: translateX(var(--dx, 0px)); } to { transform: translateX(0); } }
-.slide-x { animation: slideX 2s linear both; will-change: transform; }
+.slide-x { animation: slideX var(--tick, 2s) linear both; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .slide-x { animation: none; } }
 @keyframes flowDash { to { stroke-dashoffset: -16; } }
 .flow-dash { animation: flowDash 1.6s linear infinite; }
 
 .stage-col { scrollbar-width: thin; }
+
+@keyframes toastIn { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast-in { animation: toastIn .25s ease-out both; }

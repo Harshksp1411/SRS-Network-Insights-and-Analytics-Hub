@@ -56,7 +56,7 @@ function Queue() {
     <div>
       <PageHead icon={I.Siren} title="Live Incidents" sub="ServiceNow incident queue with SLA clocks from Annexure B: P1 15 min / 4 h, P2 15 min / 8 h, P3 30 min / 24 h, P4 30 min / 96 h."
         right={<><LiveBadge /><Btn icon={I.PlayCircle} onClick={() => act.set({ scenarioPicker: true })}>Scenarios</Btn><ExportBtn onClick={() => exportCSV('srs-incidents.csv', rows, [{ label: 'Number', key: 'id' }, { label: 'Priority', key: 'pri' }, { label: 'Title', key: 'title' }, { label: 'Branch', get: i => D.BR[i.branchId].name }, { label: 'Brand', get: i => D.BR[i.branchId].brand }, { label: 'Category', key: 'cat' }, { label: 'State', key: 'state' }, { label: 'Assigned', key: 'assignee' }, { label: 'Opened', get: i => dt(i.opened) }])} /></>} />
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mb-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mb-3">
         <QueueForecastCard />
         <BreachRiskCard />
       </div>
@@ -165,7 +165,7 @@ function IncidentDetail({ id }) {
         </div>}
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-3">
         <div>
           <div className="mb-3"><IncidentTelemetryCard inc={inc} /></div>
           <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'timeline', label: 'Signal timeline', count: timeline.length }, { id: 'corr', label: 'Correlated events', count: inc.corr }, { id: 'rca', label: 'Root cause', count: inc.rca.length }, { id: 'agents', label: 'Agent steps', count: inc.agentSteps.length }, { id: 'runbook', label: 'Runbook' }, { id: 'verify', label: 'Verification', count: inc.verify.length }, { id: 'notes', label: 'Work notes', count: inc.notes.length }]} />
@@ -179,7 +179,7 @@ function IncidentDetail({ id }) {
             ))}
           </ol></div></Card>}
           {tab === 'corr' && <Card title={`${inc.corr} raw events → 1 incident`} sub={`${inc.suppressed} suppressed as duplicates, flaps or children of the parent fault (OpsRamp correlation + Mova iO Graph Builder)`}>
-            <div className="grid md:grid-cols-3 gap-2 mb-3">{Object.entries(corrBy).map(([src, n]) => <div key={src} className="border border-line rounded-md p-2 flex items-center gap-2">{SRC_LOGO[src] ? <Logo k={SRC_LOGO[src]} h={12} /> : <I.Radio size={14} className="text-ink3" />}<span className="text-[12.5px] text-ink flex-1">{src}</span><b className="text-ink">{n}</b></div>)}</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{Object.entries(corrBy).map(([src, n]) => <div key={src} className="border border-line rounded-md p-2 flex items-center gap-2">{SRC_LOGO[src] ? <Logo k={SRC_LOGO[src]} h={12} /> : <I.Radio size={14} className="text-ink3" />}<span className="text-[12.5px] text-ink flex-1">{src}</span><b className="text-ink">{n}</b></div>)}</div>
             <Table dense rows={inc.signals.map((x, k) => ({ ...x, id: k }))} cols={[{ key: 't', label: 'Time', render: x => <span className="font-mono text-[12px]">{hhmmss(x.t)}</span> }, { key: 'src', label: 'Source' }, { key: 'sev', label: 'Severity', render: x => <Badge tone={x.sev === 'Critical' ? 'red' : x.sev === 'Major' ? 'amber' : 'gray'}>{x.sev}</Badge> }, { key: 'msg', label: 'Event' }, { key: 'role', label: 'Role', render: (x) => <span className="text-[11.5px] text-ink3">{x.id === 0 ? 'Parent' : 'Child / duplicate'}</span> }]} />
             {inc.children && inc.children.length > 0 && <div className="mt-3"><div className="text-[12px] font-bold text-ink3 mb-1">Branches grouped into this major incident</div><div className="flex flex-wrap gap-1.5">{inc.children.map(id => <button key={id} onClick={() => act.openBranch(id)}><Badge tone={healthOf(s, D.BR[id]) === 'down' ? 'red' : 'amber'}>{D.BR[id].name}, {D.BR[id].brand}</Badge></button>)}</div></div>}
           </Card>}
@@ -195,7 +195,7 @@ function IncidentDetail({ id }) {
             <ol className="space-y-2">{inc.agentSteps.map((x, k) => <li key={k} className="flex gap-3 border border-line rounded-md p-2.5"><span className="font-mono text-[11.5px] text-ink3 w-16 shrink-0">{hhmmss(x.t)}</span><div className="flex-1"><AgentChip a={x.agent} /><div className="text-[12.5px] text-ink mt-0.5">{x.text}</div><div className="text-[11px] text-ink3 mt-0.5">{AG[x.agent] && AG[x.agent].also}</div></div><I.CheckCircle2 size={15} className="text-ok shrink-0" /></li>)}</ol>
           </Card>}
           {tab === 'runbook' && (rb ? <Card title={`${rb.id}, ${rb.name}`} sub={rb.desc} icon={I.Workflow} right={<Badge tone="purple">{rb.autonomy} – {D.AUTONOMY[rb.autonomy]}</Badge>}>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <div className="text-[12px] font-bold text-ink3 mb-1">Steps</div>
                 <ol className="space-y-1.5">{rb.steps.map((st, k) => <li key={k} className="flex items-start gap-2 text-[12.5px]">{running > k || inc.rbState === 'done' ? <I.CheckCircle2 size={15} className="text-ok mt-0.5" /> : running === k ? <I.Loader2 size={15} className="text-info animate-spin mt-0.5" /> : <I.Circle size={15} className="text-ink3 mt-0.5" />}<span className="text-ink">{st}</span></li>)}</ol>

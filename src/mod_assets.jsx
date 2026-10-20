@@ -60,7 +60,7 @@ export function Inventory() {
       </div>
       <LivePanel kind="inventory" className="mb-3 mt-3" />
       <div className="mb-3"><ToolsStrip only={['aruba', 'central', 'opsramp']} /></div>
-      <div className="grid xl:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
         <FirmwareMixCard />
         <WarrantyCard />
         <BackupTrendCard />
@@ -110,7 +110,7 @@ export function Inventory() {
       {tab === 'recon' && <Recon />}
       <Modal open={!!dev} onClose={() => setDev(null)} title={dev && <span className="font-mono">{dev.id}</span>} sub={dev && `${dev.model}, ${dev.type}, ${D.BR[dev.branchId].name}, ${D.BR[dev.branchId].brand}`} wide
         footer={dev && <><Btn icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open branch</Btn><Btn icon={I.Network} onClick={() => { setDev(null); act.set({ module: 'graph', graphBranch: dev.branchId }); }}>Show in graph</Btn></>}>
-        {dev && <div className="grid md:grid-cols-2 gap-5">
+        {dev && <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div><KV k="Model" v={dev.model} /><KV k="Role / zone" v={dev.role} /><KV k="Managed by" v={dev.type === 'SD-WAN' ? 'EdgeConnect Orchestrator' : `Aruba Central (${dev.mode})`} /><KV k="Firmware" v={<span className="flex items-center gap-1.5">{dev.fw}{fwBadge(dev)}</span>} /><KV k="Target (N)" v={D.FW_TARGET[dev.type === 'AP' ? 'AP' : dev.model][0]} /><KV k="Serial / MAC" v={<span className="font-mono">{dev.serial}</span>} /><KV k="Warranty end" v={new Date(dev.warranty).toISOString().slice(0, 10)} /><KV k="CMDB CI" v={`cmdb_ci_netgear, ${dev.id}`} /></div>
           <div>
             <div className="text-[12px] font-bold text-ink3 mb-1">Running config vs golden (Network-as-Code)</div>
@@ -135,7 +135,7 @@ function Recon() {
   const cm = m => D.DEVICES.filter(d => d.model === m).length;
   const models = [['EC-XS (SilverPeak/Aruba SD-WAN)', 933, cm('EC-XS')], ['AP-635', 1162, cm('AP-635')], ['AP-565', 80, cm('AP-565')], ['AP-585', 40, cm('AP-585')], ['AP-634', 2, cm('AP-634')], ['AP-567', 1, cm('AP-567')], ['AP-575', 1, cm('AP-575')], ['6100', 1058, cm('6100')], ['2530', 728, cm('2530')], ['6200M', 57, cm('6200M')], ['6300', 13, cm('6300')]];
   return (
-    <div className="grid xl:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
       <Card title="Contracted inventory" sub="HPE Aruba Networking pivot – 3,142 devices + 933 EC-XS = 4,075; 1,800 circuits; 900 branch locations" icon={I.FileSpreadsheet}>
         <table className="w-full text-[12.5px]"><tbody>
           {rfp.map(([g, n, ms]) => <React.Fragment key={g}><tr className="border-t border-line"><td className="py-1.5 font-bold text-ink">{g}</td><td className="text-right font-bold">{num(n)}</td></tr>{ms.map(([m, k]) => <tr key={g + m}><td className="pl-5 py-0.5 text-ink2">{m}</td><td className="text-right text-ink2">{num(k)}</td></tr>)}</React.Fragment>)}
@@ -183,8 +183,8 @@ export function Carriers() {
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>
       <LivePanel kind="carriers" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><CarrierNetworks /><TopBranches /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><CarrierNetworks /><TopBranches /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
         <CarrierForecastCard />
         <CarrierTrendCard />
       </div>
@@ -201,7 +201,7 @@ export function Carriers() {
         { key: 'act', label: '', sortable: false, render: c => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.FileSearch} onClick={() => setEv(c)}>Evidence</Btn>{!c.closed && <><Btn size="xs" icon={I.ArrowUpCircle} onClick={() => { act.upd('cases', c.id, x => ({ escal: x.escal + 1, status: `Escalated L${x.escal + 1} – carrier`, lastUpdate: Date.now() })); act.audit(`Escalated ${c.id} to L${c.escal + 1}`, c.id); act.toast(`${c.carrier} case escalated to level ${c.escal + 1}`, 'warn'); }}>Escalate</Btn><Btn size="xs" kind="ok" icon={I.Check} onClick={() => { act.upd('cases', c.id, { closed: true, status: 'Closed – carrier fault fixed', lastUpdate: Date.now() }); act.audit(`Closed ${c.id}`, c.id); }}>Close</Btn></>}</div> },
       ]} /></div></Card>}
       {tab === 'scorecard' && <div className="mb-3"><CarrierHeatCard /></div>}
-      {tab === 'scorecard' && <div className="grid min-[1700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
+      {tab === 'scorecard' && <div className="grid grid-cols-1 min-[1700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
         <Card title="Carrier scorecard – last 6 months" sub="533 carrier/LEC and 875 no-trouble-found tickets, by carrier" icon={I.Trophy}>
           <Table rows={D.SCORECARD.map(x => ({ ...x, id: x.carrier }))} cols={[
             { key: 'carrier', label: 'Carrier', render: x => <b>{x.carrier}</b> }, { key: 'circuits', label: 'Circuits', right: true }, { key: 'cases6m', label: 'Carrier faults', right: true }, { key: 'ntf', label: 'NTF', right: true },
@@ -223,7 +223,7 @@ export function Carriers() {
         { key: 'tickets90', label: 'Tickets 90d', right: true, render: c => <b className="text-bad">{c.tickets90}</b> }, { key: 'ntf90', label: 'NTF 90d', right: true },
         { key: 'act', label: '', sortable: false, render: c => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.FilePlus2} onClick={() => { const id = `PRB000${4250 + Math.floor(Math.random() * 99)}`; act.add('problems', { id, title: `Repeat faults on ${c.carrier} ${c.type} ${c.id} (${D.BR[c.branchId].name})`, incidents: c.tickets90, state: 'New', owner: 'Network Eng L3', opened: Date.now() }); act.audit(`Opened problem ${id} for ${c.id}`, id); act.toast(`${id} opened`); }}>Problem record</Btn><Btn size="xs" icon={I.Handshake} onClick={() => { act.audit(`Requested ${c.carrier} account review for ${c.id}`, c.id); act.toast(`Added to ${c.carrier} monthly service review`, 'info'); }}>Carrier review</Btn></div> },
       ]} /></div></Card>}
-      {tab === 'ntf' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
+      {tab === 'ntf' && <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
         <Card title="NTF and carrier/LEC tickets by month" sub="Last 6 months" icon={I.TrendingDown}>
           <Bars data={months} keys={['NTF', 'Carrier/LEC']} colors={[C.warn, C.s1]} h={220} />
           <Legend items={[['No trouble found', C.warn], ['Carrier / LEC', C.s1]]} />
@@ -234,7 +234,7 @@ export function Carriers() {
       </div>}
       <Modal open={!!ev} onClose={() => setEv(null)} title={ev && `Evidence pack – ${ev.id}`} sub={ev && `${ev.carrier}, ${ev.circuit}, built by Carrier Agent`} wide>
         {ev && (() => { const R = rng(ev.id.length * 31); const loss = Array.from({ length: 60 }, (_, i) => i > 32 ? 2 + R() * 6 : R() * 0.3); const jit = Array.from({ length: 60 }, (_, i) => i > 30 ? 25 + R() * 18 : 2 + R() * 3); return <div className="space-y-3">
-          <div className="grid md:grid-cols-2 gap-3"><div className="border border-line rounded-md p-2"><div className="text-[12px] font-semibold text-ink2 mb-1">Packet loss % – last 60 min</div><LineChart series={[{ name: 'Loss %', data: loss, color: C.bad }]} labels={loss.map((_, i) => `-${60 - i}m`)} h={120} yFmt={v => v.toFixed(1)} /></div><div className="border border-line rounded-md p-2"><div className="text-[12px] font-semibold text-ink2 mb-1">Jitter ms – last 60 min</div><LineChart series={[{ name: 'Jitter', data: jit, color: C.warn }]} labels={jit.map((_, i) => `-${60 - i}m`)} h={120} yFmt={v => v.toFixed(0)} /></div></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3"><div className="border border-line rounded-md p-2"><div className="text-[12px] font-semibold text-ink2 mb-1">Packet loss % – last 60 min</div><LineChart series={[{ name: 'Loss %', data: loss, color: C.bad }]} labels={loss.map((_, i) => `-${60 - i}m`)} h={120} yFmt={v => v.toFixed(1)} /></div><div className="border border-line rounded-md p-2"><div className="text-[12px] font-semibold text-ink2 mb-1">Jitter ms – last 60 min</div><LineChart series={[{ name: 'Jitter', data: jit, color: C.warn }]} labels={jit.map((_, i) => `-${60 - i}m`)} h={120} yFmt={v => v.toFixed(0)} /></div></div>
           <pre className="bg-chip border border-line rounded-md p-2.5 text-[11.5px] font-mono text-ink overflow-x-auto">{`MTR from ${String(ev.circuit).split(',')[0].replace('-wan1', '-ec01').replace('-wan2', '-ec01')} (wan path under test)
 HOST                         Loss%   Snt   Avg   Best  Wrst
 1. CPE gateway                0.0%    100   1.1   0.8   2.3
@@ -290,7 +290,7 @@ export function Dispatch() {
         <Stat label="Low-stock depot lines" icon={I.PackageX} value={s.depots.reduce((a, d) => a + Object.values(d.spares).filter(v => v <= 1).length, 0)} tone="amber" onClick={() => setTab('depots')} />
       </div>
       <LivePanel kind="dispatch" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
         <FieldDemandCard />
         <SparesCoverCard />
         <TechUtilCard />
@@ -308,7 +308,7 @@ export function Dispatch() {
         { key: 'act', label: '', sortable: false, render: w => w.tech && w.status !== 'Completed' ? <div className="flex gap-1 justify-end">{['Assigned', 'Dispatched', 'Scheduled'].includes(w.status) && <Btn size="xs" onClick={() => adv(w, 'En route')}>En route</Btn>}{w.status === 'En route' && <Btn size="xs" onClick={() => adv(w, 'On site')}>On site</Btn>}<Btn size="xs" kind="ok" icon={I.Check} onClick={() => adv(w, 'Completed')}>Complete</Btn></div> : null },
       ]} /></div></Card>}
       {tab === 'techs' && <Card pad={false}><div className="p-3"><Table rows={s.techs} cols={[{ key: 'name', label: 'Technician', render: t => <b>{t.name}</b> }, { key: 'region', label: 'Region' }, { key: 'base', label: 'Base' }, { key: 'skills', label: 'Skills', sortable: false, render: t => <div className="flex flex-wrap gap-1">{t.skills.map(k => <Badge key={k}>{k}</Badge>)}</div> }, { key: 'status', label: 'Status', render: t => <Badge tone={t.status === 'Available' ? 'green' : t.status === 'On site' ? 'blue' : 'gray'}>{t.status}</Badge> }, { key: 'jobs30', label: 'Jobs 30d', right: true }, { key: 'rating', label: 'Rating', right: true }]} /></div></Card>}
-      {tab === 'depots' && <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">{s.depots.map(d => <Card key={d.id} title={d.city} sub={d.id} icon={I.Warehouse} right={<Btn size="xs" icon={I.PackagePlus} onClick={() => { act.upd('depots', d.id, x => ({ spares: Object.fromEntries(Object.entries(x.spares).map(([k, v]) => [k, Math.max(v, 3)])) })); act.audit(`Restock requested for ${d.id}`, d.id); act.toast(`Restock ordered for ${d.city}`); }}>Restock</Btn>}>
+      {tab === 'depots' && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">{s.depots.map(d => <Card key={d.id} title={d.city} sub={d.id} icon={I.Warehouse} right={<Btn size="xs" icon={I.PackagePlus} onClick={() => { act.upd('depots', d.id, x => ({ spares: Object.fromEntries(Object.entries(x.spares).map(([k, v]) => [k, Math.max(v, 3)])) })); act.audit(`Restock requested for ${d.id}`, d.id); act.toast(`Restock ordered for ${d.city}`); }}>Restock</Btn>}>
         {Object.entries(d.spares).map(([k, v]) => <div key={k} className="flex items-center gap-2 py-1 text-[12.5px] border-b border-line/60 last:border-0"><span className="flex-1 text-ink">{k}</span><span className={cx('font-bold', v <= 1 ? 'text-bad' : v <= 2 ? 'text-warn' : 'text-ink')}>{v}</span>{v <= 1 && <Badge tone="red">low</Badge>}</div>)}
       </Card>)}</div>}
       <Modal open={!!match} onClose={() => setMatch(null)} title={match && `Match technician – ${match.id}`} sub={match && `${D.BR[match.branchId].name}, ${D.BR[match.branchId].brand}, needs ${match.skills.join(', ')}${match.parts.length ? `, parts ${match.parts.join(', ')}` : ''}`} wide>

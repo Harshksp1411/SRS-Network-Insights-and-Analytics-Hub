@@ -30,10 +30,10 @@ export function Predictive() {
         <Stat label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
       <div className="mb-3"><PreventiveCalendarCard /></div>
       <div className="flex items-center gap-2 mb-3"><Tabs size="sm" value={kind} onChange={setKind} tabs={['All', ...new Set(s.predictions.map(p => p.kind))].map(k => ({ id: k, label: k, count: k === 'All' ? s.predictions.length : s.predictions.filter(p => p.kind === k).length }))} /></div>
-      <div className="grid xl:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         {list.map(p => { const b = p.branchId && D.BR[p.branchId]; const done = !['New', 'Watching'].includes(p.status); return (
           <Card key={p.id} pad={false}><div className="p-4 scroll-mt-32" id={p.id}>
             <div className="flex items-center gap-2 flex-wrap"><span className="font-mono text-[11.5px] text-ink3">{p.id}</span><Badge tone="amber">{p.kind}</Badge><Badge>{p.horizon}</Badge><span className="flex-1" /><Badge tone={p.status === 'New' ? 'blue' : p.status === 'Watching' ? 'purple' : done ? 'green' : 'gray'}>{p.status}</Badge></div>
@@ -72,8 +72,8 @@ export function Knowledge() {
       </div>
       <LivePanel kind="knowledge" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'search', label: 'Search' }, { id: 'drafts', label: 'Auto-generated drafts', count: s.kbDrafts.filter(d => d.status === 'Awaiting review').length }, { id: 'problems', label: 'Problem records', count: s.problems.length }]} />
-      {tab === 'search' && <div className="grid xl:grid-cols-2 gap-3 mb-3"><ClustersCard /><DeflectionCard /></div>}
-      {tab === 'search' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
+      {tab === 'search' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><ClustersCard /><DeflectionCard /></div>}
+      {tab === 'search' && <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
         <Card title="Knowledge base" icon={I.Search}><SearchBox value={q} onChange={setQ} placeholder="Symptom, device, carrier… e.g. roaming, LTE, POS" className="w-full mb-3" />
           {res.map(k => <button key={k.id} onClick={() => act.set({ kbOpen: k.id })} className="w-full text-left py-2 border-b border-line/60 last:border-0 hover:bg-chip/50 px-1 rounded"><div className="flex items-center gap-2"><span className="font-mono text-[11.5px] text-ink3">{k.id}</span>{k.tags.map(t => <Badge key={t}>{t}</Badge>)}<span className="ml-auto text-[11.5px] text-ink3">★ {k.rating || '—'}, {num(k.views)} views</span></div><div className="text-[13px] font-semibold text-ink mt-0.5">{k.title}</div></button>)}
           {!res.length && <div className="text-ink3 text-[13px] py-4">No articles match.</div>}
@@ -119,8 +119,8 @@ export function Automation() {
         <Stat label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
       </div>
       <LivePanel kind="automation" className="mb-3 mt-3" />
-      <div className="grid xl:grid-cols-3 gap-3 mb-3 items-start"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_440px] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_440px] gap-3">
         <Card pad={false}><div className="p-3"><Table rows={s.runbooks} onRow={r => setSel(r.id)} rowClass={r => r.id === sel ? 'bg-chip' : ''} cols={[
           { key: 'id', label: 'ID', className: 'whitespace-nowrap', render: r => <span className="font-mono text-[12px] font-semibold">{r.id}</span> },
           { key: 'name', label: 'Runbook', render: r => <div><div className="font-semibold">{r.name}</div><div className="text-[11px] text-ink3">{r.kind === 'change' ? 'Makes a change' : 'Read-only / notify'}</div></div> },
@@ -177,14 +177,14 @@ export function SLATracker() {
       <div className="mb-3"><ErrorBudgets /></div>
       <div className="mb-3"><CalendarHeat /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
-        <div className="grid md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
           <div className="flex gap-4 mt-2 text-[12.5px]"><div><div className="text-[20px] font-extrabold text-ink">{q.n}</div><div className="text-ink3">open</div></div><div><div className="text-[20px] font-extrabold text-warn">{q.risk}</div><div className="text-ink3">at risk</div></div><div><div className="text-[20px] font-extrabold text-bad">{q.breached}</div><div className="text-ink3">breached</div></div></div>
           {q.respRisk > 0 && <div className="text-[11.5px] text-bad mt-1">{q.respRisk} close to missing response</div>}
           <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{x.c.resLeft < 0 ? 'breached' : dur(x.c.resLeft)}</span></button>)}</div>
         </div>)}</div>
       </Card>
-      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
         <Card pad={false}><div className="p-3">{lines.map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={D.SLA.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },

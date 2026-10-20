@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, ChevronDown, Search, ChevronLeft, ChevronRight, ArrowUpDown, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import LOGOS from './logos.js';
-import { TweenNum } from './charts.jsx';
+import { TweenNum, FitText } from './charts.jsx';
 
 export const cx = (...a) => a.filter(Boolean).join(' ');
 
@@ -9,8 +9,8 @@ export function Card({ title, sub, icon: I, right, children, className, pad = tr
   return (
     <section onClick={onClick} className={cx('card bg-panel border border-line rounded-lg', onClick && 'cursor-pointer hover:border-ink3', className)}>
       {(title || right) && (
-        <header className="flex items-start gap-3 px-4 pt-3 pb-2">
-          <div className="min-w-0 flex-1">
+        <header className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 pt-3 pb-2">
+          <div className="min-w-0 flex-1 basis-[220px]">
             {title && <h3 className="font-display text-[16px] font-semibold text-ink leading-tight">{title}</h3>}
             {sub && <p className="text-[12.5px] text-ink3 mt-0.5 leading-snug">{sub}</p>}
           </div>
@@ -77,9 +77,9 @@ export function Stat({ label, value, sub, tone, icon: I, onClick, children, clas
   const up = delta != null && delta > 0;
   return (
     <div onClick={onClick} className={cx('bg-panel border border-line rounded-lg px-4 py-3 flex flex-col min-w-0', onClick && 'cursor-pointer hover:bg-chip/50', className)}>
-      <div className="text-[12.5px] text-ink2 font-medium leading-tight line-clamp-2">{label}</div>
-      <div className="flex items-baseline gap-2 mt-1">
-        <div className={cx('font-display text-[30px] font-semibold leading-none whitespace-nowrap', vt)}>{typeof value === 'string' || typeof value === 'number' ? <TweenNum value={value} /> : value}</div>
+      <div className="text-[12.5px] text-ink2 font-medium leading-tight">{label}</div>
+      <div className="flex items-baseline gap-2 mt-1 min-w-0">
+        <FitText className={cx('font-display text-[30px] font-semibold leading-none flex-1', vt)}>{typeof value === 'string' || typeof value === 'number' ? <TweenNum value={value} /> : value}</FitText>
         {delta != null && delta !== 0 && <span className={cx('text-[12px] font-semibold whitespace-nowrap', (deltaGood ? up : !up) ? 'text-ok' : 'text-bad')}>{up ? '▲' : '▼'} {Math.abs(delta)}</span>}
       </div>
       {sub && <div className="text-[12px] text-ink3 mt-1 leading-snug">{sub}</div>}

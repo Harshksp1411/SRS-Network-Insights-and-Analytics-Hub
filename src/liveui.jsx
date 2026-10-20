@@ -149,7 +149,7 @@ export function LivePanel({ kind, className }) {
   const labels = L.ts.slice(-90).map(t => hhmmss(t));
   return (
     <Card className={className} title={<span className="flex items-center gap-2">{cfg.title}<LiveBadge /></span>} sub={cfg.sub} icon={I.Activity}>
-      <div className="grid xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-4">
         <div className="min-w-0">
           <div className="grid grid-cols-3 gap-2 mb-2">{cfg.stats.map(([l, k, f, c]) => { const ser = k ? S[k] : S.raw; return (
             <div key={l} className="border border-line rounded-md px-2.5 py-2 min-w-0"><div className="text-[11.5px] text-ink3 font-semibold truncate">{l}</div>

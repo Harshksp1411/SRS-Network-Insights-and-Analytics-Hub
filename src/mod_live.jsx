@@ -29,7 +29,7 @@ export function LiveOps() {
         { label: 'Alerts, last 5 minutes', value: Math.round(S.raw.slice(-150).reduce((a, b) => a + b, 0) / 150 * 5 * 0.29), sub: `${open.length} open incidents in this view`, series: S.corr, color: C.warn, icon: I.Bell, tone: 'warn' },
       ]} />
       <div className="mt-3"><AreaTimeline /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
         <LiveFeed h={430} />
         <div className="space-y-3">
           <Card title="Mova iO agents" sub="Latest decisions across the estate" right={<button onClick={() => act.go('agents')} className="text-[12px] font-semibold text-brand hover:underline">All agents</button>} pad={false}>
@@ -40,9 +40,9 @@ export function LiveOps() {
           </Card>
         </div>
       </div>
-      <div className="grid xl:grid-cols-2 gap-3 mt-3"><AreaHourHeat /><AlertsPerMinCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3"><AreaHourHeat /><AlertsPerMinCard /></div>
       <div className="mt-3"><ToolsStrip /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><HeartbeatGrid /><div className="space-y-3"><ScoreHistogram /><TopBranches /></div></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><HeartbeatGrid /><div className="space-y-3"><ScoreHistogram /><TopBranches /></div></div>
     </div>
   );
 }
@@ -61,13 +61,13 @@ export function Correlation() {
         { label: 'Noise removed', value: '88%', sub: 'auto-cleared or rolled to the digest (KPI 50%)', series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
         { label: 'Correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers },
       ]} />
-      <div className="grid xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
       <div className="mt-3"><GroupingSwimlane /></div>
       <div className="mt-3"><AlertFunnel /></div>
       <div className="mt-3"><AlertSankey /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><AreaHourHeat /><CorrMatrix /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><AreaHourHeat /><CorrMatrix /></div>
       <Card className="mt-3" title="Correlation methods" sub="How signals were grouped today, by rule">
-        <div className="grid md:grid-cols-5 gap-3">{[['Topology', 'Signals on the same path: device, switch, EdgeConnect, circuit, carrier.', I.Network, 0.42], ['Time window', 'Same branch inside 10 minutes; same carrier and region inside 15.', I.Clock, 0.22], ['Change', 'A change on a related device in the previous 60 minutes.', I.GitPullRequest, 0.08], ['Carrier and location', 'Branches sharing a carrier segment, central office or storm area.', I.MapPin, 0.18], ['Similarity', 'Matches a known pattern from resolved incidents.', I.Copy, 0.1]].map(([n, d, Ic, f]) => (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">{[['Topology', 'Signals on the same path: device, switch, EdgeConnect, circuit, carrier.', I.Network, 0.42], ['Time window', 'Same branch inside 10 minutes; same carrier and region inside 15.', I.Clock, 0.22], ['Change', 'A change on a related device in the previous 60 minutes.', I.GitPullRequest, 0.08], ['Carrier and location', 'Branches sharing a carrier segment, central office or storm area.', I.MapPin, 0.18], ['Similarity', 'Matches a known pattern from resolved incidents.', I.Copy, 0.1]].map(([n, d, Ic, f]) => (
           <div key={n} className="border border-line rounded-lg p-3"><div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b><span className="text-[18px] font-bold text-ink tabular-nums">{Math.max(1, Math.round(open.length * f * 3))}</span></div><div className="text-[12px] text-ink2 mt-1 leading-snug">{d}</div><div className="h-1.5 bg-chip rounded mt-2"><div className="h-full bg-brand rounded" style={{ width: `${f * 100 / 0.42}%` }} /></div></div>))}</div>
       </Card>
     </div>
@@ -82,7 +82,7 @@ export function Agents() {
     <div>
       <PageHead icon={I.Bot} title="Mova iO Agents" sub="Thirteen agents: what each one is doing now, how often it acts and how often it gets it right. Every action follows the gate rules and lands in the audit log." right={<span className="inline-flex items-center gap-3 text-[12.5px]"><Badge tone="brand"><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />{working} working now</Badge><span className="text-ink2"><b className="text-ink tabular-nums">{num(today)}</b> actions today</span></span>} />
       <AgentActivity />
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-3 mt-3 items-start"><AgentCards /><AgentStream /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-3 mt-3 items-start"><AgentCards /><AgentStream /></div>
     </div>
   );
 }

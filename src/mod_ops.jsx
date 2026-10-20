@@ -63,7 +63,7 @@ export function Overview() {
         <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
         <Card title="Branch health map" sub={`All 900 branches. Each dot is one branch, coloured by health; pick a region or city above to zoom. Click a branch for Branch 360.`} icon={I.Map} right={<Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} />}>
           <NAMap points={points} focus={focusPts} onPoint={p => act.openBranch(p.id)} h={440}>{!focusPts && <MapFlows />}</NAMap>
         </Card>
@@ -87,18 +87,18 @@ export function Overview() {
       <div className="flex items-center gap-2 mt-4 mb-2"><h2 className="text-[15px] font-bold text-ink">Service levels and error budgets</h2><span className="text-[12px] text-ink3">30-day window</span></div>
       <ErrorBudgets />
 
-      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
         <IncidentForecastCard />
         <PreventiveCard />
       </div>
 
 
-      <div className="grid xl:grid-cols-2 gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">
         <EventFlowCard />
         <ExperienceCard />
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
         <LiveFeed h={380} />
         <TopBranches />
       </div>
@@ -118,11 +118,11 @@ export function Overview() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-3 gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mt-3">
         <AlertsPerMinCard />
         <Card title="Circuits down or degraded" icon={I.Cable} right={<Btn size="sm" onClick={() => act.go('carriers')}>Carriers</Btn>}>
           <div className="space-y-1 max-h-[260px] overflow-y-auto">
-            {[...circDown, ...circDeg].map(c => { const b = D.BR[c.branchId]; return <button key={c.id} onClick={() => act.openBranch(b.id)} className="w-full text-left flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60 hover:bg-chip/60"><Dot tone={c.status === 'Down' ? 'red' : 'amber'} /><span className="font-semibold text-ink w-28 truncate">{b.name}</span><span className="text-ink2 flex-1 truncate">{c.role}, {c.carrier} {c.type}</span><span className="text-ink3 text-[11.5px]">{c.status}</span></button>; })}
+            {[...circDown, ...circDeg].map(c => { const b = D.BR[c.branchId]; return <button key={c.id} onClick={() => act.openBranch(b.id)} className="w-full text-left flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60 hover:bg-chip/60"><Dot tone={c.status === 'Down' ? 'red' : 'amber'} /><span className="font-semibold text-ink w-28 truncate">{b.name}</span><span className="text-ink2 flex-1 min-w-0 leading-snug">{c.role}, {c.carrier} {c.type}</span><span className="text-ink3 text-[11.5px]">{c.status}</span></button>; })}
             {!circDown.length && !circDeg.length && <div className="text-ink3 text-[13px]">All circuits clean.</div>}
           </div>
         </Card>
@@ -199,10 +199,10 @@ export function Readiness() {
         right={<><Btn icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
       <PreopenBanner rows={R} />
       <div className="mt-3"><ReadinessSummary rows={R} /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
       <div className="mt-3"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} /></div>
-      <div className="grid xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
         <ReadinessTrendCard />
         <OpeningRiskCard />
       </div>

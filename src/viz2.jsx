@@ -6,7 +6,7 @@ import * as D from './data.js';
 import { useApp, useNow, healthOf, inScope, filteredBranches, circuitOf } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo, SRC_LOGO, Dot } from './ui.jsx';
-import { Spark, Legend, C, useWidth, SEQ, TweenNum } from './charts.jsx';
+import { Spark, Legend, C, useWidth, SEQ, TweenNum, FitText } from './charts.jsx';
 import { AREAS, TL_LANES, AGENT_DEF, AGENT_GROUPS, TOOLS, outcomeOf, MONITOR_SRC } from './liveext.js';
 import { hhmm, hhmmss, num, rng, MIN, HR, ago } from './util.js';
 
@@ -23,9 +23,10 @@ export function LiveKpis({ items, cols = 3 }) {
         <div key={it.label} className="card bg-panel border border-line rounded-lg px-4 py-3 min-w-0">
           <div className="flex items-center gap-1.5 text-[12.5px] text-ink2"><Ic size={14} className="text-ink3" /><span className="truncate flex-1">{it.label}</span><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" /></div>
           <div className="flex items-end justify-between gap-3 mt-1">
-            <div className="min-w-0"><div className={cx('text-[28px] font-bold leading-none tabular-nums whitespace-nowrap', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}><TweenNum value={it.value} />{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</div><div className="text-[12px] text-ink3 mt-1 leading-snug line-clamp-2">{it.sub}</div></div>
-            {it.series && <Spark data={it.series.slice(-50)} color={it.color || C.s1} w={110} h={36} />}
+            <div className="min-w-0 flex-1"><FitText className={cx('text-[28px] font-bold leading-none tabular-nums', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}><TweenNum value={it.value} />{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</FitText></div>
+            {it.series && <Spark data={it.series.slice(-50)} color={it.color || C.s1} w={110} h={32} />}
           </div>
+          <div className="text-[12px] text-ink3 mt-1.5 leading-snug">{it.sub}</div>
         </div>); })}
     </div>
   );
@@ -67,7 +68,7 @@ function BudgetSpark({ data, color, w = 240, h = 46 }) {
 export function ErrorBudgets() {
   const { L } = useLive();
   return (
-    <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
       {L.x.budgets.map(b => { const left = b.series.at(-1); const recent = (b.series.at(-6) - left) / 5; const avg = (1 - left) / 30; const rate = avg > 0 ? recent / avg : 0; const burning = rate > 1.5 || left < 0.2; const col = left < 0.2 ? C.bad : burning ? C.warn : C.ok; const mins = Math.round(left * (100 - b.target) / 100 * 30 * 24 * 60);
         return (
           <div key={b.name} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
@@ -161,7 +162,7 @@ export function AreaTimeline() {
                 <circle cx={X(n - 1)} cy={Y(s[n - 1])} r="3.5" fill={cols[k]} />
                 <text x={W - rw + 8} y={Y(s[n - 1]) + 4} fontSize="12" fontWeight="700" fill="rgb(var(--ink))"><TweenNum value={fmtN(s[n - 1], a.dec)} />{a.unit}</text>
               </g>); })}
-          {L.x.markers.map((m, i) => { const x = tX(m.t); if (x < lw) return null; return <g key={m.t + '-' + i} style={{ transform: `translateX(${x.toFixed(1)}px)`, transition: 'transform 1s linear' }}><line x1={0} x2={0} y1={top} y2={H - 20} stroke={MK[m.kind][0]} strokeWidth="1" opacity=".6" /><rect x={-4} y={H - 18} width="8" height="8" fill={MK[m.kind][0]} transform={m.kind === 'chg' ? `rotate(45 0 ${H - 14})` : undefined} /></g>; })}
+          {L.x.markers.map((m, i) => { const x = tX(m.t); if (x < lw) return null; return <g key={m.t + '-' + i} style={{ transform: `translateX(${x.toFixed(1)}px)`, transition: 'transform var(--tickh, 1s) linear' }}><line x1={0} x2={0} y1={top} y2={H - 20} stroke={MK[m.kind][0]} strokeWidth="1" opacity=".6" /><rect x={-4} y={H - 18} width="8" height="8" fill={MK[m.kind][0]} transform={m.kind === 'chg' ? `rotate(45 0 ${H - 14})` : undefined} /></g>; })}
           <text x={lw} y={H - 1} fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 60 * MIN)}</text><text x={(lw + W - rw) / 2} y={H - 1} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 30 * MIN)}</text><text x={W - rw} y={H - 1} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">now</text>
           {hx != null && <line x1={X(hx)} x2={X(hx)} y1={top} y2={H - 20} stroke="rgb(var(--ink))" strokeWidth="1" />}
         </svg>
@@ -186,7 +187,7 @@ export function UnifiedTimeline() {
         {ticks.map((t, i) => <g key={i}><line x1={X(t)} x2={X(t)} y1={top - 6} y2={H - 18} stroke="rgb(var(--line))" /><text x={X(t)} y={12} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{i === 8 ? 'now' : hhmm(t)}</text></g>)}
         {TL_LANES.map((l, k) => <g key={l.id}><rect x={lw} y={top + k * laneH + 2} width={W - lw - rw} height={laneH - 4} fill={k % 2 ? 'transparent' : 'rgb(var(--chip))'} opacity=".5" /><text x={4} y={top + k * laneH + 15} fontSize="11.5" fill="rgb(var(--ink2))" fontWeight={l.id === 'mova' ? 700 : 400}>{l.label}</text></g>)}
         {L.x.dots.map((d, i) => { const k = TL_LANES.findIndex(l => l.id === d.lane); if (k < 0) return null; const x = X(d.t), y = top + k * laneH + laneH / 2 + ((i * 7) % 7) - 3; const fresh = now - d.t < 6000;
-          const mv = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, transition: 'transform 1s linear' };
+          const mv = { transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`, transition: 'transform var(--tickh, 1s) linear' };
           return d.kind === 'inc' ? <rect key={d.t + '-' + i} x={-3.5} y={-3.5} width="7" height="7" fill={C.bad} style={mv} /> : d.kind === 'chg' ? <g key={d.t + '-' + i} style={mv}><rect x={-3} y={-3} width="6" height="6" fill={C.info} transform="rotate(45)" /></g> : <circle key={d.t + '-' + i} cx={0} cy={0} r={fresh ? 4 : 2.4} fill={d.lane === 'mova' ? C.s1 : C.s5} opacity={fresh ? 1 : 0.75} style={mv} />; })}
         <line x1={X(now)} x2={X(now)} y1={top - 6} y2={H - 18} stroke={C.bad} strokeWidth="1.5" />
       </svg></div>
@@ -305,7 +306,7 @@ export function GroupingSwimlane() {
           const t0 = Math.max(inc.opened - 4 * MIN, now - span); const dots = [...inc.signals.map(x => ({ t: x.t, src: x.src })), ...Array.from({ length: Math.max(0, n - inc.signals.length) }, () => ({ t: t0 + R() * Math.min(12 * MIN, now - t0), src: ['Orchestrator', 'OpsRamp', 'Aruba Central', 'New Relic'][Math.floor(R() * 4)] }))];
           return <g key={inc.id} onClick={() => act.openInc(inc.id)} className="cursor-pointer"><rect x={lw} y={y - laneH / 2 + 2} width={W - lw - rw} height={laneH - 4} fill={k % 2 ? 'transparent' : 'rgb(var(--chip))'} opacity=".5" />
             <text x={0} y={y + 4} fontSize="11.5" fill="rgb(var(--ink))"><tspan fontWeight="700">{inc.id.slice(-4)}</tspan><tspan fill="rgb(var(--ink2))"> {inc.title.length > 30 ? inc.title.slice(0, 29) + '…' : inc.title}</tspan></text>
-            {dots.map((d, j) => <circle key={j} cx={0} cy={0} r="3.2" fill={srcC[d.src] || C.s3} opacity=".9" style={{ transform: `translate(${X(d.t).toFixed(1)}px, ${(y + ((j * 5) % 9) - 4).toFixed(1)}px)`, transition: 'transform 1s linear' }} />)}</g>; })}
+            {dots.map((d, j) => <circle key={j} cx={0} cy={0} r="3.2" fill={srcC[d.src] || C.s3} opacity=".9" style={{ transform: `translate(${X(d.t).toFixed(1)}px, ${(y + ((j * 5) % 9) - 4).toFixed(1)}px)`, transition: 'transform var(--tickh, 1s) linear' }} />)}</g>; })}
         {[90, 60, 30, 0].map(m => <text key={m} x={X(now - m * MIN)} y={H - 4} textAnchor={m === 90 ? 'start' : m === 0 ? 'end' : 'middle'} fontSize="10.5" fill="rgb(var(--ink3))">{m ? `-${m} min` : 'now'}</text>)}
       </svg></div>
     </Card>
@@ -354,7 +355,7 @@ export function AgentActivity() {
 export function AgentCards() {
   const { L } = useLive(); const now = useNow();
   return (
-    <div className="grid md:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {AGENT_DEF.map((a, i) => { const g = L.x.agents[a.id]; const working = now - g.lastT < 4000; return (
         <div key={a.id} className={cx('bg-panel border rounded-lg p-3 min-w-0 transition-colors', working ? 'border-brand shadow-[0_0_0_1px_rgb(var(--brand))]' : 'border-line')}>
           <div className="flex items-start gap-2"><span className="w-8 h-8 rounded-lg bg-chip flex items-center justify-center text-brand shrink-0"><I.Bot size={16} /></span><div className="flex-1 min-w-0"><div className="text-[13.5px] font-bold text-ink">{a.name} <span className="text-ink3 font-normal text-[11.5px]">#{i + 1}</span></div><div className="text-[11.5px] text-ink3 leading-tight">{a.does}</div></div>
@@ -383,13 +384,14 @@ export function ToolsStrip({ only }) {
   const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(3142 - Math.round((100 - L.series.reporting.at(-1)) * 31))} devices reporting`, 'switches and access points'], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
   const list = TOOLS.filter(t => !only || only.includes(t.id));
   return (
-    <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
       {list.map((t, k) => { const ser = L.x.tools[t.id]; const mx = Math.max(...ser); return (
-        <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0">
-          <div className="flex items-center gap-1.5">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="text-[12px] font-bold text-ink leading-tight line-clamp-2 flex-1">{t.name}</span><span className="w-2 h-2 rounded-full bg-ok" /></div>
-          <div className="text-[14px] font-bold text-ink mt-1.5 truncate"><TweenNum value={head[t.id][0]} /></div><div className="text-[11px] text-ink3 leading-snug line-clamp-2">{head[t.id][1]}</div>
+        <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0 flex flex-col">
+          <div className="flex items-center gap-1.5 h-[18px]">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="flex-1" /><span className="w-2 h-2 rounded-full bg-ok" /></div>
+          <div className="text-[12px] font-bold text-ink leading-tight mt-1">{t.name}</div>
+          <div className="text-[14px] font-bold text-ink mt-1.5 leading-tight"><TweenNum value={head[t.id][0]} /></div><div className="text-[11px] text-ink3 leading-snug line-clamp-2">{head[t.id][1]}</div>
           <div className="text-[11px] text-ink2 mt-1"><b className="text-ink tabular-nums"><TweenNum value={ser.at(-1)} /></b> events/min · synced {(Math.floor(now / 1000) + k) % 6 + 1}s ago</div>
-          <div className="flex items-end gap-[2px] h-8 mt-1">{ser.map((v, i) => <span key={i} className="flex-1 rounded-t-[1px] transition-all duration-500" style={{ height: `${Math.max(8, v / mx * 100)}%`, background: i === ser.length - 1 ? C.s1 : 'rgb(var(--ink3) / .45)' }} />)}</div>
+          <div className="flex items-end gap-[2px] h-9 mt-auto pt-1.5">{ser.map((v, i) => <span key={i} className="flex-1 rounded-t-[1px] transition-all duration-500" style={{ height: `${Math.max(8, v / mx * 100)}%`, background: i === ser.length - 1 ? C.s1 : 'rgb(var(--ink3) / .45)' }} />)}</div>
         </div>); })}
     </div>
   );
@@ -440,8 +442,8 @@ export function AreaHourHeat() {
   const colr = v => SEQ[Math.min(7, Math.floor(v / m * 7.99))];
   return (
     <Card title="Alerts by area and hour" sub="Last 24 hours; the right-hand column fills as alerts arrive" right={<LiveTag />}>
-      <div className="overflow-hidden"><table className="border-separate w-full table-fixed" style={{ borderSpacing: 1 }}><colgroup><col style={{ width: 112 }} />{cols.map((c, j) => <col key={j} />)}</colgroup><tbody>
-        {AREAS.map((a, k) => <tr key={a.id}><td className="text-[11.5px] text-ink2 pr-2 whitespace-nowrap truncate">{a.label}</td>{live[k].map((v, j) => <td key={j} title={`${a.label}, ${cols[j]}: ${v}`} className="h-[17px] rounded-[2px] p-0 transition-colors duration-700" style={{ background: colr(v), outline: j === 23 ? '1px solid rgb(var(--ink3))' : undefined }} />)}</tr>)}
+      <div className="overflow-hidden"><table className="border-separate w-full table-fixed" style={{ borderSpacing: 1 }}><colgroup><col style={{ width: 126 }} />{cols.map((c, j) => <col key={j} />)}</colgroup><tbody>
+        {AREAS.map((a, k) => <tr key={a.id}><td className="text-[11.5px] text-ink2 pr-2 whitespace-nowrap truncate">{a.label}</td>{live[k].map((v, j) => <td key={j} title={`${a.label}, ${cols[j]}: ${v}`} className="h-[17px] rounded-[2px] p-0 transition-colors duration-700" style={{ background: colr(v), boxShadow: j === 23 ? 'inset 0 0 0 1px rgb(var(--ink3))' : undefined }} />)}</tr>)}
         <tr><td />{cols.map((c, j) => <td key={j} className="text-[10px] text-ink3 text-center pt-1">{j % 3 === 2 || j === 23 ? c : ''}</td>)}</tr>
       </tbody></table></div>
     </Card>
