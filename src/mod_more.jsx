@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import * as I from 'lucide-react';
+import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow, gate, slaClock, branchClock, healthOf, circuitOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Conf, GateBox, Modal, KV, cx, Progress, Select, SearchBox, Illus, ExportBtn, Pri, Dot, Logo } from './ui.jsx';
@@ -27,7 +28,8 @@ export function Predictive() {
         <Stat label="Active watches" icon={I.Eye} value={s.watches.length + s.predictions.filter(p => p.status === 'Watching').length} />
         <Stat label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
       </div>
-      <div className="grid xl:grid-cols-[1.2fr_1fr] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
+      <LivePanel kind="predict" className="mb-3 mt-3" />
+      <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
       <div className="mb-3"><PreventiveCalendarCard /></div>
       <div className="flex items-center gap-2 mb-3"><Tabs size="sm" value={kind} onChange={setKind} tabs={['All', ...new Set(s.predictions.map(p => p.kind))].map(k => ({ id: k, label: k, count: k === 'All' ? s.predictions.length : s.predictions.filter(p => p.kind === k).length }))} /></div>
       <div className="grid xl:grid-cols-2 gap-3">
@@ -67,9 +69,10 @@ export function Knowledge() {
         <Stat label="Recommendation accuracy" icon={I.Target} value="83%" sub="KPI 39 target 80%" tone="green" />
         <Stat label="Problem records open" icon={I.Bug} value={s.problems.filter(p => p.state !== 'Closed').length} onClick={() => setTab('problems')} />
       </div>
+      <LivePanel kind="knowledge" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'search', label: 'Search' }, { id: 'drafts', label: 'Auto-generated drafts', count: s.kbDrafts.filter(d => d.status === 'Awaiting review').length }, { id: 'problems', label: 'Problem records', count: s.problems.length }]} />
       {tab === 'search' && <div className="grid xl:grid-cols-2 gap-3 mb-3"><ClustersCard /><DeflectionCard /></div>}
-      {tab === 'search' && <div className="grid xl:grid-cols-[1.3fr_1fr] gap-3">
+      {tab === 'search' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
         <Card title="Knowledge base" icon={I.Search}><SearchBox value={q} onChange={setQ} placeholder="Symptom, device, carrier… e.g. scanner, LTE, POS" className="w-full mb-3" />
           {res.map(k => <button key={k.id} onClick={() => act.set({ kbOpen: k.id })} className="w-full text-left py-2 border-b border-line/60 last:border-0 hover:bg-chip/50 px-1 rounded"><div className="flex items-center gap-2"><span className="font-mono text-[11.5px] text-ink3">{k.id}</span>{k.tags.map(t => <Badge key={t}>{t}</Badge>)}<span className="ml-auto text-[11.5px] text-ink3">★ {k.rating || '—'}, {num(k.views)} views</span></div><div className="text-[13px] font-semibold text-ink mt-0.5">{k.title}</div></button>)}
           {!res.length && <div className="text-ink3 text-[13px] py-4">No articles match.</div>}
@@ -114,10 +117,11 @@ export function Automation() {
         <Stat label="Auto-resolution rate" icon={I.Bot} value="23.1%" sub="KPI 37 target 25% – trending up" tone="amber" />
         <Stat label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
       </div>
-      <div className="grid xl:grid-cols-3 gap-3 mb-3"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>
-      <div className="grid xl:grid-cols-[1fr_440px] gap-3">
+      <LivePanel kind="automation" className="mb-3 mt-3" />
+      <div className="grid xl:grid-cols-3 gap-3 mb-3 items-start"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_440px] gap-3">
         <Card pad={false}><div className="p-3"><Table rows={s.runbooks} onRow={r => setSel(r.id)} rowClass={r => r.id === sel ? 'bg-chip' : ''} cols={[
-          { key: 'id', label: 'ID', render: r => <span className="font-mono text-[12px] font-semibold">{r.id}</span> },
+          { key: 'id', label: 'ID', className: 'whitespace-nowrap', render: r => <span className="font-mono text-[12px] font-semibold">{r.id}</span> },
           { key: 'name', label: 'Runbook', render: r => <div><div className="font-semibold">{r.name}</div><div className="text-[11px] text-ink3">{r.kind === 'change' ? 'Makes a change' : 'Read-only / notify'}</div></div> },
           { key: 'autonomy', label: 'Autonomy', render: r => <Badge tone={r.autonomy === 'L4' ? 'brand' : r.autonomy === 'L3' ? 'purple' : 'blue'}>{r.autonomy}, {D.AUTONOMY[r.autonomy]}</Badge> },
           { key: 'runs30', label: 'Runs 30d', right: true, render: r => num(r.runs30) },
@@ -168,6 +172,7 @@ export function SLATracker() {
         <Stat label="Open incidents at breach risk" icon={I.AlarmClock} value={queues.reduce((a, q) => a + q.risk, 0)} tone="amber" sub="> 75% of resolution clock used" />
         <Stat label="Critical availability (#29)" icon={I.Activity} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
       </div>
+      <LivePanel kind="sla" className="mb-3 mt-3" />
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
@@ -176,7 +181,7 @@ export function SLATracker() {
           <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{x.c.resLeft < 0 ? 'breached' : dur(x.c.resLeft)}</span></button>)}</div>
         </div>)}</div>
       </Card>
-      <div className="grid xl:grid-cols-[1.5fr_1fr] gap-3">
+      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
         <Card pad={false}><div className="p-3">{lines.map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={D.SLA.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },

@@ -4,10 +4,10 @@ import { cx } from './ui.jsx';
 
 // Chart palette: reference categorical order + fixed status steps (validated – see dataviz skill)
 export const C = {
-  s1: '#2a78d6', s2: '#eb6834', s3: '#1baf7a', s4: '#eda100', s5: '#e87ba4', s6: '#008300', s7: '#6250d6', s8: '#e34948',
-  ok: '#0ca30c', warn: '#e09a00', serious: '#ec835a', bad: '#d03b3b', alert: '#d03b3b', info: '#2a78d6', ai: '#6250d6', brand: '#762123', grey: '#9aa1a9', teal: '#1baf7a',
+  s1: '#762123', s2: '#3a3a3a', s3: '#a8a8a8', s4: '#33557a', s5: '#b8955a', s6: '#c98a8e', s7: '#5f6b73', s8: '#1a1a1a',
+  ok: '#2e7d32', warn: '#b26a00', serious: '#c4622d', bad: '#c62828', alert: '#c62828', info: '#33557a', ai: '#762123', brand: '#762123', grey: '#a8a8a8', teal: '#3a3a3a',
 };
-export const SEQ = ['#eef4fc', '#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'];
+export const SEQ = ['#f7efef', '#eed5d6', '#ddb2b4', '#c98a8e', '#b06168', '#923f45', '#762123', '#4e1418'];
 
 export function useWidth(def = 640) {
   const ref = useRef(null); const [w, setW] = useState(def);

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
+import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
@@ -56,6 +57,7 @@ export function Inventory() {
         <Stat label="Below firmware policy" icon={I.ShieldAlert} value={below} tone={below ? 'amber' : 'green'} sub="EC: N-1, others: N-2" onClick={() => { setTab('devices'); setFw('Below policy'); }} />
         <Stat label="Warranty" icon={I.CalendarClock} value={<span><span className="text-bad">{expired}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{expiring}</span></span>} sub="expired / ending < 90 days" onClick={() => { setTab('devices'); setWar('Expired'); }} />
       </div>
+      <LivePanel kind="inventory" className="mb-3 mt-3" />
       <div className="grid xl:grid-cols-3 gap-3 mb-3">
         <FirmwareMixCard />
         <WarrantyCard />
@@ -80,20 +82,20 @@ export function Inventory() {
         <Table pageSize={40} rows={devRows} onRow={setDev} cols={[
           { key: 'id', label: 'Hostname', render: d => <span className="font-mono text-[12px] font-semibold">{d.id}</span> },
           { key: 'type', label: 'Type' },
-          { key: 'model', label: 'Model', render: d => <span>{d.model}</span> },
-          { key: 'role', label: 'Role / zone', render: d => <span className="text-[12px] text-ink2">{d.role}</span> },
-          { key: 'branch', label: 'Branch', get: d => D.BR[d.branchId].name, render: d => <div><div className="font-semibold">{D.BR[d.branchId].name}</div><div className="text-[11px] text-ink3">{D.BR[d.branchId].brand}</div></div> },
-          { key: 'fw', label: 'Firmware', render: d => <div className="flex items-center gap-1.5"><span className="font-mono text-[12px]">{d.fw}</span>{fwBadge(d)}</div> },
+          { key: 'model', label: 'Model', className: 'whitespace-nowrap', render: d => <span>{d.model}</span> },
+          { key: 'role', label: 'Role / zone', className: 'whitespace-nowrap', render: d => <span className="text-[12px] text-ink2">{d.role}</span> },
+          { key: 'branch', label: 'Branch', get: d => D.BR[d.branchId].name, render: d => <div><div className="font-semibold whitespace-nowrap">{D.BR[d.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{D.BR[d.branchId].brand}</div></div> },
+          { key: 'fw', label: 'Firmware', className: 'whitespace-nowrap', render: d => <div className="flex items-center gap-1.5"><span className="font-mono text-[12px]">{d.fw}</span>{fwBadge(d)}</div> },
           { key: 'backup', label: 'Config backup', get: d => ((ds[d.id] && ds[d.id].backup) || d.backup).st, render: d => { const b = (ds[d.id] && ds[d.id].backup) || d.backup; return b.st === 'N/A' ? <span className="text-ink3 text-[12px]">Central-managed</span> : <span className="flex items-center gap-1.5"><Badge tone={b.st === 'OK' ? 'green' : b.st === 'Running' ? 'blue' : b.st === 'Stale' ? 'amber' : 'red'}>{b.st}</Badge><span className="text-[11px] text-ink3">{b.at ? ago(b.at, now) : ''}</span></span>; } },
-          { key: 'warranty', label: 'Warranty end', render: d => <span className={cx('text-[12px]', d.warranty < now ? 'text-bad font-semibold' : d.warranty < now + 90 * DAY ? 'text-warn font-semibold' : 'text-ink2')}>{new Date(d.warranty).toISOString().slice(0, 10)}</span> },
-          { key: 'cir', label: 'Circuits / serial', sortable: false, render: d => d.type === 'SD-WAN' ? <span className="text-[11px] font-mono text-ink2">{D.BR[d.branchId].wan.map(id => `${D.CIR[id].carrier}: ${D.CIR[id].cid}`).join(', ')}</span> : <span className="text-[11px] font-mono text-ink3">{d.serial}</span> },
+          { key: 'warranty', label: 'Warranty end', className: 'whitespace-nowrap', render: d => <span className={cx('text-[12px]', d.warranty < now ? 'text-bad font-semibold' : d.warranty < now + 90 * DAY ? 'text-warn font-semibold' : 'text-ink2')}>{new Date(d.warranty).toISOString().slice(0, 10)}</span> },
+          { key: 'cir', label: 'Circuits / serial', sortable: false, render: d => d.type === 'SD-WAN' ? <span className="text-[11px] font-mono text-ink2 block truncate max-w-[260px]" title={D.BR[d.branchId].wan.map(id => `${D.CIR[id].carrier}: ${D.CIR[id].cid}`).join(', ')}>{D.BR[d.branchId].wan.map(id => `${D.CIR[id].carrier}: ${D.CIR[id].cid}`).join(', ')}</span> : <span className="text-[11px] font-mono text-ink3">{d.serial}</span> },
         ]} />
       </div></Card>}
       {tab === 'circuits' && <Card pad={false}><div className="p-3">
         <div className="flex flex-wrap gap-2 mb-2"><Select label="Carrier" value={carrier} onChange={setCarrier} options={['All', ...D.CARRIERS]} /><Select label="Status" value={cstat} onChange={setCstat} options={['All', 'Up', 'Degraded', 'Down', 'Repeat offenders']} /></div>
         <Table pageSize={40} rows={cirRows} onRow={c => act.openBranch(c.branchId)} cols={[
           { key: 'id', label: 'Circuit', render: c => <span className="font-mono text-[12px] font-semibold">{c.id}</span> },
-          { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <div><div className="font-semibold">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3">{D.BR[c.branchId].brand}</div></div> },
+          { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <div><div className="font-semibold whitespace-nowrap">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{D.BR[c.branchId].brand}</div></div> },
           { key: 'role', label: 'Role' }, { key: 'type', label: 'Type' }, { key: 'carrier', label: 'Carrier' },
           { key: 'cid', label: 'Carrier circuit ID', render: c => <span className="font-mono text-[11.5px]">{c.cid}</span> },
           { key: 'lec', label: 'LEC', render: c => <span className="text-[12px] text-ink2">{c.lec || '—'}</span> },
@@ -178,7 +180,8 @@ export function Carriers() {
         <Stat label="Repeat-offender circuits" icon={I.Repeat} value={repeat.length} tone="amber" sub="≥ 3 tickets in 90 days" onClick={() => setTab('repeat')} />
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>
-      <div className="grid xl:grid-cols-[1.2fr_1fr] gap-3 mb-3">
+      <LivePanel kind="carriers" className="mb-3 mt-3" />
+      <div className="grid xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
         <CarrierForecastCard />
         <CarrierTrendCard />
       </div>
@@ -187,7 +190,7 @@ export function Carriers() {
         { key: 'id', label: 'Carrier ticket', render: c => <span className="font-mono text-[12px] font-semibold">{c.id}{c.master && <Badge tone="purple" className="ml-1">master</Badge>}</span> },
         { key: 'carrier', label: 'Carrier' },
         { key: 'circuit', label: 'Circuit(s)', render: c => <span className="font-mono text-[11.5px] line-clamp-1 max-w-[200px] block">{c.circuit}</span> },
-        { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <button onClick={() => act.openBranch(c.branchId)} className="text-left hover:underline"><div className="font-semibold">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3">{D.BR[c.branchId].brand}</div></button> },
+        { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <button onClick={() => act.openBranch(c.branchId)} className="text-left hover:underline"><div className="font-semibold whitespace-nowrap">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{D.BR[c.branchId].brand}</div></button> },
         { key: 'inc', label: 'Incident', render: c => c.inc ? <button className="font-mono text-[12px] text-info hover:underline" onClick={() => act.openInc(c.inc)}>{c.inc}</button> : '—' },
         { key: 'status', label: 'Status', render: c => <Badge tone={c.closed ? (c.status.includes('NTF') ? 'amber' : 'green') : 'blue'}>{c.status}</Badge> },
         { key: 'eta', label: 'Carrier ETA', render: c => c.closed ? <span className="text-ink3 text-[12px]">closed {ago(c.lastUpdate, now)}</span> : <span className={cx('text-[12px] font-mono font-semibold', now > c.eta ? 'text-bad' : 'text-ink')}>{now > c.eta ? `late ${dur(now - c.eta)}` : dur(c.eta - now)}</span> },
@@ -195,7 +198,7 @@ export function Carriers() {
         { key: 'act', label: '', sortable: false, render: c => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.FileSearch} onClick={() => setEv(c)}>Evidence</Btn>{!c.closed && <><Btn size="xs" icon={I.ArrowUpCircle} onClick={() => { act.upd('cases', c.id, x => ({ escal: x.escal + 1, status: `Escalated L${x.escal + 1} – carrier`, lastUpdate: Date.now() })); act.audit(`Escalated ${c.id} to L${c.escal + 1}`, c.id); act.toast(`${c.carrier} case escalated to level ${c.escal + 1}`, 'warn'); }}>Escalate</Btn><Btn size="xs" kind="ok" icon={I.Check} onClick={() => { act.upd('cases', c.id, { closed: true, status: 'Closed – carrier fault fixed', lastUpdate: Date.now() }); act.audit(`Closed ${c.id}`, c.id); }}>Close</Btn></>}</div> },
       ]} /></div></Card>}
       {tab === 'scorecard' && <div className="mb-3"><CarrierHeatCard /></div>}
-      {tab === 'scorecard' && <div className="grid xl:grid-cols-[1.4fr_1fr] gap-3">
+      {tab === 'scorecard' && <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
         <Card title="Carrier scorecard – last 6 months" sub="Split of the 533 carrier/LEC and 875 NTF tickets by carrier is illustrative" icon={I.Trophy} right={<Illus />}>
           <Table rows={D.SCORECARD.map(x => ({ ...x, id: x.carrier }))} cols={[
             { key: 'carrier', label: 'Carrier', render: x => <b>{x.carrier}</b> }, { key: 'circuits', label: 'Circuits', right: true }, { key: 'cases6m', label: 'Carrier faults', right: true }, { key: 'ntf', label: 'NTF', right: true },
@@ -212,12 +215,12 @@ export function Carriers() {
       </div>}
       {tab === 'repeat' && <Card pad={false}><div className="p-3"><Table rows={repeat.map(c => circuitOf(s, c.id))} cols={[
         { key: 'id', label: 'Circuit', render: c => <span className="font-mono text-[12px] font-semibold">{c.id}</span> },
-        { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <div><div className="font-semibold">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3">{D.BR[c.branchId].brand}</div></div> },
+        { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <div><div className="font-semibold whitespace-nowrap">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{D.BR[c.branchId].brand}</div></div> },
         { key: 'carrier', label: 'Carrier' }, { key: 'type', label: 'Type' }, { key: 'lec', label: 'LEC', render: c => c.lec || '—' },
         { key: 'tickets90', label: 'Tickets 90d', right: true, render: c => <b className="text-bad">{c.tickets90}</b> }, { key: 'ntf90', label: 'NTF 90d', right: true },
         { key: 'act', label: '', sortable: false, render: c => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.FilePlus2} onClick={() => { const id = `PRB000${4250 + Math.floor(Math.random() * 99)}`; act.add('problems', { id, title: `Repeat faults on ${c.carrier} ${c.type} ${c.id} (${D.BR[c.branchId].name})`, incidents: c.tickets90, state: 'New', owner: 'Network Eng L3', opened: Date.now() }); act.audit(`Opened problem ${id} for ${c.id}`, id); act.toast(`${id} opened`); }}>Problem record</Btn><Btn size="xs" icon={I.Handshake} onClick={() => { act.audit(`Requested ${c.carrier} account review for ${c.id}`, c.id); act.toast(`Added to ${c.carrier} monthly service review`, 'info'); }}>Carrier review</Btn></div> },
       ]} /></div></Card>}
-      {tab === 'ntf' && <div className="grid xl:grid-cols-[1.3fr_1fr] gap-3">
+      {tab === 'ntf' && <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3">
         <Card title="NTF and carrier/LEC tickets by month" sub="Monthly split of the 6-month RFP totals is illustrative" icon={I.TrendingDown} right={<Illus />}>
           <Bars data={months} keys={['NTF', 'Carrier/LEC']} colors={[C.warn, C.brand]} h={220} />
           <Legend items={[['No trouble found', C.warn], ['Carrier / LEC', C.brand]]} />
@@ -283,6 +286,7 @@ export function Dispatch() {
         <Stat label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length} (illustrative roster)`} />
         <Stat label="Low-stock depot lines" icon={I.PackageX} value={s.depots.reduce((a, d) => a + Object.values(d.spares).filter(v => v <= 1).length, 0)} tone="amber" onClick={() => setTab('depots')} />
       </div>
+      <LivePanel kind="dispatch" className="mb-3 mt-3" />
       <div className="grid xl:grid-cols-3 gap-3 mb-3">
         <FieldDemandCard />
         <SparesCoverCard />
@@ -292,7 +296,7 @@ export function Dispatch() {
       {tab === 'orders' && <Card pad={false}><div className="p-3"><Table rows={wos} cols={[
         { key: 'id', label: 'Work order', render: w => <span className="font-mono text-[12px] font-semibold">{w.id}</span> },
         { key: 'priority', label: 'Pri', render: w => <Pri p={w.priority} /> },
-        { key: 'branch', label: 'Branch', get: w => D.BR[w.branchId].name, render: w => { const b = D.BR[w.branchId]; const c = branchClock(b, now); return <div><div className="font-semibold">{b.name}, {b.state}</div><div className="text-[11px] text-ink3">{b.brand}, {c.local}, {c.open ? 'open' : 'closed'}</div></div>; } },
+        { key: 'branch', label: 'Branch', get: w => D.BR[w.branchId].name, render: w => { const b = D.BR[w.branchId]; const c = branchClock(b, now); return <div><div className="font-semibold">{b.name}, {b.state}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{b.brand}, {c.local}, {c.open ? 'open' : 'closed'}</div></div>; } },
         { key: 'task', label: 'Task', render: w => <div className="max-w-[340px] text-[12.5px]">{w.task}<div className="flex flex-wrap gap-1 mt-1">{w.skills.map(k => <Badge key={k}>{k}</Badge>)}{w.parts.map(p => <Badge key={p} tone="blue"><I.Package size={10} />{p}</Badge>)}</div></div> },
         { key: 'window', label: 'Window', render: w => <span className="text-[12px] text-ink2">{w.window}</span> },
         { key: 'tech', label: 'Technician', render: w => w.tech ? <span className="font-semibold">{s.techs.find(t => t.id === w.tech).name}</span> : <Btn size="xs" kind="brand" icon={I.Wand2} onClick={() => setMatch(w)}>Match</Btn> },

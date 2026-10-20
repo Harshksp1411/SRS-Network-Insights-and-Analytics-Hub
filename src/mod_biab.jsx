@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import * as I from 'lucide-react';
+import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Modal, KV, cx, Progress, Select, Illus, ExportBtn, Dot, Logo } from './ui.jsx';
@@ -38,6 +39,7 @@ export function BiaB() {
         <Stat label="Amber / red" icon={I.AlertTriangle} value={<span><span className="text-warn">{P.filter(p => p.rag === 'Amber').length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{P.filter(p => p.rag === 'Red').length}</span></span>} sub="each with owner + fix date" />
         <Stat label="In hypercare" icon={I.HeartHandshake} value={P.filter(p => p.stage === 'Hypercare').length} sub="14 days, tighter thresholds" />
       </div>
+      <LivePanel kind="biab" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'portfolio', label: 'Portfolio', icon: I.LayoutGrid }, { id: 'tracks', label: 'Two tracks', icon: I.Split }, { id: 'kit', label: 'Kit & VLANs', icon: I.Package }, { id: 'floor', label: 'Floor plan', icon: I.Map }, { id: 'steps', label: 'Acquired-branch steps', icon: I.ListTodo }, { id: 'cutover', label: 'Cutover weekend', icon: I.Timer }, { id: 'parity', label: 'Day-1 parity', icon: I.Scale }]} />
       {tab === 'portfolio' && <Portfolio track={track} setTrack={setTrack} onOpen={setOpen} now={now} />}
       {tab === 'tracks' && <TracksView onOpen={setOpen} now={now} />}
@@ -74,9 +76,9 @@ function Portfolio({ track, setTrack, onOpen, now }) {
     <Card title="Projects by stage" sub="Greenfield and acquired, from planned to business as usual" icon={I.BarChart3} right={<Legend items={[['Greenfield', C.info], ['Acquired', C.ai]]} />}>
       <Bars data={data} keys={['Greenfield', 'Acquired']} colors={[C.info, C.ai]} h={150} />
     </Card>
-    <div className="grid xl:grid-cols-[1.3fr_1fr] gap-3 mt-3"><ThroughputCard /><SlipCard /></div>
+    <div className="grid xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mt-3"><ThroughputCard /><SlipCard /></div>
     <div className="flex items-center gap-2 mt-3 mb-2"><Tabs size="sm" value={track} onChange={setTrack} tabs={[{ id: 'All', label: 'Both tracks', count: s.projects.length }, { id: 'Greenfield', label: 'Greenfield', count: s.projects.filter(p => p.track === 'Greenfield').length }, { id: 'Acquired', label: 'Acquired', count: s.projects.filter(p => p.track === 'Acquired').length }]} /><span className="text-[12px] text-ink3">Schedules and greenfield sites are <Illus />. Acquisitions are SRS public announcements.</span></div>
-    <div className="grid grid-flow-col auto-cols-[minmax(210px,1fr)] gap-2 overflow-x-auto pb-2">
+    <div className="grid grid-flow-col auto-cols-[minmax(156px,1fr)] gap-2 overflow-x-auto pb-2">
       {D.STAGES.map(st => { const list = P.filter(p => p.stage === st); return (
         <div key={st} className="bg-chip/60 border border-line rounded-md p-2 min-h-[200px]">
           <div className="flex items-center gap-1.5 px-1 pb-2"><span className="text-[12.5px] font-bold text-ink">{st}</span><Badge>{list.length}</Badge></div>
@@ -105,7 +107,7 @@ function Kit() {
   const [size, setSize] = useState('M');
   const groups = [...new Set(D.KIT.map(k => k.group))];
   const gi = { WAN: I.Globe, LAN: I.Network, Wireless: I.Wifi, Power: I.BatteryCharging, Management: I.Terminal, Physical: I.Cable };
-  return (<div className="grid xl:grid-cols-[1.4fr_1fr] gap-3">
+  return (<div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
     <Card title="Kit contents – bill of materials" sub="Same kit, same golden config, every site. Quantities follow the size profile." icon={I.Package} right={<Tabs size="sm" value={size} onChange={setSize} tabs={[{ id: 'S', label: 'Small' }, { id: 'M', label: 'Medium' }, { id: 'L', label: 'Large' }]} />}>
       <div className="grid md:grid-cols-2 gap-2">{groups.map(g => { const Ic = gi[g] || I.Box; return (
         <div key={g} className="border border-line rounded-md p-2.5"><div className="flex items-center gap-1.5 text-[12px] font-bold text-ink3 mb-1.5"><Ic size={14} />{g}</div>
@@ -128,7 +130,7 @@ function FloorPlan() {
   const zone = D.ZONES.find(x => x.id === z);
   const vl = id => D.VLANS.find(v => v.id === id);
   const apDots = { counter: [[200, 115]], office: [[95, 245]], warehouse: [[340, 110], [420, 200], [510, 110]], docks: [[640, 170]], yard: [[130, 390], [430, 390]], trucks: [[610, 360]] };
-  return (<div className="grid xl:grid-cols-[1.5fr_1fr] gap-3">
+  return (<div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
     <Card title="Standard branch floor plan (medium profile)" sub="Click a zone to see devices, drops and VLANs. Layout is a template, not a specific SRS site." icon={I.Map} right={<Illus>Template</Illus>}>
       <svg viewBox="0 0 760 470" className="w-full">
         <rect x="10" y="10" width="740" height="450" rx="8" className="fill-chip stroke-line" />
@@ -137,7 +139,7 @@ function FloorPlan() {
           <text x={zz.x + 10} y={zz.y + 20} fontSize="13" fontWeight="800" className="fill-ink">{zz.short}</text>
           <text x={zz.x + 10} y={zz.y + 35} fontSize="10.5" className="fill-ink3">{zz.drops ? `${zz.drops} drops` : 'rack'}</text>
           <text x={zz.x + 10} y={zz.y + 48} fontSize="10.5" className="fill-ink3">VLAN {zz.vlans.join(', ')}</text>
-          {zz.id === 'closet' && <g transform={`translate(${zz.x + 22},${zz.y + 60})`}>{[0, 1, 2, 3].map(k => <rect key={k} y={k * 14} width="34" height="10" rx="2" fill={['#762123', '#334155', '#334155', '#16a34a'][k]} />)}</g>}
+          {zz.id === 'closet' && <g transform={`translate(${zz.x + 22},${zz.y + 60})`}>{[0, 1, 2, 3].map(k => <rect key={k} y={k * 14} width="34" height="10" rx="2" fill={['#762123', '#3a3a3a', '#3a3a3a', '#2e7d32'][k]} />)}</g>}
           {(apDots[zz.id] || []).map(([x, y], k) => <g key={k} transform={`translate(${x},${y})`}><circle r="11" fill={zz.id === 'yard' || zz.id === 'trucks' ? C.ok : C.info} opacity="0.18" /><circle r="5" fill={zz.id === 'yard' || zz.id === 'trucks' ? C.ok : C.info} /></g>)}
           {zz.id === 'docks' && [60, 120, 180, 240].map(y => <rect key={y} x={zz.x + zz.w - 12} y={zz.y + y - 20} width="10" height="26" className="fill-ink3" />)}
           {zz.id === 'trucks' && [0, 1].map(k => <rect key={k} x={zz.x + 30 + k * 56} y={zz.y + 86} width="44" height="58" rx="4" className="fill-panel stroke-ink3" />)}
@@ -173,7 +175,7 @@ function Steps({ pid, setPid }) {
   const runOnb = () => onbItems.forEach((it, k) => setTimeout(() => setOnb(o => ({ ...o, [it]: true })), 450 * (k + 1)));
   return (<div>
     <div className="flex items-center gap-2 mb-3"><ProjectPicker pid={p.id} setPid={id => { setPid(id); }} filter={x => x.track === 'Acquired'} /><Badge tone="purple">Acquired, brand kept</Badge><span className="text-[12px] text-ink3">{p.acquired}</span></div>
-    <div className="grid xl:grid-cols-[300px_1fr] gap-3">
+    <div className="grid xl:grid-cols-[300px_minmax(0,1fr)] gap-3">
       <Card title="Steps" icon={I.ListTodo} pad={false}><div className="p-2">{D.ACQ_STEPS.map((st, k) => { const v = p.steps[st.id] || 'todo'; return <button key={st.id} onClick={() => setSel(st.id)} className={cx('w-full text-left flex items-start gap-2 rounded-md px-2 py-2', sel === st.id ? 'bg-chip' : 'hover:bg-chip/60')}>{v === 'done' ? <I.CheckCircle2 size={17} className="text-ok mt-0.5" /> : v === 'active' ? <I.CircleDot size={17} className="text-info mt-0.5" /> : <I.Circle size={17} className="text-ink3 mt-0.5" />}<div><div className="text-[13px] font-semibold text-ink">{k + 1}. {st.name}</div><div className="text-[11.5px] text-ink3">{v}</div></div></button>; })}</div></Card>
       <Card title={step.name} sub={step.desc} icon={I.ClipboardList} right={(p.steps[sel] === 'active') && <Btn kind="ok" icon={I.Check} onClick={() => complete(sel)}>Complete step</Btn>}>
         {sel === 'discovery' && <div className="grid md:grid-cols-2 gap-3">
@@ -243,7 +245,7 @@ function Parity({ pid, setPid }) {
   const doRun = () => { setRun(1); setTimeout(() => setRun(2), 1600); act.audit(`Day-1 parity check run: ${p.brand}`, p.id); };
   return (<div>
     <div className="flex items-center gap-2 mb-3"><ProjectPicker pid={p.id} setPid={setPid} filter={x => cands.includes(x)} /><Btn icon={I.RefreshCw} onClick={doRun}>{run === 1 ? 'Checking…' : 'Run parity check'}</Btn></div>
-    <div className="grid xl:grid-cols-[280px_1fr] gap-3">
+    <div className="grid xl:grid-cols-[280px_minmax(0,1fr)] gap-3">
       <Card title="Parity with fleet" icon={I.Scale}><div className="flex flex-col items-center py-2"><Ring value={ok / rows.length} size={120} stroke={11} color={ok === rows.length ? C.ok : C.warn} label={pct(ok / rows.length, 0)} /><div className="text-[12.5px] text-ink2 mt-2 text-center">{ok === rows.length ? 'This branch sees the same telemetry, automation, runbooks and AI coverage as every other branch from day one.' : 'Parity completes at gate 12 of the cutover (Sun 16:00).'}</div></div></Card>
       <Card title={`${p.brand} – ${p.site}`} sub="New branch vs fleet baseline" icon={I.ListChecks}>
         <Table dense sortable={false} rows={rows.map((r, k) => ({ id: k, g: r[0], n: r[1], v: r[2], ok: run === 1 ? null : r[3] }))} cols={[{ key: 'g', label: 'Area', render: r => <span className="text-ink3 text-[12px]">{r.g}</span> }, { key: 'n', label: 'Check', render: r => <span className="font-semibold">{r.n}</span> }, { key: 'fleet', label: 'Fleet baseline', render: r => r.v }, { key: 'v', label: 'This branch', render: r => r.ok === null ? <I.Loader2 size={14} className="animate-spin text-info" /> : r.ok ? <span className="text-ok font-semibold">{r.v}</span> : <span className="text-warn font-semibold">pending</span> }, { key: 'ok', label: '', render: r => r.ok === null ? null : r.ok ? <I.CheckCircle2 size={15} className="text-ok" /> : <I.Clock size={15} className="text-warn" /> }]} />
@@ -291,7 +293,7 @@ function Wizard() {
       {st === 1 && <div className="space-y-3">
         <div><div className="text-[12px] font-semibold text-ink2 mb-1">Brand on the door</div><Select value={f.brand} onChange={v => setF({ ...f, brand: v })} options={[{ value: '', label: 'Choose…' }, ...D.BRANDS.map(b => ({ value: b, label: b })), { value: "Mingledorff's", label: "Mingledorff's" }, { value: 'Lohmiller & Company', label: 'Lohmiller & Company' }, { value: 'LS Building Products', label: 'LS Building Products' }, { value: '__new', label: '+ New acquired brand…' }]} className="w-full" /></div>
         {f.brand === '__new' && <input value={f.newBrand} onChange={e => setF({ ...f, newBrand: e.target.value })} placeholder="Acquired company name (kept on the branch)" className="w-full h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" />}
-        <div className="grid grid-cols-[1fr_120px] gap-2"><input value={f.site} onChange={e => setF({ ...f, site: e.target.value })} placeholder="Site name / city" className="h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" /><Select value={f.state} onChange={v => setF({ ...f, state: v })} options={Object.keys(D.REGION_OF)} /></div>
+        <div className="grid grid-cols-[minmax(0,1fr)_120px] gap-2"><input value={f.site} onChange={e => setF({ ...f, site: e.target.value })} placeholder="Site name / city" className="h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" /><Select value={f.state} onChange={v => setF({ ...f, state: v })} options={Object.keys(D.REGION_OF)} /></div>
       </div>}
       {st === 2 && <div className="space-y-3"><div className="text-[12px] font-semibold text-ink2">Size profile</div><div className="grid grid-cols-3 gap-2">{[['S', 'Small', '1 EC, 1 switch, 2–3 APs'], ['M', 'Medium', '1 EC, 2 switches, 4–6 APs'], ['L', 'Large', 'HA EC pair, switch stack, 8+ APs']].map(([k, n, d]) => <button key={k} onClick={() => setF({ ...f, size: k })} className={cx('border-2 rounded-md p-3 text-left', f.size === k ? 'border-brand bg-brand/5' : 'border-line')}><div className="font-bold text-ink">{n}</div><div className="text-[12px] text-ink2">{d}</div></button>)}</div>
         <div className="text-[12px] font-semibold text-ink2">Target go-live (cutover weekend)</div><Select value={String(f.weeks)} onChange={v => setF({ ...f, weeks: +v })} options={[2, 4, 6, 8, 10, 12].map(w => ({ value: String(w), label: `${w} weeks from now – ${dateShort(Date.now() + w * 7 * DAY)}` }))} /></div>}

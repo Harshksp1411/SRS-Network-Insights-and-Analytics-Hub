@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
+import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow, gate, activeFreeze, branchClock } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Conf, GateBox, Modal, KV, cx, Progress, Select, Illus } from './ui.jsx';
@@ -60,11 +61,12 @@ export function Changes() {
         <Stat label="Config drift" icon={I.GitCompare} value={s.drift.filter(d => !d.done).length} tone="amber" sub={`${s.drift.filter(d => d.sev === 'High' && !d.done).length} high severity`} onClick={() => go('drift')} />
         <Stat label="Firmware policy" icon={I.ShieldCheck} value={pct(totOk / totN)} sub={`Annexure B #32 target 98%, ${num(totN - totOk)} below`} onClick={() => go('firmware')} tone={totOk / totN >= 0.92 ? 'green' : 'red'} />
       </div>
+      <LivePanel kind="changes" className="mb-3 mt-3" />
       <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'approvals', label: 'Approvals', count: pending.length }, { id: 'calendar', label: 'Change calendar' }, { id: 'nac', label: 'Network-as-Code', count: NAC.filter(m => (mrState[m.id] || m.status) === 'Open').length }, { id: 'drift', label: 'Drift', count: s.drift.filter(d => !d.done).length }, { id: 'firmware', label: 'Firmware compliance' }]} />
 
       {tab === 'approvals' && <div className="space-y-3">
         {pending.map(a => { const g = gate(s, { kind: a.type === 'Prediction' ? 'readonly' : 'change', conf: a.conf, branchId: a.branchId, now }); const b = D.BR[a.branchId]; return (
-          <Card key={a.id} pad={false}><div className="p-4 grid lg:grid-cols-[1fr_320px] gap-4">
+          <Card key={a.id} pad={false}><div className="p-4 grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
             <div>
               <div className="flex items-center gap-2 flex-wrap"><span className="font-mono text-[12px] text-ink3">{a.id}</span><Badge tone="purple"><I.Bot size={11} />{D.AGENTS[a.agent].name}</Badge><Badge>{a.type}</Badge><Badge tone={a.risk === 'High' ? 'red' : a.risk === 'Medium' ? 'amber' : 'green'}>Risk {a.risk}</Badge><span className="text-[11.5px] text-ink3">{ago(a.created, now)}</span></div>
               <div className="text-[15px] font-bold text-ink mt-1">{a.title}</div>
@@ -88,7 +90,7 @@ export function Changes() {
       </div>}
 
       {tab === 'calendar' && <div className="grid xl:grid-cols-2 gap-3 mb-3"><ChangeTrendCard /><RiskHistCard /></div>}
-      {tab === 'calendar' && <div className="grid xl:grid-cols-[1fr_360px] gap-3">
+      {tab === 'calendar' && <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-3">
         <Card title="Change calendar – next 14 days" sub="Shaded rows are freeze windows. Click a change for details and actions." icon={I.CalendarDays} pad={false}>
           <div className="px-4 pb-4">{days.map(d => { const fr = frOn(d); const uniq = chOn(d); return (
             <div key={d.k} className={cx('flex gap-3 border-b border-line/60 py-2 items-start', fr.length && 'bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,rgb(var(--info)/0.07)_6px,rgb(var(--info)/0.07)_12px)]')}>
@@ -108,7 +110,7 @@ export function Changes() {
         </div>
       </div>}
 
-      {tab === 'nac' && <div className="grid xl:grid-cols-[300px_1fr] gap-3">
+      {tab === 'nac' && <div className="grid xl:grid-cols-[300px_minmax(0,1fr)] gap-3">
         <Card title="Merge requests" icon={I.GitMerge} pad={false}><div className="p-2 space-y-1">{NAC.map(m => <button key={m.id} onClick={() => setMr(m.id)} className={cx('w-full text-left rounded-md px-2.5 py-2 text-[12.5px] border', mr === m.id ? 'border-ink3 bg-chip' : 'border-transparent hover:bg-chip')}><div className="flex items-center gap-1.5"><span className="font-mono text-ink3">{m.id}</span><Badge tone={(mrState[m.id] || m.status) === 'Merged' ? 'green' : (mrState[m.id] || m.status) === 'Changes requested' ? 'amber' : 'blue'}>{mrState[m.id] || m.status}</Badge></div><div className="font-semibold text-ink mt-0.5">{m.title}</div></button>)}</div></Card>
         <Card title={cur.title} sub={`${cur.file}, ${cur.author}, scope ${cur.scope}`} icon={I.FileCode2}>
           <pre className="bg-chip border border-line rounded-md p-3 text-[12px] font-mono leading-6 overflow-x-auto">{cur.diff.map((l, i) => <div key={i} className={l.startsWith('+') ? 'text-ok bg-ok/10 -mx-3 px-3' : l.startsWith('-') ? 'text-bad bg-bad/10 -mx-3 px-3' : 'text-ink'}>{l}</div>)}</pre>
@@ -121,7 +123,7 @@ export function Changes() {
       {tab === 'drift' && <Card title="Drift from golden configuration" sub="Nightly backups compared with the Network-as-Code repo" icon={I.GitCompare} pad={false}><div className="p-3">
         <Table rows={s.drift.map(d => ({ ...d, id: d.device }))} cols={[
           { key: 'device', label: 'Device', render: d => <span className="font-mono text-[12px] font-semibold">{d.device}</span> },
-          { key: 'branch', label: 'Branch', get: d => D.BR[d.branchId].name, render: d => <div><div className="font-semibold">{D.BR[d.branchId].name}</div><div className="text-[11px] text-ink3">{D.BR[d.branchId].brand}</div></div> },
+          { key: 'branch', label: 'Branch', get: d => D.BR[d.branchId].name, render: d => <div><div className="font-semibold whitespace-nowrap">{D.BR[d.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[200px]" title="">{D.BR[d.branchId].brand}</div></div> },
           { key: 'item', label: 'Drift' }, { key: 'sev', label: 'Severity', render: d => <Badge tone={d.sev === 'High' ? 'red' : d.sev === 'Medium' ? 'amber' : 'gray'}>{d.sev}</Badge> },
           { key: 'source', label: 'Source', render: d => <span className="text-[12px] text-ink2">{d.source}</span> },
           { key: 'since', label: 'Since', render: d => <span className="text-[12px] text-ink3">{ago(d.since, now)}</span> },
@@ -130,7 +132,7 @@ export function Changes() {
       </div></Card>}
 
       {tab === 'firmware' && <div className="mb-3"><FirmwareProjectionCard cur={totOk / totN} /></div>}
-      {tab === 'firmware' && <div className="grid xl:grid-cols-[1.4fr_1fr] gap-3">
+      {tab === 'firmware' && <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3">
         <Card title="Firmware compliance by platform" sub="Policy (Annexure B #32): critical devices at N-1 or newer, others at N-2 or newer; Day-0 critical patches in the emergency window" icon={I.ShieldCheck} right={<Illus>Versions illustrative</Illus>}>
           <Table rows={fwRows} cols={[
             { key: 'id', label: 'Platform', render: r => <div><b>{r.id}</b>{r.crit && <Badge tone="brand" className="ml-1">critical</Badge>}</div> },

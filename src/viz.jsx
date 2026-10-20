@@ -27,7 +27,7 @@ export function IncidentForecastCard() {
         <div><span className="font-display text-[24px] font-semibold text-ink">{storm ? 'High' : 'Normal'}</span> <span className="text-ink3">weather risk (DFW)</span></div>
       </div>
       <LineChart labels={f.labels} series={[{ name: 'New incidents', data: f.actual, color: C.s1 }, { name: 'Forecast', data: f.fc, color: C.s1, forecastFrom: 23 }]} band={{ lo: f.lo, hi: f.hi, color: C.s1 }} forecastFrom={23} h={190} yMin={0} yFmt={v => Math.round(v)} />
-      <div className="flex items-center justify-between mt-1"><Legend items={[['Actual', C.s1], ['Forecast', C.s1, true], ['Likely range', '#b7d3f6']]} /><span className="text-[11.5px] text-ink3">Model: seasonal hourly + weather + open changes</span></div>
+      <div className="flex items-center justify-between mt-1"><Legend items={[['Actual', C.s1], ['Forecast', C.s1, true], ['Likely range', '#d6dee8']]} /><span className="text-[11.5px] text-ink3">Model: seasonal hourly + weather + open changes</span></div>
     </Card>
   );
 }
@@ -160,7 +160,7 @@ export function PreventRecurrence({ inc }) {
 // ─────────────── Inventory ───────────────
 export function FirmwareMixCard() {
   const rows = useMemo(() => { const g = {}; D.DEVICES.forEach(d => { const k = d.type === 'AP' ? 'Access points' : d.model === 'EC-XS' ? 'EdgeConnect EC-XS' : d.model === '2530' ? '2530 (AOS-S)' : `CX ${d.model}`; const l = D.FW_TARGET[d.type === 'AP' ? 'AP' : d.model].indexOf(d.fw); (g[k] = g[k] || { label: k, N: 0, 'N-1': 0, 'N-2': 0, Older: 0 }); g[k][['N', 'N-1', 'N-2', 'Older'][l]]++; }); return Object.values(g); }, []);
-  const ord = ['#184f95', '#3987e5', '#86b6ef', C.bad];
+  const ord = ['#184f95', '#3987e5', '#a9bcd0', C.bad];
   return (
     <Card title="Firmware levels by platform" sub="Share of devices at the target release (N) and behind it" right={<Legend items={[['N', ord[0]], ['N-1', ord[1]], ['N-2', ord[2]], ['Older', ord[3]]]} />}>
       <div className="space-y-2.5">{rows.map(r => { const t = r.N + r['N-1'] + r['N-2'] + r.Older; return <div key={r.label} className="text-[12.5px]"><div className="flex justify-between"><span className="text-ink">{r.label}</span><span className="text-ink3 tabular">{num(t)} devices</span></div><div className="flex h-3 gap-[2px] mt-1">{['N', 'N-1', 'N-2', 'Older'].map((k, j) => r[k] > 0 && <span key={k} title={`${k}: ${r[k]}`} className={cx(j === 0 && 'rounded-l-[3px]', j === 3 && 'rounded-r-[3px]')} style={{ width: `${r[k] / t * 100}%`, background: ord[j] }} />)}</div></div>; })}</div>

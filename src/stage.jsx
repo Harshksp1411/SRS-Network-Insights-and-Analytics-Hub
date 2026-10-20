@@ -179,7 +179,7 @@ function Spark({ data, bad }) {
 
 const TONE = { bad: 'text-bad', warn: 'text-warn', info: 'text-info', ok: 'text-ok', idle: 'text-ink2' };
 const DOT = { bad: 'bg-bad', warn: 'bg-warn', info: 'bg-info', ok: 'bg-ok', idle: 'bg-ink3/50' };
-const TAGC = { INTAKE: 'text-info', CORRELATE: 'text-ai', TICKET: 'text-[#4fb3a9]', EVIDENCE: 'text-ok', 'RULED OUT': 'text-ink3', DIAGNOSE: 'text-warn', 'PRE-CHECK': 'text-ok', DECIDE: 'text-info', APPROVAL: 'text-ai', CREDENTIAL: 'text-warn', ACT: 'text-info', VERIFY: 'text-ok', NOTIFY: 'text-[#4fb3a9]', LEARN: 'text-ai', DONE: 'text-ok', POLICY: 'text-info', STOPPED: 'text-bad', DECLINED: 'text-bad' };
+const TAGC = { INTAKE: 'text-info', CORRELATE: 'text-ai', TICKET: 'text-[#8fa7bf]', EVIDENCE: 'text-ok', 'RULED OUT': 'text-ink3', DIAGNOSE: 'text-warn', 'PRE-CHECK': 'text-ok', DECIDE: 'text-info', APPROVAL: 'text-ai', CREDENTIAL: 'text-warn', ACT: 'text-info', VERIFY: 'text-ok', NOTIFY: 'text-[#8fa7bf]', LEARN: 'text-ai', DONE: 'text-ok', POLICY: 'text-info', STOPPED: 'text-bad', DECLINED: 'text-bad' };
 const SysIcon = ({ k, size = 14 }) => { const s = SYS[k]; if (s.logo) return <Logo k={s.logo} h={size - 3} className="!px-0.5 !py-0 !border-0 shrink-0" />; const Ic = s.icon; return <span className="w-[18px] h-[18px] rounded bg-chip flex items-center justify-center shrink-0"><Ic size={size - 3} className="text-ink2" /></span>; };
 
 // ── the stage ────────────────────────────────────────────────────────
@@ -334,7 +334,7 @@ function Stage({ demo }) {
           <I.Timer size={18} className="text-info" /><div className="flex-1 text-[13px]"><b>Human-on-the-loop.</b> Mova iO runs this in <b>{countdown} s</b> unless someone stops it. <span className="text-ink2">{sp.why} In production the stop window is 5 minutes; the demo shortens it.</span></div>
           <button onClick={decline} className="h-8 px-3 rounded-md border border-bad/60 text-bad text-[13px] font-bold inline-flex items-center gap-1.5"><I.OctagonX size={14} />Stop</button></div>}
         {/* body */}
-        <div className="flex-1 min-h-0 relative"><div className="h-full grid lg:grid-cols-[1.08fr_0.94fr_1.02fr] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 min-h-0 relative"><div className="h-full grid lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.94fr)_minmax(0,1.02fr)] gap-3 p-3 overflow-y-auto lg:overflow-hidden">
           {/* left: telemetry */}
           <div className="flex flex-col gap-3 min-h-0 min-w-0">
             <div className="rounded-lg border border-line bg-panel p-3">
@@ -459,7 +459,7 @@ function Decisions({ logs, start }) {
     <div className="rounded-lg border border-line bg-panel flex flex-col min-h-[200px] flex-1 overflow-hidden">
       <div className="flex items-center gap-2 px-3 h-9 border-b border-line text-[12.5px] shrink-0"><span className="font-bold flex-1">Mova iO decisions</span><Logo k="movaio" h={12} className="!py-0" /></div>
       <div ref={box} className="flex-1 overflow-y-auto px-3 py-1.5 space-y-1">{logs.map((l, i) => (
-        <div key={i} className={cx('grid grid-cols-[58px_1fr] gap-2 text-[12px] leading-[16px] py-0.5 px-1 rounded', i === logs.length - 1 && 'bg-ai/10 feed-in')}>
+        <div key={i} className={cx('grid grid-cols-[58px_minmax(0,1fr)] gap-2 text-[12px] leading-[16px] py-0.5 px-1 rounded', i === logs.length - 1 && 'bg-ai/10 feed-in')}>
           <code className="text-ink3 text-[11px] leading-[16px]">{hhmmss(start + l.at * 1000)}</code><span className="text-ink"><code className={cx('text-[10.5px] font-bold mr-1.5', TAGC[l.tag] || 'text-ink2')}>{l.tag}</code>{l.text}</span></div>))}
         {!logs.length && <div className="text-[12.5px] text-ink3 py-2">Waiting for signals.</div>}</div>
     </div>

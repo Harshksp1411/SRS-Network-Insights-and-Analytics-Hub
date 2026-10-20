@@ -18,7 +18,6 @@ import { NetGraph } from './mod_graph.jsx';
 import { Inventory, Carriers, Dispatch } from './mod_assets.jsx';
 import { Changes } from './mod_changes.jsx';
 import { BiaB } from './mod_biab.jsx';
-import { LiveTicker } from './liveui.jsx';
 import { Predictive, Knowledge, Automation, SLATracker, Reports } from './mod_more.jsx';
 
 export const MODULES = [
@@ -41,14 +40,14 @@ export const MODULES = [
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
 ];
 
-export function RoofMark({ size = 40, dark = true }) {
-  const ink = dark ? '#ffffff' : 'currentColor';
+export function RoofMark({ size = 40, dark = false }) {
+  const ink = dark ? '#ffffff' : 'rgb(var(--ink))';
   return (
     <svg width={size} height={size * 0.8} viewBox="0 0 45 36" aria-label="SRS roof mark">
-      <path d="M2.5 19 L22.5 4.5 L42.5 19" fill="none" stroke="#a6192e" strokeWidth="4.6" strokeLinejoin="miter" strokeMiterlimit="10" />
+      <path d="M2.5 19 L22.5 4.5 L42.5 19" fill="none" stroke="#762123" strokeWidth="4.6" strokeLinejoin="miter" strokeMiterlimit="10" />
       <path d="M22.5 4.5 L42.5 19" fill="none" stroke={ink} strokeWidth="4.6" />
       <path d="M9.5 21 V33.5 H35.5 V21" fill="none" stroke={ink} strokeWidth="2.4" />
-      <path d="M18.5 33.5 V26 H26.5 V33.5" fill="none" stroke="#a6192e" strokeWidth="2.4" />
+      <path d="M18.5 33.5 V26 H26.5 V33.5" fill="none" stroke="#762123" strokeWidth="2.4" />
     </svg>
   );
 }
@@ -57,38 +56,38 @@ function Header() {
   const { s, act } = useApp();
   const now = useNow();
   const pendingNotif = s.approvals.filter(a => a.status === 'Pending').length;
-  const hb = 'h-8 rounded-[4px] border border-white/20 text-white/90 hover:bg-white/10 hover:text-white';
+  const hb = 'h-8 rounded-[4px] border border-line text-ink hover:bg-chip';
   return (
-    <header className="h-[60px] bg-head text-white flex items-center pl-4 pr-3 gap-3 sticky top-0 z-40 border-b-[3px] border-[#a6192e]">
+    <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 sticky top-0 z-40 border-b-[3px] border-brand shadow-[0_1px_0_rgba(0,0,0,0.04)]">
       <div className="flex items-center gap-3 min-w-0 w-[220px] shrink-0">
         <RoofMark />
         <div className="leading-none min-w-0">
-          <div className="font-display text-[22px] font-bold tracking-[0.02em] text-white">SRS</div>
-          <div className="text-[11px] text-white/60 mt-0.5 whitespace-nowrap">Distribution</div>
+          <div className="font-display text-[22px] font-bold tracking-[0.02em] text-ink">SRS</div>
+          <div className="text-[10.5px] text-ink2 mt-0.5 whitespace-nowrap uppercase tracking-[0.12em]">Distribution</div>
         </div>
       </div>
-      <div className="leading-tight min-w-0 border-l border-white/15 pl-4">
-        <div className="font-display text-[19px] font-semibold text-white whitespace-nowrap">Network Intelligence Hub</div>
-        <div className="text-[11.5px] text-white/55 whitespace-nowrap flex items-center gap-1.5">{num(D.FACTS.branches)} branches and {num(D.FACTS.totalDevices)} devices. Operated by <span className="inline-flex bg-white rounded-[3px] px-1 py-[1px]"><img src={LOGOS.movate} alt="Movate" style={{ height: 10 }} /></span></div>
+      <div className="leading-tight min-w-0 border-l border-line pl-4">
+        <div className="font-display text-[19px] font-semibold text-ink whitespace-nowrap">Network Intelligence Hub</div>
+        <div className="text-[11.5px] text-ink3 whitespace-nowrap flex items-center gap-1.5">{num(D.FACTS.branches)} branches and {num(D.FACTS.totalDevices)} devices. Operated by <span className="inline-flex bg-white rounded-[3px] px-1 py-[1px] border border-line"><img src={LOGOS.movate} alt="Movate" style={{ height: 10 }} /></span></div>
       </div>
       <div className="flex-1" />
-      <div className="hidden 2xl:flex items-center gap-3 text-[11.5px] text-white/60 mr-1">
-        {[['opsramp', 1], ['central', 2], ['servicenow', 1], ['movaio', 0]].map(([k, sec]) => <span key={k} className="inline-flex items-center gap-1.5"><span className="bg-white rounded-[3px] px-1 py-[2px] inline-flex"><img src={LOGOS[k]} alt={k} style={{ height: 11 }} /></span><span className="w-1.5 h-1.5 rounded-full bg-[#34be52]" />{(Math.floor(now / 1000) + sec) % 7 + 1}s</span>)}
+      <div className="hidden 2xl:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">
+        {[['opsramp', 1], ['central', 2], ['servicenow', 1], ['movaio', 0]].map(([k, sec]) => <span key={k} className="inline-flex items-center gap-1.5"><span className="bg-white rounded-[3px] px-1 py-[2px] inline-flex border border-line"><img src={LOGOS[k]} alt={k} style={{ height: 11 }} /></span><span className="w-1.5 h-1.5 rounded-full bg-ok" />{(Math.floor(now / 1000) + sec) % 7 + 1}s</span>)}
       </div>
       <button onClick={() => act.go('demos')} className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.PlayCircle size={15} />Live demos</button>
-      <button onClick={() => act.set({ askOpen: !s.askOpen })} className="h-8 rounded-[4px] px-3 text-[13px] font-semibold inline-flex items-center gap-1.5 bg-[#a6192e] hover:bg-[#bd1f36] text-white"><I.Sparkles size={15} />Ask Mova iO</button>
+      <button onClick={() => act.set({ askOpen: !s.askOpen })} className="h-8 rounded-[4px] px-3 text-[13px] font-semibold inline-flex items-center gap-1.5 bg-brand hover:brightness-110 text-white"><I.Sparkles size={15} />Ask Mova iO</button>
       <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px]'}>
-        <I.UserRound size={14} className="text-white/60" />
+        <I.UserRound size={14} className="text-ink3" />
         <select value={s.role} onChange={e => { const v = e.target.value; const r = ROLES.find(x => x.id === v); act.set(st => ({ role: v, module: r.home, selInc: null, askLog: [], tab: r.tab ? { ...st.tab, changes: r.tab } : st.tab, filters: { region: 'All', city: 'All', brand: 'All', branchId: null } })); act.toast(`Viewing as ${r.name} (${r.who})`, 'info'); }} className="bg-transparent outline-none appearance-none font-semibold cursor-pointer">
           {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
-        <I.ChevronDown size={14} className="absolute right-2 text-white/60 pointer-events-none" />
+        <I.ChevronDown size={14} className="absolute right-2 text-ink3 pointer-events-none" />
       </label>
       <button onClick={() => act.set({ notifOpen: !s.notifOpen })} className={hb + ' relative w-8 flex items-center justify-center'} title="Notifications">
-        <I.Bell size={16} />{pendingNotif > 0 && <span className="absolute -top-1.5 -right-1.5 bg-[#e02f2f] text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{pendingNotif}</span>}
+        <I.Bell size={16} />{pendingNotif > 0 && <span className="absolute -top-1.5 -right-1.5 bg-bad text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{pendingNotif}</span>}
       </button>
       <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={hb + ' w-8 flex items-center justify-center'} title="Toggle light / dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
-      <div className="flex items-baseline gap-1.5 px-1 font-mono text-[14px] text-white tabular"><span className="self-center w-1.5 h-1.5 rounded-full bg-[#34be52] animate-pulse" />{hhmmss(now)}<span className="text-[10.5px] text-white/50">CT</span></div>
+      <div className="flex items-baseline gap-1.5 px-1 font-mono text-[14px] text-ink tabular"><span className="self-center w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />{hhmmss(now)}<span className="text-[10.5px] text-ink3">CT</span></div>
     </header>
   );
 }
@@ -108,10 +107,10 @@ function Sidebar() {
             const on = s.module === m.id; const b = m.badge ? m.badge(s) : 0;
             return (
               <button key={m.id} onClick={() => act.go(m.id)} title={m.label} className={cx('w-full flex items-center gap-2.5 px-4 h-9 text-[13px] text-left relative', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
-                {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#c8343a] rounded-r" />}
+                {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#b23a3f] rounded-r" />}
                 <m.icon size={16} className="shrink-0" />{!collapsed && <span className="flex-1 truncate">{m.label}</span>}
-                {!collapsed && b > 0 && <span className={cx('text-[10.5px] font-bold rounded px-1.5', m.alertBadge ? 'bg-[#c8343a] text-white' : 'bg-white/15 text-white')}>{b}</span>}
-                {m.id === 'biab' && !collapsed && <span className="text-[9.5px] font-bold bg-[#c8343a]/90 text-white rounded px-1">FLAGSHIP</span>}
+                {!collapsed && b > 0 && <span className={cx('text-[10.5px] font-bold rounded px-1.5', m.alertBadge ? 'bg-brand text-white' : 'bg-white/15 text-white')}>{b}</span>}
+                {m.id === 'biab' && !collapsed && <span className="text-[9.5px] font-bold bg-brand text-white rounded px-1">FLAGSHIP</span>}
               </button>
             );
           })}
@@ -302,7 +301,7 @@ export default function App() {
       <div className="flex">
         <Sidebar />
         <main className="flex-1 min-w-0">
-          <div className="sticky top-[60px] z-30"><FilterBar /><LiveTicker /></div>
+          <div className="sticky top-[60px] z-30"><FilterBar /></div>
           <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
         </main>
       </div>

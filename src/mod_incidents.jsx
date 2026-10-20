@@ -56,7 +56,7 @@ function Queue() {
     <div>
       <PageHead icon={I.Siren} title="Live Incidents" sub="ServiceNow incident queue with SLA clocks from Annexure B: P1 15 min / 4 h, P2 15 min / 8 h, P3 30 min / 24 h, P4 30 min / 96 h."
         right={<><LiveBadge /><Btn icon={I.PlayCircle} onClick={() => act.set({ scenarioPicker: true })}>Scenarios</Btn><ExportBtn onClick={() => exportCSV('srs-incidents.csv', rows, [{ label: 'Number', key: 'id' }, { label: 'Priority', key: 'pri' }, { label: 'Title', key: 'title' }, { label: 'Branch', get: i => D.BR[i.branchId].name }, { label: 'Brand', get: i => D.BR[i.branchId].brand }, { label: 'Category', key: 'cat' }, { label: 'State', key: 'state' }, { label: 'Assigned', key: 'assignee' }, { label: 'Opened', get: i => dt(i.opened) }])} /></>} />
-      <div className="grid xl:grid-cols-[1fr_1.2fr] gap-3 mb-3">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mb-3">
         <QueueForecastCard />
         <BreachRiskCard />
       </div>
@@ -71,7 +71,7 @@ function Queue() {
           { key: 'pri', label: 'Pri', render: i => <Pri p={i.pri} /> },
           { key: 'id', label: 'Number', render: i => <span className="font-mono text-[12px] text-ink2">{i.id}</span> },
           { key: 'title', label: 'Short description', render: i => <div className="max-w-[420px]"><div className="font-semibold text-ink line-clamp-1">{i.major && <Badge tone="alert" className="mr-1">MAJOR</Badge>}{L.newIncs[i.id] && <Badge tone="blue" className="mr-1">NEW</Badge>}{i.title}</div><div className="text-[11.5px] text-ink3">{i.cat}, {i.corr} events{i.suppressed ? `, ${i.suppressed} suppressed` : ''}</div></div> },
-          { key: 'branch', label: 'Branch', render: i => { const b = D.BR[i.branchId]; return <div><div className="text-ink font-semibold">{b.name}</div><div className="text-[11.5px] text-ink3">{b.brand}</div></div>; } },
+          { key: 'branch', label: 'Branch', render: i => { const b = D.BR[i.branchId]; return <div><div className="text-ink font-semibold whitespace-nowrap">{b.name}</div><div className="text-[11.5px] text-ink3 truncate max-w-[200px]" title="">{b.brand}</div></div>; } },
           { key: 'state', label: 'State', render: i => <Badge tone={i.state === 'New' ? 'red' : i.state.startsWith('On Hold') ? 'amber' : i.state === 'Resolved' ? 'green' : 'blue'}>{i.state}</Badge> },
           { key: 'assignee', label: 'Assigned to', render: i => i.assignee ? <span className="text-[12px]">{i.assignee}</span> : <Btn size="xs" kind="brand" onClick={e => { e.stopPropagation(); ack(i); }}>Acknowledge</Btn> },
           { key: 'resp', label: 'Response', render: i => <RespTimer inc={i} now={now} /> },
@@ -85,7 +85,7 @@ function Queue() {
 }
 
 const AG = D.AGENTS;
-function AgentChip({ a }) { const x = AG[a] || { name: a, color: '#64748b' }; return <span className="inline-flex items-center gap-1 text-[11.5px] font-bold" style={{ color: x.color }}><I.Bot size={13} />{x.name}</span>; }
+function AgentChip({ a }) { const x = AG[a] || { name: a, color: '#6b6b6b' }; return <span className="inline-flex items-center gap-1 text-[11.5px] font-bold" style={{ color: x.color }}><I.Bot size={13} />{x.name}</span>; }
 
 function IncidentDetail({ id }) {
   const { s, act } = useApp();
@@ -165,7 +165,7 @@ function IncidentDetail({ id }) {
         </div>}
       </div>
 
-      <div className="grid xl:grid-cols-[1fr_360px] gap-3">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_360px] gap-3">
         <div>
           <div className="mb-3"><IncidentTelemetryCard inc={inc} /></div>
           <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'timeline', label: 'Signal timeline', count: timeline.length }, { id: 'corr', label: 'Correlated events', count: inc.corr }, { id: 'rca', label: 'Root cause', count: inc.rca.length }, { id: 'agents', label: 'Agent steps', count: inc.agentSteps.length }, { id: 'runbook', label: 'Runbook' }, { id: 'verify', label: 'Verification', count: inc.verify.length }, { id: 'notes', label: 'Work notes', count: inc.notes.length }]} />

@@ -2,13 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 :root {
-  --bg: 240 241 242; --panel: 255 255 255; --chip: 236 238 240; --line: 219 222 226; --ink: 27 31 35; --ink2: 72 79 87; --ink3: 118 125 134; --mapland: 222 225 228; --side: 30 34 38; --head: 0 0 0;
-  --ok: 12 140 12; --warn: 196 127 0; --bad: 208 59 59; --alert: 224 47 47; --info: 42 120 214; --ai: 98 80 214; --brand: 118 33 35; --action: 166 25 46;
+  --bg: 243 243 243; --panel: 255 255 255; --chip: 239 239 239; --line: 221 221 221; --ink: 26 26 26; --ink2: 77 77 77; --ink3: 117 117 117; --mapland: 226 226 226; --side: 30 30 30; --head: 255 255 255;
+  --ok: 46 125 50; --warn: 178 106 0; --bad: 198 40 40; --alert: 198 40 40; --info: 51 85 122; --ai: 118 33 35; --brand: 118 33 35; --action: 118 33 35;
   color-scheme: light;
 }
 .dark {
-  --bg: 17 19 21; --panel: 26 29 32; --chip: 36 40 44; --line: 48 53 58; --ink: 236 238 240; --ink2: 185 191 198; --ink3: 138 145 153; --mapland: 44 48 53; --side: 14 16 18; --head: 0 0 0;
-  --ok: 52 190 82; --warn: 250 178 25; --bad: 236 104 104; --alert: 240 70 70; --info: 57 135 229; --ai: 144 133 233; --brand: 168 56 60; --action: 196 40 60;
+  --bg: 18 18 18; --panel: 28 28 28; --chip: 40 40 40; --line: 56 56 56; --ink: 236 236 236; --ink2: 190 190 190; --ink3: 140 140 140; --mapland: 48 48 48; --side: 12 12 12; --head: 24 24 24;
+  --ok: 92 178 96; --warn: 230 160 40; --bad: 236 98 92; --alert: 236 84 78; --info: 128 160 198; --ai: 214 120 124; --brand: 176 58 62; --action: 176 58 62;
   color-scheme: dark;
 }
 html, body { background: rgb(var(--bg)); }
@@ -43,7 +43,8 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 .ticker-in { animation: tickerIn .45s ease-out; }
 @keyframes numFlash { 0% { color: rgb(var(--info)); } 100% { } }
 .force-light {
-  --bg: 240 241 242; --panel: 255 255 255; --chip: 236 238 240; --line: 219 222 226; --ink: 27 31 35; --ink2: 72 79 87; --ink3: 118 125 134;
-  --ok: 12 140 12; --warn: 196 127 0; --bad: 208 59 59; --alert: 224 47 47; --info: 42 120 214; --ai: 98 80 214; --brand: 118 33 35; --action: 166 25 46;
+  --bg: 243 243 243; --panel: 255 255 255; --chip: 239 239 239; --line: 221 221 221; --ink: 26 26 26; --ink2: 77 77 77; --ink3: 117 117 117;
+  --ok: 46 125 50; --warn: 178 106 0; --bad: 198 40 40; --alert: 198 40 40; --info: 51 85 122; --ai: 118 33 35; --brand: 118 33 35; --action: 118 33 35;
   color-scheme: light;
 }
+.num-flash { animation: numFlash 1.2s ease-out; }

@@ -6,7 +6,7 @@ import { Card, Badge, Btn, Stat, Table, Dot, Pri, PageHead, Section, Progress, c
 import { NAMap, Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from './util.js';
 import { useLive } from './live.jsx';
-import { LiveBadge, LiveFeed, EventFlowCard, ExperienceCard, AlertsPerMinCard, AppsLive } from './liveui.jsx';
+import { LiveBadge, LiveFeed, EventFlowCard, ExperienceCard, AlertsPerMinCard, AppsLive, LivePanel } from './liveui.jsx';
 import { IncidentForecastCard, PreventiveCard, ReadinessTrendCard, OpeningRiskCard } from './viz.jsx';
 
 const sevColor = h => ({ up: C.ok, degraded: C.warn, down: C.bad }[h]);
@@ -61,7 +61,7 @@ export function Overview() {
         <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
       </div>
 
-      <div className="grid xl:grid-cols-[1fr_420px] gap-3 mt-3">
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
         <Card title="Branch health map" sub={`All 900 branches. Each dot is one branch, coloured by health; pick a region or city above to zoom. Click a branch for Branch 360.`} icon={I.Map} right={<Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} />}>
           <NAMap points={points} focus={focusPts} onPoint={p => act.openBranch(p.id)} h={440} />
         </Card>
@@ -82,7 +82,7 @@ export function Overview() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-[1.5fr_1fr] gap-3 mt-3 items-start">
+      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
         <IncidentForecastCard />
         <PreventiveCard />
       </div>
@@ -93,12 +93,12 @@ export function Overview() {
         <ExperienceCard />
       </div>
 
-      <div className="grid xl:grid-cols-[1.4fr_1fr] gap-3 mt-3">
+      <div className="grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
         <LiveFeed h={380} />
         <AppsLive open={open} />
       </div>
 
-      <div className="grid xl:grid-cols-[1.25fr_1fr] gap-3 mt-3">
+      <div className="grid xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 mt-3">
         <Card title="By region" sub="Click a row to filter the console" icon={I.Globe2}>
           <Table dense rows={regionRows} onRow={r => act.set(st => ({ filters: { ...st.filters, region: r.region, city: 'All', branchId: null } }))} cols={[
             { key: 'region', label: 'Region', render: r => <span className="font-semibold whitespace-nowrap">{r.region}</span> },
@@ -194,7 +194,8 @@ export function Readiness() {
           <div className="space-y-1">{waves.map(w => <div key={w.tz} className="flex items-center text-[12px]"><span className="w-12 font-bold text-ink">{w.c.local.split(' ')[1]}</span><span className="text-ink2 flex-1">{w.n} branches, now {w.c.local.split(' ')[0]}</span><Badge tone={w.c.open ? 'green' : 'gray'}>{w.c.open ? 'Open' : w.c.minsToOpen != null ? `opens in ${Math.floor(w.c.minsToOpen / 60)}h ${w.c.minsToOpen % 60}m` : 'Closed'}</Badge></div>)}</div>
         </Card>
       </div>
-      <div className="grid xl:grid-cols-[1fr_1.2fr] gap-3 mt-3">
+      <LivePanel kind="readiness" className="mb-3 mt-3" />
+      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
         <ReadinessTrendCard />
         <OpeningRiskCard />
       </div>
@@ -205,12 +206,12 @@ export function Readiness() {
       <Section title="Branches" right={<Tabs size="sm" value={view} onChange={setView} tabs={[{ id: 'attention', label: 'Needs attention', count: rows.filter(r => r.worst !== 'pass').length }, { id: 'soon', label: 'Opening in < 3 h', count: rows.filter(r => r.clk.minsToOpen != null && r.clk.minsToOpen < 180).length }, { id: 'all', label: 'All', count: rows.length }]} />}>
         <Card pad={false}><div className="p-3">
           <Table pageSize={25} rows={shown} cols={[
-            { key: 'b', label: 'Branch', get: r => r.b.name, render: r => <button onClick={() => act.openBranch(r.b.id)} className="text-left"><div className="font-semibold text-ink hover:underline">{r.b.name}</div><div className="text-[11.5px] text-ink3">{r.b.brand}, {r.b.state}</div></button> },
-            { key: 'clk', label: 'Local', get: r => r.clk.local, render: r => <div className="text-[12px]"><div className="font-mono">{r.clk.local}</div><div className="text-ink3">{r.clk.open ? 'Open' : r.clk.minsToOpen != null ? `Opens in ${Math.floor(r.clk.minsToOpen / 60)}h ${r.clk.minsToOpen % 60}m` : 'Closed'}</div></div> },
-            ...D.READY_CHECKS.map(c => ({ key: c.id, label: c.name.split(' (')[0], sortable: false, render: r => { const x = r.r.results.find(y => y.id === c.id); return <span title={x.detail} className="inline-flex">{stIcon(x.st)}</span>; } })),
-            { key: 'issue', label: 'First issue', sortable: false, render: r => <span className="text-[12px] text-ink2">{(r.r.results.find(x => x.st === 'fail') || r.r.results.find(x => x.st === 'warn') || { detail: '—' }).detail}</span> },
+            { key: 'b', label: 'Branch', get: r => r.b.name, render: r => <button onClick={() => act.openBranch(r.b.id)} className="text-left"><div className="font-semibold text-ink hover:underline whitespace-nowrap">{r.b.name}</div><div className="text-[11.5px] text-ink3 truncate max-w-[200px]" title="">{r.b.brand}, {r.b.state}</div></button> },
+            { key: 'clk', label: 'Local', get: r => r.clk.local, render: r => <div className="text-[12px] whitespace-nowrap"><div className="font-mono">{r.clk.local}</div><div className="text-ink3">{r.clk.open ? 'Open' : r.clk.minsToOpen != null ? `Opens in ${Math.floor(r.clk.minsToOpen / 60)}h ${r.clk.minsToOpen % 60}m` : 'Closed'}</div></div> },
+            ...D.READY_CHECKS.map(c => ({ key: c.id, label: { 'SD-WAN tunnels': 'SD-WAN', 'ERP / POS path': 'ERP/POS', 'Wi-Fi': 'Wi-Fi', 'Handheld scanners': 'Scanners', 'Printers': 'Printers', 'Delivery-tracking devices': 'Trucks' }[c.name.split(' (')[0]] || c.name.split(' (')[0], sortable: false, render: r => { const x = r.r.results.find(y => y.id === c.id); return <span title={x.detail} className="inline-flex">{stIcon(x.st)}</span>; } })),
+            { key: 'issue', label: 'First issue', sortable: false, className: 'min-w-[180px]', render: r => <span className="text-[12px] text-ink2">{(r.r.results.find(x => x.st === 'fail') || r.r.results.find(x => x.st === 'warn') || { detail: '—' }).detail}</span> },
             { key: 'at', label: 'Last run', get: r => r.r.at || 0, render: r => <span className="text-[11.5px] text-ink3">{r.r.at ? ago(r.r.at, now) : '05:30 local'}</span> },
-            { key: 'act', label: '', sortable: false, render: r => <div className="flex gap-1 justify-end"><Btn size="xs" icon={I.RefreshCw} disabled={running[r.b.id]} onClick={() => rerun(r.b)}>Re-run</Btn>{r.worst !== 'pass' && <Btn size="xs" kind="danger" icon={I.TicketPlus} onClick={() => raise(r.b, r.r)}>Raise ticket</Btn>}</div> },
+            { key: 'act', label: '', sortable: false, render: r => <div className="flex gap-1 justify-end whitespace-nowrap"><Btn size="xs" icon={I.RefreshCw} title="Re-run checks" disabled={running[r.b.id]} onClick={() => rerun(r.b)}>Re-run</Btn>{r.worst !== 'pass' && <Btn size="xs" kind="danger" icon={I.TicketPlus} title="Raise ticket" onClick={() => raise(r.b, r.r)}>Ticket</Btn>}</div> },
           ]} />
         </div></Card>
       </Section>

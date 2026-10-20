@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
+import { LivePanel } from './liveui.jsx';
 import * as D from './data.js';
 import { useApp, useNow, inScope, filteredBranches } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, cx, Progress, Illus, Dot, Modal, KV } from './ui.jsx';
@@ -48,6 +49,7 @@ export function Vulns() {
         <Stat label="Patch compliance" value={pct(patched / Math.max(1, devs.length))} sub="no known CVE on running firmware" />
         <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days (illustrative)" />
       </div>
+      <LivePanel kind="vuln" className="mb-3 mt-3" />
       <div className="grid xl:grid-cols-3 gap-3 mt-3">
         <Card title="Exposure by severity" sub="Each device counted once at its worst finding"><Donut data={sevMix} center={num(anyDevs)} sub="with a CVE" /></Card>
         <Card title="Vulnerable devices, now and projected" sub="If the scheduled remediation waves run as planned">
@@ -58,7 +60,7 @@ export function Vulns() {
         </Card>
       </div>
       <Tabs value={tab} onChange={setTab} className="mt-3 mb-2" tabs={[{ id: 'advisories', label: 'Advisories', count: rows.filter(r => r.n).length }, { id: 'models', label: 'Models and lifecycle' }, { id: 'regions', label: 'Exposure by region' }, { id: 'branches', label: 'Most exposed branches' }]} />
-      {tab === 'advisories' && <div className="space-y-2">{rows.filter(r => r.n).map(r => <Card key={r.id} pad={false}><div className="p-4 grid lg:grid-cols-[1fr_300px] gap-4">
+      {tab === 'advisories' && <div className="space-y-2">{rows.filter(r => r.n).map(r => <Card key={r.id} pad={false}><div className="p-4 grid lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap"><Badge tone={sevTone(r.sev)}>{r.sev}{r.cvss ? ` CVSS ${r.cvss}` : ''}</Badge><span className="text-[12px] text-ink3">{r.id}, published {r.published}</span>{plan[r.id] && <Badge tone="blue">{plan[r.id]}</Badge>}{plan[r.id + ':m'] && <Badge tone="green">Mitigated</Badge>}</div>
           <div className="text-[15px] font-bold text-ink mt-1">{r.title}</div>

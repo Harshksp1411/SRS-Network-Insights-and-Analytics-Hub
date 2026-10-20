@@ -197,15 +197,15 @@ export const APPS = [
 
 // ---------- agents (Mova iO) ----------
 export const AGENTS = {
-  correlation: { name: 'Correlation Agent', also: 'Incident Enricher, Graph Builder', color: '#7c3aed' },
-  diagnosis: { name: 'Diagnosis Agent', also: 'Diagnostic Agent, Impact Analyst', color: '#2563eb' },
+  correlation: { name: 'Correlation Agent', also: 'Incident Enricher, Graph Builder', color: '#762123' },
+  diagnosis: { name: 'Diagnosis Agent', also: 'Diagnostic Agent, Impact Analyst', color: '#33557a' },
   runbook: { name: 'Runbook Agent', also: 'Solution Recommender', color: '#0891b2' },
-  carrier: { name: 'Carrier Agent', also: 'Evidence Collector', color: '#c2410c' },
+  carrier: { name: 'Carrier Agent', also: 'Evidence Collector', color: '#c4622d' },
   dispatch: { name: 'Dispatch Agent', also: 'Field matching', color: '#4d7c0f' },
-  comms: { name: 'Comms Agent', also: 'StoreOps & leadership updates', color: '#be185d' },
+  comms: { name: 'Comms Agent', also: 'StoreOps & leadership updates', color: '#923f45' },
   knowledge: { name: 'Knowledge Agent', also: 'Similar-Case Indexer', color: '#0f766e' },
-  change: { name: 'Change Validation Agent', also: 'Change Impact Analyzer, Release Readiness', color: '#9333ea' },
-  prediction: { name: 'Prediction Agent', also: 'Anomaly Detector, Capacity Analyst', color: '#b45309' },
+  change: { name: 'Change Validation Agent', also: 'Change Impact Analyzer, Release Readiness', color: '#762123' },
+  prediction: { name: 'Prediction Agent', also: 'Anomaly Detector, Capacity Analyst', color: '#b26a00' },
 };
 
 // ---------- runbooks ----------
@@ -513,14 +513,14 @@ export const KIT = [
   { item: 'Patch panel, labelled patch leads, rack shelf', qty: '1 set', note: 'Colour code: red POS, blue corp, yellow scanners, green cameras', group: 'Physical' },
 ];
 export const VLANS = [
-  { id: 10, name: 'Corporate', color: '#2563eb', note: 'Back office PCs, ERP clients' },
-  { id: 20, name: 'POS / payments (PCI)', color: '#b91c1c', note: 'Isolated segment, own firewall policy, no east-west' },
-  { id: 30, name: 'Scanners / handhelds', color: '#ca8a04', note: 'Yard and warehouse handhelds, SSID SRS-SCAN' },
-  { id: 40, name: 'Voice', color: '#7c3aed', note: 'Desk phones, QoS EF' },
-  { id: 50, name: 'Cameras / IoT', color: '#16a34a', note: 'Yard cameras, gate sensors' },
-  { id: 60, name: 'Guest', color: '#64748b', note: 'Contractor Wi-Fi, internet only' },
+  { id: 10, name: 'Corporate', color: '#33557a', note: 'Back office PCs, ERP clients' },
+  { id: 20, name: 'POS / payments (PCI)', color: '#c62828', note: 'Isolated segment, own firewall policy, no east-west' },
+  { id: 30, name: 'Scanners / handhelds', color: '#b26a00', note: 'Yard and warehouse handhelds, SSID SRS-SCAN' },
+  { id: 40, name: 'Voice', color: '#762123', note: 'Desk phones, QoS EF' },
+  { id: 50, name: 'Cameras / IoT', color: '#2e7d32', note: 'Yard cameras, gate sensors' },
+  { id: 60, name: 'Guest', color: '#6b6b6b', note: 'Contractor Wi-Fi, internet only' },
   { id: 70, name: 'OT / building', color: '#0d9488', note: 'Door access, HVAC controls' },
-  { id: 99, name: 'Management / OOB', color: '#334155', note: 'Device management, console server' },
+  { id: 99, name: 'Management / OOB', color: '#3a3a3a', note: 'Device management, console server' },
 ];
 export const ZONES = [
   { id: 'counter', name: 'Counter / showroom', short: 'Counter / showroom', x: 20, y: 20, w: 240, h: 130, devices: ['AP-635 ×1', '2 POS terminals + PIN pads', 'Label printer', 'Desk phones ×3'], drops: 12, vlans: [10, 20, 40, 60] },

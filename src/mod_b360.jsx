@@ -5,7 +5,7 @@ import * as P from './predict.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, gate, slaClock, cityKey } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, KV, Progress, Logo, Modal, Tabs, cx, healthTone, Illus } from './ui.jsx';
-import { Spark, LineChart, Bars, Legend, Ring, C } from './charts.jsx';
+import { Spark, LineChart, Bars, Legend, Ring, C, useWidth } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, hhmmss, dt, dateShort, rng, MIN, HR, DAY, T0, exportCSV } from './util.js';
 import { baseReadiness } from './mod_ops.jsx';
 
@@ -122,11 +122,12 @@ function DepGraph({ s, b, x }) {
     ['Core', [['Orchestrator overlay', 'business intent policies', 'up'], ['Primary DC hub', 'illustrative', 'up'], ['Azure (SRS tenant)', 'Roof Hub, dispatch', 'up']]],
     ['Destinations', [['ERP / pricing', 'Primary DC', 'up'], ['Payment processor', 'PCI path only', 'up'], ['Roof Hub + delivery', 'Azure', 'up'], ['Internet / M365', 'local breakout', 'up']]],
   ];
-  const W = 1180, colW = W / cols.length, H = 330;
-  const col = st => st === 'down' ? C.bad : st === 'degraded' ? C.warn : '#1f7a3a';
+  const [wref, mw] = useWidth(1100);
+  const W = Math.max(900, mw), colW = W / cols.length, H = 360;
+  const col = st => st === 'down' ? C.bad : st === 'degraded' ? C.warn : C.ok;
   const pos = cols.map(([, items], ci) => items.map((_, k) => ({ x: ci * colW + 14, y: 34 + (k + 0.5) * ((H - 44) / items.length) })));
   return (
-    <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="w-full min-w-[860px]" style={{ height: H }}>
+    <div ref={wref} className="overflow-x-auto"><svg width={W} height={H} className="block">
       {cols.map(([t], ci) => <text key={t} x={ci * colW + 14} y={16} fontSize="12" fontWeight="700" className="fill-ink3">{t}</text>)}
       {pos.slice(0, -1).map((ps, ci) => ps.map((a, i) => pos[ci + 1].map((bb, j) => (cols[ci + 1][1].length <= 3 || cols[ci][1].length <= 3 || (i + j) % 3 === 0) && <path key={`${ci}-${i}-${j}`} d={`M${a.x + colW - 34},${a.y} C${a.x + colW - 10},${a.y} ${bb.x - 14},${bb.y} ${bb.x},${bb.y}`} fill="none" className="stroke-line" strokeWidth="1" />)))}
       {cols.map(([, items], ci) => items.map(([n, sub, st], k) => { const p = pos[ci][k]; return <g key={n} transform={`translate(${p.x},${p.y - 15})`}><rect width={colW - 34} height="30" rx="3" className="fill-panel stroke-line" /><rect width="4" height="30" fill={col(st)} /><text x="11" y="13" fontSize="11.5" fontWeight="700" className="fill-ink">{n.length > 26 ? n.slice(0, 25) + '…' : n}</text><text x="11" y="25" fontSize="10" className="fill-ink3">{sub.length > 30 ? sub.slice(0, 29) + '…' : sub}</text></g>; }))}
@@ -226,7 +227,7 @@ export function Branch360() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-[1.5fr_1fr] gap-3 mt-3">
+      <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3">
         <Card title="Event stream, this branch" sub={`${12 + (b.num % 9)} events/min across OpsRamp, Central, Orchestrator, New Relic and UPS`} pad={false}>
           <div className="max-h-[230px] overflow-y-auto">{x.h.ev.length ? x.h.ev.slice(0, 12).map(e => <Ev key={e.id} e={e} />) : <div className="text-[12.5px] text-ink3 p-4">{x.down ? 'No telemetry: branch unreachable.' : 'Waiting for the next event…'}</div>}</div>
         </Card>
@@ -252,10 +253,19 @@ export function Branch360() {
         </Card>
       </div>
 
-      <div className="grid xl:grid-cols-[1fr_1fr] gap-3 mt-3">
+      <div className="grid gap-3 mt-3">
         <Card title="LAN and Wi-Fi" sub={`${b.dev.sw} switches, ${b.dev.ap} access points (${b.dev.apOut} outdoor)`}>
-          {devs.filter(d => d.type === 'Switch').map(d => <div key={d.id} className="flex items-center gap-2 py-1 text-[12.5px] border-b border-line/60"><Dot tone={x.down ? 'red' : x.incs.some(i => i.ci === d.id) ? 'amber' : 'green'} /><span className="font-mono font-bold text-ink w-[118px]">{d.id}</span><span className="text-ink2 flex-1">{d.desc}, {d.role}</span><span className="text-ink3">{x.down ? 'no data' : `${(b.num + d.id.length) % 3} port errors, ${20 + (b.num * 7 + d.id.length * 3) % 60} Mb/s`}</span></div>)}
-          <div className="flex flex-wrap gap-1.5 mt-2">{devs.filter(d => d.type === 'AP').map(d => { const bad = x.down || x.incs.some(i => i.ci === d.id); return <span key={d.id} title={`${d.desc}, ${d.role}, AOS ${d.fw}`} className={cx('inline-flex items-center gap-1 text-[12px] rounded border px-2 py-1', bad ? 'border-bad/50 text-bad bg-bad/5' : 'border-line text-ink')}><I.Wifi size={12} />{d.id.split('-').pop()}<span className="text-ink3">{d.role === 'Outdoor yard' ? 'yard' : d.role.toLowerCase()}</span>{!bad && <span className="text-ink3">{4 + (b.num + d.id.length) % 18} clients</span>}</span>; })}</div>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] gap-x-4 text-[12.5px]">
+            {['', 'Switch', 'Role', 'Port errors', 'Throughput'].map((h, i) => <div key={i} className="text-[11.5px] font-semibold text-ink3 pb-1 border-b border-line">{h}</div>)}
+            {devs.filter(d => d.type === 'Switch').map(d => { const bad = x.incs.some(i => i.ci === d.id); return <React.Fragment key={d.id}>
+              <div className="py-1.5 border-b border-line/60 flex items-center"><Dot tone={x.down ? 'red' : bad ? 'amber' : 'green'} /></div>
+              <div className="py-1.5 border-b border-line/60 min-w-0 truncate"><span className="font-bold text-ink">{d.id}</span> <span className="text-ink3">{d.desc}</span></div>
+              <div className="py-1.5 border-b border-line/60 text-ink2 whitespace-nowrap">{d.role}</div>
+              <div className="py-1.5 border-b border-line/60 text-ink2 tabular-nums text-right">{x.down ? '–' : (b.num + d.id.length) % 3}</div>
+              <div className="py-1.5 border-b border-line/60 text-ink2 tabular-nums text-right whitespace-nowrap">{x.down ? 'no data' : `${20 + (b.num * 7 + d.id.length * 3) % 60} Mb/s`}</div>
+            </React.Fragment>; })}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-3">{devs.filter(d => d.type === 'AP').map(d => { const bad = x.down || x.incs.some(i => i.ci === d.id); return <span key={d.id} title={`${d.desc}, ${d.role}, AOS ${d.fw}`} className={cx('inline-flex items-center gap-1 text-[12px] rounded border px-2 py-1', bad ? 'border-bad/50 text-bad bg-bad/5' : 'border-line text-ink')}><I.Wifi size={12} />{d.id.split('-').pop()}<span className="text-ink3">{d.role === 'Outdoor yard' ? 'yard' : d.role.toLowerCase()}</span>{!bad && <span className="text-ink3">{4 + (b.num + d.id.length) % 18} clients</span>}</span>; })}</div>
         </Card>
         <Card title="Dependencies" sub="What this branch relies on, from the counter to the data centre">
           <DepGraph s={s} b={b} x={x} />
@@ -264,21 +274,21 @@ export function Branch360() {
 
       <div className="mt-3">
         <Tabs value={tab} onChange={setTab} className="mb-2" tabs={[{ id: 'devices', label: 'Devices and lifecycle', count: devs.length }, { id: 'vulns', label: 'Vulnerabilities', count: vulnRows.reduce((a, r) => a + r.devs.length, 0) }, { id: 'work', label: 'Open work and history' }]} />
-        {tab === 'devices' && <div className="grid xl:grid-cols-[1.6fr_1fr] gap-3">
+        {tab === 'devices' && <div className="grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
           <Card pad={false} title="Every device at this branch" sub="Make, model, firmware, lifecycle and open vulnerabilities" right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV(`${b.code}-devices.csv`, devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Make', get: d => (D.MODEL_INFO[d.model] || {}).make }, { label: 'Model', key: 'desc' }, { label: 'SKU', get: d => d.sku || '' }, { label: 'Serial/MAC', key: 'serial' }, { label: 'Firmware', key: 'fw' }, { label: 'Lifecycle', get: d => d.life.status }, { label: 'Warranty end', get: d => new Date(d.warranty).toISOString().slice(0, 10) }, { label: 'Advisories', get: d => d.vulns.map(v => v.id).join(' ') }])}>Export</Btn>}>
             <div className="px-3 pb-3"><Table dense rows={devRows} cols={[
               { key: 'id', label: 'Hostname', render: d => <span className="font-mono font-bold">{d.id}</span> },
-              { key: 'make', label: 'Make', get: d => 'HPE Aruba Networking', render: () => <span className="text-[12px] text-ink2">HPE Aruba Networking</span> },
-              { key: 'desc', label: 'Model', render: d => <span><span className="text-ink">{d.desc}</span>{d.sku && <span className="text-ink3"> {d.sku}</span>}<span className="block text-[11px] text-ink3">{d.role}</span></span> },
-              { key: 'fw', label: 'Firmware', render: d => <span className="font-mono text-[12px]">{d.fw}</span> },
-              { key: 'life', label: 'Lifecycle', get: d => d.life.status, render: d => <span title={d.life.note}><Badge tone={d.life.tone}>{d.life.status}</Badge>{d.life.eosup && <span className="block text-[11px] text-ink3">support ends {d.life.est ? 'est. ' : ''}{d.life.eosup}</span>}</span> },
+              { key: 'make', label: 'Make', get: d => 'HPE Aruba', className: 'whitespace-nowrap', render: () => <span className="text-[12px] text-ink2" title="HPE Aruba Networking">HPE Aruba</span> },
+              { key: 'desc', label: 'Model', className: 'whitespace-nowrap', render: d => <span><span className="text-ink">{d.desc}</span><span className="block text-[11px] text-ink3">{d.sku ? `${d.sku} · ` : ''}{d.role}</span></span> },
+              { key: 'fw', label: 'Firmware', className: 'whitespace-nowrap', render: d => <span className="font-mono text-[12px]">{d.fw}</span> },
+              { key: 'life', label: 'Lifecycle', className: 'whitespace-nowrap', get: d => d.life.status, render: d => <span title={d.life.note}><Badge tone={d.life.tone}>{d.life.status}</Badge>{d.life.eosup && <span className="block text-[11px] text-ink3">support ends {d.life.est ? 'est. ' : ''}{d.life.eosup}</span>}</span> },
               { key: 'warranty', label: 'Warranty end', render: d => <span className={cx('text-[12px]', d.warranty < now ? 'text-bad font-semibold' : 'text-ink2')}>{new Date(d.warranty).toISOString().slice(0, 10)}</span> },
               { key: 'v', label: 'Vulnerabilities', get: d => d.vulns.length, render: d => d.vulns.length ? <div className="flex flex-wrap gap-1">{d.vulns.map(v => <Badge key={v.id} tone={v.sev === 'Critical' ? 'red' : v.sev === 'High' ? 'amber' : 'gray'} title={v.title}>{v.cvss ? `${v.cvss} ` : ''}{v.cves[0] || v.id}</Badge>)}</div> : <span className="text-[12px] text-ok">None known</span> },
             ]} /></div>
           </Card>
           <div className="space-y-3">
-            <Card title="Lifecycle outlook" sub="Devices at this branch reaching warranty end or end of support, by year" right={<Legend items={[['Warranty ends', C.s1], ['Support ends', C.bad]]} />}>
-              <Bars data={lifeYears} keys={['Warranty ends', 'Support ends']} colors={[C.s1, C.bad]} stacked={false} h={160} />
+            <Card title="Lifecycle outlook" sub="Devices at this branch reaching warranty end or end of support, by year" right={<Legend items={[['Warranty ends', C.grey], ['Support ends', C.s1]]} />}>
+              <Bars data={lifeYears} keys={['Warranty ends', 'Support ends']} colors={[C.grey, C.s1]} stacked={false} h={160} />
             </Card>
             <Card title="Make and model mix">
               {Object.entries(devs.reduce((m, d) => { m[d.desc] = (m[d.desc] || 0) + 1; return m; }, {})).map(([k, n]) => <div key={k} className="flex justify-between text-[12.5px] py-0.5"><span className="text-ink">{k}</span><b className="text-ink">{n}</b></div>)}

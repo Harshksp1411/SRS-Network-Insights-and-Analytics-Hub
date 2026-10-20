@@ -6,7 +6,7 @@ export const cx = (...a) => a.filter(Boolean).join(' ');
 
 export function Card({ title, sub, icon: I, right, children, className, pad = true, onClick, flush }) {
   return (
-    <section onClick={onClick} className={cx('bg-panel border border-line rounded-md', onClick && 'cursor-pointer hover:border-ink3', className)}>
+    <section onClick={onClick} className={cx('bg-panel border border-line rounded-[4px]', onClick && 'cursor-pointer hover:border-ink3', className)}>
       {(title || right) && (
         <header className="flex items-start gap-3 px-4 pt-3 pb-2">
           <div className="min-w-0 flex-1">
@@ -27,9 +27,9 @@ const TONES = {
   amber: 'bg-warn/10 text-warn border-warn/30',
   red: 'bg-bad/10 text-bad border-bad/30',
   alert: 'bg-alert text-white border-alert',
-  brand: 'bg-brand/10 text-brand dark:text-[#e8a3a5] border-brand/30',
+  brand: 'bg-brand/10 text-brand dark:text-ai border-brand/30',
   blue: 'bg-info/10 text-info border-info/30',
-  purple: 'bg-ai/10 text-ai border-ai/30',
+  purple: 'bg-ink/[0.04] text-ink2 border-ink/20',
   dark: 'bg-ink text-canvas border-ink',
 };
 export function Badge({ tone = 'gray', children, className, title }) {
@@ -40,7 +40,7 @@ export function Pri({ p }) {
   return <Badge tone={t} className={p === 'P1' ? 'pulse-alert' : ''}>{p}</Badge>;
 }
 export function Dot({ tone = 'green', pulse }) {
-  const c = { green: 'bg-ok', amber: 'bg-warn', red: 'bg-bad', gray: 'bg-ink3', blue: 'bg-info', alert: 'bg-alert', purple: 'bg-ai' }[tone];
+  const c = { green: 'bg-ok', amber: 'bg-warn', red: 'bg-bad', gray: 'bg-ink3', blue: 'bg-info', alert: 'bg-alert', purple: 'bg-ink2' }[tone];
   return <span className={cx('inline-block w-2 h-2 rounded-full shrink-0', c, pulse && 'animate-pulse')} />;
 }
 export const healthTone = h => ({ up: 'green', degraded: 'amber', down: 'red' }[h] || 'gray');
@@ -56,7 +56,7 @@ export function Btn({ kind = 'secondary', size = 'md', icon: I, children, classN
     dark: 'bg-ink text-canvas border-ink hover:opacity-90',
   }[kind];
   const sz = size === 'sm' ? 'h-7 px-2 text-[12px] gap-1' : size === 'xs' ? 'h-6 px-1.5 text-[11px] gap-1' : 'h-8 px-3 text-[13px] gap-1.5';
-  return <button {...p} className={cx('inline-flex items-center justify-center rounded-md border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap', k, sz, className)}>{I && <I size={size === 'md' ? 15 : 13} />}{children}</button>;
+  return <button {...p} className={cx('inline-flex items-center justify-center rounded-[4px] border font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap', k, sz, className)}>{I && <I size={size === 'md' ? 15 : 13} />}{children}</button>;
 }
 
 export function Tabs({ tabs, value, onChange, className, size = 'md' }) {
@@ -154,7 +154,7 @@ export function Table({ cols, rows, onRow, pageSize = 0, empty = 'Nothing here',
           <tbody>
             {view.map((r, i) => (
               <tr key={r.id || i} onClick={onRow ? () => onRow(r) : undefined} className={cx('border-b border-line/70 last:border-0', onRow && 'cursor-pointer hover:bg-chip/70', rowClass && rowClass(r))}>
-                {cols.map(c => <td key={c.key} className={cx('px-2 align-middle text-ink', dense ? 'py-1.5' : 'py-2', c.className, c.right && 'text-right')}>{c.render ? c.render(r) : (c.get ? c.get(r) : r[c.key])}</td>)}
+                {cols.map(c => <td key={c.key} className={cx('px-2 align-middle text-ink', dense ? 'py-1.5' : 'py-2', !c.render && 'whitespace-nowrap', c.className, c.right && 'text-right')}>{c.render ? c.render(r) : (c.get ? c.get(r) : r[c.key])}</td>)}
               </tr>
             ))}
           </tbody>

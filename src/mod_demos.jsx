@@ -40,7 +40,7 @@ export function LiveDemos() {
       <div className="flex flex-wrap gap-1.5 mb-3">
         {['All', ...AREAS].map(a => { const n = a === 'All' ? DEMOS.length : DEMOS.filter(x => x.area === a).length; return <button key={a} onClick={() => setArea(a)} className={cx('h-9 px-3 rounded-md border text-[13px] font-bold inline-flex items-center gap-2', area === a ? 'bg-ink text-canvas border-ink' : 'bg-panel text-ink border-line hover:bg-chip')}>{a}<span className={cx('text-[11px] font-bold rounded px-1.5', area === a ? 'bg-canvas/20' : 'bg-chip text-ink2')}>{n}</span></button>; })}
       </div>
-      <div className="grid xl:grid-cols-[1.25fr_1fr] gap-3 items-start">
+      <div className="grid xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 items-start">
         <Card pad={false} title={`${area === 'All' ? 'All' : area} demos`} right={<div className="flex gap-2"><Select value={who} onChange={setWho} options={['Anyone', ...MODES].map(v => ({ value: v, label: v === 'Anyone' ? 'Control mode: all' : v }))} /><SearchBox value={q} onChange={setQ} placeholder="Search" className="w-40" /></div>}>
           <div>{list.map((x, k) => (
             <div key={x.id} onClick={() => setSel(x.id)} className={cx('flex gap-3 px-4 py-3 border-t border-line cursor-pointer', sel === x.id ? 'bg-brand/5' : 'hover:bg-chip/50')}>

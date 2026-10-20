@@ -156,7 +156,7 @@ export const AUTO_CANDIDATES = [
 ];
 export function slaProjection(m) {
   const t = m.trend; const last = t[t.length - 1]; const slope = (t[t.length - 1] - t[0]) / (t.length - 1);
-  const labels = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov (proj.)', 'Dec (proj.)'];
+  const labels = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const fc = [null, null, null, null, null, last, last + slope * 0.8, last + slope * 1.4].map(v => v == null ? null : Math.min(m.lower ? 1 : 1, Math.max(0, v)));
   const spread = Math.max(0.004, Math.abs(slope) * 0.6 + 0.004);
   return { labels, actual: [...t, null, null], fc, lo: fc.map((v, i) => v == null ? null : i === 5 ? v : v - spread * (i - 5)), hi: fc.map((v, i) => v == null ? null : i === 5 ? v : Math.min(1, v + spread * (i - 5))), nowIndex: 5 };
