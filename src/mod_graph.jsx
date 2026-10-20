@@ -60,7 +60,7 @@ export function NetGraph() {
       const c = circuitOf(s, id); const b = D.BR[c.branchId]; const other = circuitOf(s, b.wan.find(x => x !== id));
       if (other.status === 'Down') { out.down.push(b); D.APPS.forEach(a => out.apps.add(a.id)); } else out.backup.push(b);
       path(b, [id]); out.title = `${b.name} ${c.role === 'Primary' ? 'wan1' : 'wan2'}`; out.sub = `${c.carrier} ${c.type} ${c.bw} Mb/s · ${c.cid}`;
-      out.text = `Losing this line moves ${b.name} onto ${other.carrier} ${other.type}${other.type === 'LTE/5G' ? ' (Roof Hub and ERP slower, POS fine)' : ''}.`;
+      out.text = `Losing this line moves ${b.name} onto ${other.carrier} ${other.type}${other.type === 'LTE/5G' ? ' (ERP slower on LTE, POS fine)' : ''}.`;
     } else if (kind === 'e') {
       const b = D.BR[id]; path(b, b.wan); out.title = `${b.code}-ec01`; out.sub = b.dev.ec === 2 ? 'EC-XS HA pair' : 'EC-XS (single)';
       if (b.dev.ec === 2) { out.backup.push(b); out.text = 'HA pair: the second EdgeConnect takes over. No outage.'; } else { out.down.push(b); D.APPS.forEach(a => out.apps.add(a.id)); out.text = 'Single EdgeConnect: the branch loses its WAN until the unit is swapped (spare pre-staged, zero-touch).'; }

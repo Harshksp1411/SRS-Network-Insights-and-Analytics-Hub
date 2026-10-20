@@ -219,7 +219,7 @@ function AskPanel() {
   );
 }
 
-const SC_ICONS = { Activity: I.Activity, Zap: I.Zap, Server: I.Server, CloudLightning: I.CloudLightning, Package: I.Package, PauseCircle: I.PauseCircle, Shuffle: I.Shuffle, RadioTower: I.RadioTower, ShieldAlert: I.ShieldAlert, Wifi: I.Wifi, ScanLine: I.ScanLine, Repeat: I.Repeat, GitCompare: I.GitCompare, Network: I.Network, Bug: I.Bug, CalendarClock: I.CalendarClock, BatteryWarning: I.BatteryWarning, TrendingUp: I.TrendingUp, Sunrise: I.Sunrise };
+const SC_ICONS = { Activity: I.Activity, Zap: I.Zap, Server: I.Server, CloudLightning: I.CloudLightning, Package: I.Package, PauseCircle: I.PauseCircle, Shuffle: I.Shuffle, RadioTower: I.RadioTower, ShieldAlert: I.ShieldAlert, Wifi: I.Wifi, ScanLine: I.ScanLine, Repeat: I.Repeat, GitCompare: I.GitCompare, Network: I.Network, Bug: I.Bug, CalendarClock: I.CalendarClock, BatteryWarning: I.BatteryWarning, TrendingUp: I.TrendingUp, Sunrise: I.Sunrise, Unplug: I.Unplug, Cable: I.Cable, RefreshCw: I.RefreshCw, DatabaseBackup: I.DatabaseBackup, Plug: I.Plug, TrendingDown: I.TrendingDown, MoonStar: I.MoonStar };
 function ScenarioPicker() {
   const { s, act } = useApp();
   return (

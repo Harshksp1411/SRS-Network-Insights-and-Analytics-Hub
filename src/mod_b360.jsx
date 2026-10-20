@@ -71,8 +71,8 @@ function useBranchLive(s, b) {
       ['Orchestrator', `${b.code}-ec01 ${onBackup ? 'wan2' : 'wan1'}: latency ${Math.round(base.lat)} ms, loss ${base.loss.toFixed(2)}%`],
       ['Aruba Central', `${ap.id} clients = ${6 + Math.floor(R() * 14)}, channel util ${20 + Math.floor(R() * 30)}%`],
       ['Synthetic', `POS path test ${Math.round(pos)} ms, ERP login ${(1.1 + R() * 0.5).toFixed(1)} s`],
-      ['New Relic', `Roof Hub API p95 ${roof.toFixed(2)} s from this branch`],
-      ['UPS (SNMP)', `${b.code}-ups01 on line, load ${30 + Math.floor(R() * 20)}%, closet ${24 + Math.floor(R() * 5)} °C`],
+      ['New Relic', `ERP path ${Math.round(base.lat + 6)} ms to the data centre`],
+      ['Aruba Central', `${sw.id} uplink 1/1/49 up, CRC errors 0, utilisation ${12 + Math.floor(R() * 30)}%`],
     ];
     if (!down) { const k = h.ev.length < 6 ? 6 : 1; const add = []; for (let j = 0; j < k; j++) { const t = tpl[(Math.floor(R() * tpl.length) + j) % tpl.length]; add.push({ id: `${Date.now()}-${j}`, t: Date.now() - j * 1700, src: t[0], msg: t[1] }); } h.ev = [...add, ...h.ev].slice(0, 30); }
   }
@@ -198,7 +198,7 @@ export function Branch360() {
           <Gauge value={x.cur.lat} max={150} warn={60} crit={100} unit="ms" fmt={v => Math.round(v)} label="Latency to DC" sub={`${x.path.carrier} ${x.path.type}, active path`} />
           <Gauge value={x.cur.loss} max={5} warn={1} crit={2} unit="%" fmt={v => v >= 10 ? '100' : v.toFixed(2)} label="Packet loss" sub="active path" />
           <Gauge value={x.cur.pos} max={1200} warn={300} crit={400} unit="ms" fmt={v => Math.round(v)} label="POS path p95" sub="synthetic, PCI segment" />
-          <Gauge value={x.cur.roof} max={4} warn={1.2} crit={2} unit="s" fmt={v => v.toFixed(2)} label="Roof Hub p95" sub="New Relic, from branch" />
+          <Gauge value={x.cur.jit} max={60} warn={20} crit={30} unit="ms" fmt={v => v.toFixed(1)} label="Jitter" sub="active path, Orchestrator" />
           <Gauge value={x.cur.wifi} max={100} warn={80} crit={65} invert fmt={v => Math.round(v)} label="Wi-Fi experience" sub="Aruba Central, all zones" />
         </div>
       </Card>
@@ -228,7 +228,7 @@ export function Branch360() {
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 mt-3">
-        <Card title="Event stream, this branch" sub={`${12 + (b.num % 9)} events/min across OpsRamp, Central, Orchestrator, New Relic and UPS`} pad={false}>
+        <Card title="Event stream, this branch" sub={`${12 + (b.num % 9)} events/min across OpsRamp, Central, Orchestrator and New Relic`} pad={false}>
           <div className="max-h-[230px] overflow-y-auto">{x.h.ev.length ? x.h.ev.slice(0, 12).map(e => <Ev key={e.id} e={e} />) : <div className="text-[12.5px] text-ink3 p-4">{x.down ? 'No telemetry: branch unreachable.' : 'Waiting for the next event…'}</div>}</div>
         </Card>
         <Card title="Automation in progress" sub="Runbooks running or waiting at this branch">

@@ -263,7 +263,7 @@ const TEMPLATES = {
     signals: [[0, 'UPS (SNMP)', 'On battery, runtime 38 min', 'Major'], [30, 'OpsRamp', '11 downstream alerts suppressed (power parent)', 'Info']],
     corr: 11, rca: [['Utility outage', 0.9, 'Utility outage map shows area event'], ['UPS fault', 0.05, 'Self-test passed last week']], runbook: 'RB-107', impact: ['Network up on battery; check runtime'], verify: ['Utility restored', 'UPS online'] }),
 };
-export const TEMPLATE_W = [['circuit', 6], ['jitter', 3], ['apdown', 5], ['crc', 3], ['lte', 3], ['scanner', 3], ['pos', 1], ['dhcp', 1], ['backup', 4], ['cpu', 1], ['ups', 1]];
+export const TEMPLATE_W = [['circuit', 6], ['jitter', 3], ['apdown', 5], ['crc', 3], ['lte', 3], ['scanner', 3], ['pos', 1], ['dhcp', 1], ['backup', 4], ['cpu', 1]];
 const GROUPS = { P1: 'Movate NOC – Major Incident', P2: 'Movate NOC – L2 Network', P3: 'Movate NOC – L2 Network', P4: 'Movate NOC – L1' };
 export const ENGINEERS = ['Priya S.', 'Arjun M.', 'Kevin T.', 'Neha R.', 'Marcus L.', 'Sanjay K.', 'Dana W.', 'Ravi P.', 'Elena G.', 'Tom B.'];
 let incN = 384512;
@@ -592,11 +592,11 @@ export const SRC = {
   papi: 'HPE Aruba Networking HPESBNW04712, Sep 2024 (CCB advisory 2024-231)',
   cx: 'HPE Aruba Networking HPESBNW05027, Mar 2026',
   ec: 'HPE Aruba Networking HPESBNW04943, Sep 2025',
-  eol2530: 'Aruba 2530 G models end of sale 31 Oct 2021 (eol.network); 10G-uplink models end of support 30 Jan 2022 (HPE community)',
+  eol2530: 'Aruba 2530 G models: end of sale 31 Oct 2021, vendor end of support 1 Feb 2027',
 };
 export const MODEL_INFO = {
   'EC-XS': { make: 'HPE Aruba Networking', family: 'EdgeConnect SD-WAN', name: 'EdgeConnect EC-XS', os: 'ECOS', status: 'Current', eos: null, eosup: null },
-  '2530': { make: 'HPE Aruba Networking', family: 'Aruba 2530 (AOS-S)', name: 'Aruba 2530 48G PoE+', sku: 'J9772A', os: 'AOS-S', status: 'End of sale', eos: '2021-10-31', eosup: '2026-10-31', est: true, replace: 'CX 6100 48G Class4 PoE' },
+  '2530': { make: 'HPE Aruba Networking', family: 'Aruba 2530 (AOS-S)', name: 'Aruba 2530 48G PoE+', sku: 'J9772A', os: 'AOS-S', status: 'End of sale', eos: '2021-10-31', eosup: '2027-02-01', est: false, replace: 'CX 6100 48G Class4 PoE' },
   '6100': { make: 'HPE Aruba Networking', family: 'Aruba CX 6100', name: 'Aruba CX 6100 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
   '6200M': { make: 'HPE Aruba Networking', family: 'Aruba CX 6200M', name: 'Aruba CX 6200M 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
   '6300': { make: 'HPE Aruba Networking', family: 'Aruba CX 6300', name: 'Aruba CX 6300M 48G Class4 PoE', os: 'AOS-CX', status: 'Current', eos: null, eosup: null },
@@ -618,7 +618,7 @@ export const ADVISORIES = [
 export const vulnsOf = d => ADVISORIES.filter(a => a.affects(d));
 export const lifecycleOf = d => {
   const m = MODEL_INFO[d.model] || {};
-  if (m.status === 'End of sale') return { status: 'Support ending', tone: 'red', eos: m.eos, eosup: m.eosup, est: m.est, note: `End of sale ${m.eos}; end of support est. ${m.eosup}` };
+  if (m.status === 'End of sale') return { status: 'Support ending', tone: 'red', eos: m.eos, eosup: m.eosup, est: m.est, note: `End of sale ${m.eos}; end of support ${m.eosup}` };
   if (d.type === 'SD-WAN' && d.fw.startsWith('9.3')) return { status: 'Software end of maintenance', tone: 'amber', note: 'ECOS 9.3 end of maintenance 30 Jun 2025' };
   if (d.warranty < T0) return { status: 'Warranty expired', tone: 'amber', note: 'Hardware current; warranty lapsed' };
   return { status: 'Current', tone: 'green', note: 'No end-of-life notice' };

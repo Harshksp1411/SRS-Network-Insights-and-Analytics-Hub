@@ -243,7 +243,7 @@ export { todayCounts };
 export function AlertFunnel() {
   const { L } = useLive(); const { s } = useApp();
   const c = todayCounts(L, s);
-  const rows = [['Raw alerts', c.raw, C.s2, 'Received today from Orchestrator, Aruba Central, OpsRamp, New Relic and UPS'], ['Auto-cleared', c.auto, C.ok, 'Transient: checked by ping and SNMP and cleared after the hold-down'], ['Rolled to digest', c.digest, C.s3, 'Warnings bundled into the daily digest instead of tickets'], ['Correlated alerts', c.corr, C.s1, 'Grouped into correlation groups across areas'], ['Incidents', c.inc, C.warn, 'One ServiceNow incident per branch per event'], ['Auto-resolved', c.autoRes, C.ok, 'Closed by an approved runbook with verification']];
+  const rows = [['Raw alerts', c.raw, C.s2, 'Received today from Orchestrator, Aruba Central, OpsRamp and New Relic'], ['Auto-cleared', c.auto, C.ok, 'Transient: checked by ping and SNMP and cleared after the hold-down'], ['Rolled to digest', c.digest, C.s3, 'Warnings bundled into the daily digest instead of tickets'], ['Correlated alerts', c.corr, C.s1, 'Grouped into correlation groups across areas'], ['Incidents', c.inc, C.warn, 'One ServiceNow incident per branch per event'], ['Auto-resolved', c.autoRes, C.ok, 'Closed by an approved runbook with verification']];
   const max = c.raw || 1;
   return (
     <Card title="From alerts to tickets" sub="Live counts since 00:00 CT" right={<LiveTag />}>
@@ -263,7 +263,7 @@ export function AlertSankey() {
   const { L } = useLive(); const { s } = useApp();
   const [ref, W] = useWidth(1000);
   const c = todayCounts(L, s);
-  const src = [['Orchestrator', 0.34], ['OpsRamp', 0.3], ['Aruba Central', 0.22], ['New Relic and synthetics', 0.09], ['UPS (SNMP)', 0.05]].map(([n, f]) => [n, Math.round(c.raw * f)]);
+  const src = [['Orchestrator', 0.36], ['OpsRamp', 0.3], ['Aruba Central', 0.22], ['New Relic and synthetics', 0.12]].map(([n, f]) => [n, Math.round(c.raw * f)]);
   const watch = Math.round(c.corr * 0.12), corrd = c.corr - watch;
   const mid = [['Auto-cleared', c.auto, C.ok], ['Rolled to digest', c.digest, C.s3], ['Correlated', corrd, C.s1], ['Being watched', watch, C.warn]];
   const fixed = Math.round(corrd * 0.28), person = corrd - fixed;
@@ -298,7 +298,7 @@ export function GroupingSwimlane() {
   const X = t => lw + Math.max(0, 1 - (now - t) / span) * (W - lw - rw);
   const srcC = { Orchestrator: C.s1, OpsRamp: C.s4, 'Aruba Central': C.s5, 'New Relic': C.s7, Synthetic: C.s7, 'UPS (SNMP)': C.s6 };
   return (
-    <Card title="How alerts were grouped" sub="Last 90 minutes. One lane per open incident; each dot is an alert grouped into it." right={<Legend items={[['Orchestrator', C.s1], ['OpsRamp', C.s4], ['Central', C.s5], ['New Relic', C.s7], ['UPS', C.s6]]} />}>
+    <Card title="How alerts were grouped" sub="Last 90 minutes. One lane per open incident; each dot is an alert grouped into it." right={<Legend items={[['Orchestrator', C.s1], ['OpsRamp', C.s4], ['Central', C.s5], ['New Relic', C.s7]]} />}>
       <div ref={ref}><svg width={W} height={H} className="block">
         {incs.map((inc, k) => { const R = rng(inc.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)); const y = k * laneH + laneH / 2; const n = Math.min(26, Math.max(inc.signals.length, Math.round((inc.corr || 3) * 0.6)));
           const t0 = Math.max(inc.opened - 4 * MIN, now - span); const dots = [...inc.signals.map(x => ({ t: x.t, src: x.src })), ...Array.from({ length: Math.max(0, n - inc.signals.length) }, () => ({ t: t0 + R() * Math.min(12 * MIN, now - t0), src: ['Orchestrator', 'OpsRamp', 'Aruba Central', 'New Relic'][Math.floor(R() * 4)] }))];
@@ -315,7 +315,7 @@ export function GroupingSwimlane() {
 const CAT2 = c => /Carrier|SD-WAN|Major/.test(c) ? 0 : /Wireless|Switch|LAN|Customer|Config/.test(c) ? 2 : /Power|Hardware/.test(c) ? 3 : /Security|Lifecycle/.test(c) ? 4 : /readiness/i.test(c) ? 5 : 1;
 export function CorrMatrix() {
   const { s, act } = useApp();
-  const names = ['WAN', 'Apps', 'LAN', 'Power', 'Security', 'Field'];
+  const names = ['WAN', 'Apps', 'LAN', 'Edge', 'Security', 'Field'];
   const M = names.map(() => names.map(() => 0));
   s.incidents.filter(i => i.state !== 'Resolved').forEach(i => { const a = CAT2(i.cat); const imp = (i.impact || []).join(' '); const b = /POS|ERP|Roof Hub|payment/i.test(imp) ? 1 : /scanner|AP|Wi-Fi|printer/i.test(imp) ? 2 : /UPS|power|battery/i.test(imp) ? 3 : i.workOrder ? 5 : a; M[a][b]++; if (a !== b) M[b][a]++; });
   const max = Math.max(1, ...M.flat());
@@ -379,7 +379,7 @@ export function AgentStream({ h = 820 }) {
 // ── Tools: status and event rate per source system ───────────────────
 export function ToolsStrip({ only }) {
   const { L } = useLive(); const { s } = useApp(); const now = useNow();
-  const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(3142 - Math.round((100 - L.series.reporting.at(-1)) * 31))} devices reporting`, 'switches and access points'], opsramp: ['4,075 devices polled', 'SNMP, syslog, UPS traps'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
+  const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(3142 - Math.round((100 - L.series.reporting.at(-1)) * 31))} devices reporting`, 'switches and access points'], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
   const list = TOOLS.filter(t => !only || only.includes(t.id));
   return (
     <div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3">

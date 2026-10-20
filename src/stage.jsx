@@ -18,8 +18,8 @@ export const SYS = {
 const SRCI = {
   aruba: ['Stats every 30 s, alarms live', 'Path and tunnel health for each EdgeConnect: loss, latency, jitter, failover', 'Orchestrator REST API; alarms forwarded to OpsRamp'],
   central: ['Every minute, events live', 'Switch, access point and client health: PoE, radios, roaming, firmware', 'Aruba Central API and webhooks'],
-  opsramp: ['Polls every minute, traps live', 'SNMP and syslog from switches, UPS and printers; synthetic tests', 'OpsRamp gateway, SNMPv3'],
-  newrelic: ['Every minute', 'Response time for Roof Hub, ERP and POS from synthetic checks', 'New Relic synthetics'],
+  opsramp: ['Polls every minute, traps live', 'SNMP and syslog from EdgeConnects, switches and access points; config backups', 'OpsRamp gateway, SNMPv3'],
+  newrelic: ['Every minute', 'Response time on the POS and ERP paths from synthetic checks', 'New Relic synthetics'],
   weather: ['Every 5 minutes', 'Severe-weather warnings by county', 'National Weather Service alerts API'],
   servicenow: ['On change', 'Branch calls, incidents, changes and CMDB records', 'ServiceNow Table API'],
   movaio: ['On bulletin or schedule', 'Vendor bulletins, lifecycle notices and readiness results matched to the CMDB', 'HPE Aruba Networking notices; Mova iO checks'],
@@ -28,11 +28,11 @@ const SRCI = {
 const OBS = new Set(['aruba', 'central', 'opsramp', 'newrelic', 'weather']);
 const GATE = { Autonomous: 'auto', 'Human-on-the-loop': 'stop', 'Human-in-the-loop': 'approve' };
 const PEOPLE = { 'NOC Engineer': 'Priya S.', 'Network Engineer L3': 'Marcus L.', 'Security Lead': 'Omar N.', 'Major Incident Manager': 'Arjun M.' };
-const TGT = { fibercut: 'carrier', lte: 'carrier', storm: 'carrier', loop: 'central', drift: 'central', dhcp: 'git', eol: 'git', ups: 'field', capacity: 'aruba', power: 'field', notready: 'central' };
+const TGT = { fibercut: 'carrier', lte: 'carrier', storm: 'carrier', loop: 'central', drift: 'central', dhcp: 'git', eol: 'git', capacity: 'aruba', notready: 'aruba', hardown: 'aruba', crc: 'central', day0: 'aruba', patch: 'central', backup: 'opsramp', catalog: 'central', predcircuit: 'carrier', sitehold: 'carrier' };
 const WORDS = { carrier: ['Ready', 'Opening case', 'Case open'], field: ['Ready', 'Matching technician', 'Work order out'], git: ['Ready', 'Commit in review', 'Merged and pushed'] };
 const AUX = { carrier: c => ['Case open', `${c} · evidence attached`], field: () => ['Work order out', 'technician matched'], git: () => ['Merged and pushed', 'main'] };
-const AUX_OVR = { failback: { carrier: ['Case closed', 'checked by Mova iO'] }, capacity: { carrier: ['Upgrade ordered', 'install in 12 days'] }, cutover: { field: ['Crew on site', 'cutover weekend'] }, eol: { field: ['Spares allocated', '6 depots'] }, drift: { git: ['Golden v41', 'used for the restore'] }, ec: { field: ['Technician dispatched', 'spare EC-XS · ETA 80 min'] }, cve: { git: ['Policy committed', 'fleet policy'] }, scanners: { git: ['Override merged', 'site file'] } };
-const BLAST = { cve: 'fleet policy, no client impact', eol: 'planning only, no device change', fw: 'canary group only (10 APs)', storm: 'no device change', cutover: 'one site, not trading', lte: 'no device change', fibercut: 'no device change', ups: 'one UPS, network on bypass', power: 'no device change', capacity: 'one branch' };
+const AUX_OVR = { hardown: { carrier: ['Case open', 'fiber break confirmed'] }, crc: { field: ['Optic swap booked', 'after close'] }, predcircuit: { carrier: ['Proactive case open', 'trend evidence attached'] }, sitehold: { carrier: ['Maintenance confirmed', 'window 00:00–04:00'] }, day0: { git: ['Rings committed', 'sdwan/firmware/ecos-day0.yaml'] }, patch: { git: ['Wave file merged', 'firmware/aoscx-monthly.yaml'] }, failback: { carrier: ['Case closed', 'checked by Mova iO'] }, capacity: { carrier: ['Upgrade ordered', 'install in 12 days'] }, cutover: { field: ['Crew on site', 'cutover weekend'] }, eol: { field: ['Spares allocated', '6 depots'] }, drift: { git: ['Golden v41', 'used for the restore'] }, ec: { field: ['Technician dispatched', 'spare EC-XS · ETA 80 min'] }, cve: { git: ['Policy committed', 'fleet policy'] }, scanners: { git: ['Override merged', 'site file'] } };
+const BLAST = { cve: 'fleet policy, no client impact', eol: 'planning only, no device change', fw: 'canary group only (10 APs)', storm: 'no device change', cutover: 'one site, not trading', lte: 'no device change', fibercut: 'no device change', capacity: 'one branch', day0: 'canary ring of 10 closed branches', patch: 'batches of 20 switches, branches closed', backup: 'read-only, no device change', predcircuit: 'no device change', sitehold: 'no device change', catalog: 'two unused access ports', crc: 'one uplink; the second link keeps the switch connected', hardown: 'one branch, already down' };
 const R_STOP = '5-minute';
 const PH = ['Detect', 'Correlate', 'Decide', 'Act', 'Verify', 'Record'];
 const pct = x => `${Math.round(x * 100)}%`;
@@ -119,7 +119,7 @@ function buildRun(demo, sp, c) {
 }
 
 function prechecks(demo, sp, kind) {
-  const hrs = sp.when === 'trading' ? 'Branch hours: trading now, so autonomous changes are gated' : sp.when === 'closed' ? 'Branch hours: closed, change window open' : 'Device already down: the change cannot make it worse';
+  const hrs = sp.hrs ? sp.hrs : sp.when === 'trading' ? 'Branch hours: trading now, so autonomous changes are gated' : sp.when === 'closed' ? 'Branch hours: closed, change window open' : 'Device already down: the change cannot make it worse';
   const L = [hrs, 'Freeze windows: none cover this scope', `Change calendar: no other change on ${sp.host} in the next 2 hours`, `Blast radius: ${BLAST[demo.id] || 'this branch only'}`, `Rollback: ${sp.tech.undo}`];
   if (sp.cred !== false) L.push(`Credential: one-time vault checkout scoped to ${sp.host}, expires in 15 minutes`);
   return L;
@@ -538,9 +538,9 @@ export const MODE_TEXT = {
   approve: 'Mova iO prepares the evidence and the plan, then waits. Nothing changes until a named person approves.',
 };
 export const MODE_RULES = [
-  ['Autonomous', 'auto', I.Bot, 'Low risk and easy to undo, confidence 80% or higher, no freeze window, and the branch is closed or the device is already down. Also anything that changes nothing on the network: correlation, evidence, carrier cases, messages.'],
-  ['Human-on-the-loop', 'stop', I.Eye, 'Standard, pre-approved change with confidence 80% or higher that should not wait, such as stopping a fault from spreading. A person is told at once and has a stop window (5 minutes in production).'],
-  ['Human-in-the-loop', 'approve', I.Hand, 'Confidence below 80%, the branch is trading and traffic or devices would change, security or fleet-wide changes, or anything that costs money (dispatch, parts, circuit orders).'],
+  ['Autonomous', 'auto', I.Bot, 'Act tier of the action catalog: pre-approved, low risk and easy to undo, confidence 80% or higher, no freeze. For example steering traffic to a backup path already tested healthy, bouncing the port of an AP that is already down, re-running a backup, or any change while the branch is closed. Also anything that changes nothing on the network: correlation, evidence, carrier cases, holds, messages.'],
+  ['Human-on-the-loop', 'stop', I.Eye, 'Act and notify tier: a standard, pre-approved change that should not wait, such as a monthly patch wave inside its window or a port activation from the catalog. It runs on its own, a person is told at once and can stop it (5-minute stop window in production).'],
+  ['Human-in-the-loop', 'approve', I.Hand, 'Stage tier: confidence below 80%, a change on a trading branch outside the Act tier, firmware, routing, QoS or security changes, fleet-wide changes, or anything that costs money (dispatch, parts, circuit orders). Mova iO prepares the plan and evidence; a named person approves.'],
 ];
 export function ModeRules({ className }) {
   return <div className={cx('space-y-1.5', className)}>{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; return <div key={n} className="flex gap-2 text-[12px] leading-[16px]"><Ic size={14} className={cx('shrink-0 mt-px', k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn')} /><span><b>{n}:</b> {t}</span></div>; })}</div>;

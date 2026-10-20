@@ -39,7 +39,7 @@ export function LiveFeed({ h = 360, compact }) {
   const [f, setF] = useState('all');
   const items = L.feed.filter(e => inScope(s, e.branchId) && (f === 'all' || (f === 'action' ? !/Suppress|Duplicate|OK|Info/.test(e.out) : /Suppress|Duplicate/.test(e.out)))).slice(0, 40);
   return (
-    <Card title="Live event stream" sub="OpsRamp, Aruba Central, Orchestrator, New Relic, UPS, with the correlation outcome" icon={I.Radio} right={<Tabs size="sm" value={f} onChange={setF} tabs={[{ id: 'all', label: 'All' }, { id: 'action', label: 'Actioned' }, { id: 'sup', label: 'Suppressed' }]} />}>
+    <Card title="Live event stream" sub="OpsRamp, Aruba Central, Orchestrator and New Relic, with the correlation outcome" icon={I.Radio} right={<Tabs size="sm" value={f} onChange={setF} tabs={[{ id: 'all', label: 'All' }, { id: 'action', label: 'Actioned' }, { id: 'sup', label: 'Suppressed' }]} />}>
       <div className="overflow-y-auto pr-1 space-y-1" style={{ maxHeight: h }}>
         {items.map(e => { const b = D.BR[e.branchId]; return (
           <button key={e.id} onClick={() => e.inc ? act.openInc(e.inc) : act.openBranch(e.branchId)} className="w-full text-left flex gap-2 items-start text-[12px] py-1.5 border-b border-line/60 feed-in hover:bg-chip/60 rounded px-1">
@@ -115,7 +115,7 @@ export function AppsLive({ open }) {
 
 // Module live panel: a moving chart, three live figures and the module's own event stream.
 const P = {
-  readiness: { title: 'Pre-opening probes – live', sub: 'Synthetic checks from every EdgeConnect: POS path, ERP login, printers, handhelds', cats: ['readiness'], chart: [['probes', 'Probes passing (%)', C.ok]], yMin: 95,
+  readiness: { title: 'Pre-opening probes – live', sub: 'Synthetic checks from every EdgeConnect: POS path, ERP path, tunnels, DHCP', cats: ['readiness'], chart: [['probes', 'Probes passing (%)', C.ok]], yMin: 95,
     stats: [['Probes passing', 'probes', v => `${v.toFixed(1)}%`, C.ok], ['POS path p95', 'pos', v => `${Math.round(v)} ms`, C.s1], ['ERP login', 'erp', v => `${v.toFixed(2)} s`, C.info]] },
   inventory: { title: 'Device telemetry – live', sub: 'Aruba Central and OpsRamp: devices reporting, clients, backups', cats: ['inventory'], chart: [['clients', 'Wi-Fi clients connected', C.info]],
     stats: [['Devices reporting', 'reporting', v => `${v.toFixed(1)}%`, C.ok], ['Wi-Fi clients', 'clients', v => num(Math.round(v)), C.info], ['Config backups OK', 'backups', v => `${v.toFixed(1)}%`, C.ok]] },
@@ -127,7 +127,7 @@ const P = {
     stats: [['Validations / min', 'chg', v => v.toFixed(1), C.ai], ['Runbook success', 'success', v => `${v.toFixed(1)}%`, C.ok], ['Runbook runs / min', 'runs', v => v.toFixed(1), C.info]] },
   vuln: { title: 'Firmware and advisory checks – live', sub: 'Aruba Central firmware inventory and Mova iO matching against HPE Aruba Networking bulletins. Patching runs in after-close windows.', cats: ['vuln'], chart: [['exposed', 'Devices checked per minute', C.info]], yMin: 0,
     stats: [['Devices checked / min', 'exposed', v => num(Math.round(v)), C.info], ['Devices reporting', 'reporting', v => `${v.toFixed(1)}%`, C.ok], ['Next patch window', null, () => '22:00 local', C.ok]] },
-  predict: { title: 'Risk signals – live', sub: 'Inputs the prediction models are reading now: errors, PoE, temperature, UPS self-tests', cats: ['predict'], chart: [['risk', 'Fleet risk index', C.warn]],
+  predict: { title: 'Risk signals – live', sub: 'Inputs the prediction models are reading now: errors, PoE, temperature, uplink use, LTE signal', cats: ['predict'], chart: [['risk', 'Fleet risk index', C.warn]],
     stats: [['Fleet risk index', 'risk', v => Math.round(v), C.warn], ['Fleet WAN latency', 'wan', v => `${Math.round(v)} ms`, C.s1], ['Scanner roam failures', 'scan', v => `${v.toFixed(1)}/min`, C.info]] },
   knowledge: { title: 'Knowledge in use – live', sub: 'Articles suggested to engineers on open tickets, and whether they helped', cats: ['knowledge'], chart: [['kbhits', 'Articles suggested per minute', C.ai]], yMin: 0,
     stats: [['Suggested / min', 'kbhits', v => v.toFixed(1), C.ai], ['Runbook runs / min', 'runs', v => v.toFixed(1), C.info], ['Runbook success', 'success', v => `${v.toFixed(1)}%`, C.ok]] },

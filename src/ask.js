@@ -83,7 +83,7 @@ export function answer(s, q, now) {
   }
   if (/backup|on lte|failover/.test(t) && !/spare/.test(t)) {
     const list = D.BRANCHES.filter(b => circuitOf(s, b.wan[0]).status !== 'Up');
-    return { title: `${list.length} branches running on their backup path`, lines: list.slice(0, 10).map(b => { const c = circuitOf(s, b.wan[0]); const s2 = circuitOf(s, b.wan[1]); return { k: bl(b), v: `${c.carrier} ${c.type} ${c.status.toLowerCase()} → on ${s2.carrier} ${s2.type}${s2.type === 'LTE/5G' ? ' (Roof Hub and ERP slower, POS fine)' : ''}`, branch: b.id }; }), src: 'EdgeConnect Orchestrator path state', links: [L('Operations overview', 'overview')] };
+    return { title: `${list.length} branches running on their backup path`, lines: list.slice(0, 10).map(b => { const c = circuitOf(s, b.wan[0]); const s2 = circuitOf(s, b.wan[1]); return { k: bl(b), v: `${c.carrier} ${c.type} ${c.status.toLowerCase()} → on ${s2.carrier} ${s2.type}${s2.type === 'LTE/5G' ? ' (ERP slower on LTE, POS fine)' : ''}`, branch: b.id }; }), src: 'EdgeConnect Orchestrator path state', links: [L('Operations overview', 'overview')] };
   }
   if (/approval|waiting on/.test(t) && !/who approved/.test(t)) {
     const p = s.approvals.filter(a => a.status === 'Pending');
@@ -108,14 +108,14 @@ export function answer(s, q, now) {
     const b = /my branch/.test(t) ? D.BR[s.bmBranch] : findBranchInText(q);
     if (b) {
       const r = readinessOf(s, b, now);
-      return { title: `${bl(b)}: ${r.verdict}`, lines: [`Local time ${r.clock.local}. ${r.clock.open ? 'Branch is open now.' : r.clock.opens ? `Opens ${r.clock.opens}.` : 'Closed today.'}`, ...(r.issues.length ? r.issues.map(x => ({ k: '•', v: x })) : [{ k: '✓', v: 'SD-WAN both paths, ERP/POS path, Wi-Fi, scanners, printers, delivery tracking all passing' }])], src: 'Readiness checks, Orchestrator, Aruba Central', links: [L('Branch readiness', 'readiness', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] };
+      return { title: `${bl(b)}: ${r.verdict}`, lines: [`Local time ${r.clock.local}. ${r.clock.open ? 'Branch is open now.' : r.clock.opens ? `Opens ${r.clock.opens}.` : 'Closed today.'}`, ...(r.issues.length ? r.issues.map(x => ({ k: '•', v: x })) : [{ k: '✓', v: 'Primary and backup lines, EdgeConnect, tunnels, switches, Wi-Fi, DHCP, config, POS and ERP paths all passing' }])], src: 'Readiness checks, Orchestrator, Aruba Central', links: [L('Branch readiness', 'readiness', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] };
     }
     const nr = D.BRANCHES.map(b => ({ b, r: readinessOf(s, b, now) })).filter(x => x.r.verdict !== 'Ready');
     return { title: `${nr.length} branches not fully ready`, lines: nr.slice(0, 10).map(({ b, r }) => ({ k: bl(b), v: `${r.verdict}: ${r.issues[0]}`, branch: b.id })), src: 'Readiness checks', links: [L('Branch readiness', 'readiness')] };
   }
   if (/slow|why is/.test(t)) {
     const b = /my branch/.test(t) || role === 'bm' ? D.BR[s.bmBranch] : findBranchInText(q);
-    if (b) { const r = readinessOf(s, b, now); return { title: `What's affecting ${bl(b)}`, lines: r.issues.length ? r.issues : ['Nothing open. Both WAN paths clean; POS path 190 ms; Roof Hub p95 0.7 s.'], src: 'OpsRamp, Orchestrator, synthetic tests', links: [L('Overview for this branch', 'overview', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] }; }
+    if (b) { const r = readinessOf(s, b, now); return { title: `What's affecting ${bl(b)}`, lines: r.issues.length ? r.issues : ['Nothing open. Both WAN paths clean; POS path 190 ms; ERP path 41 ms.'], src: 'OpsRamp, Orchestrator, synthetic tests', links: [L('Overview for this branch', 'overview', { filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })] }; }
   }
   if (/technician arriving|tech arriving|when is the tech/.test(t)) {
     const b = D.BR[s.bmBranch];

@@ -236,8 +236,8 @@ function Parity({ pid, setPid }) {
   const [run, setRun] = useState(0);
   const gate12 = p.gates[11] && p.gates[11].st === 'Pass';
   const rows = [
-    ['Telemetry', 'OpsRamp monitors (SNMP/API, syslog, NetFlow)', '100%', gate12], ['Telemetry', 'Aruba Central + Orchestrator', '100%', gate12], ['Telemetry', 'Synthetic probes: POS, ERP, Roof Hub, delivery tracking', '4/4', gate12], ['Telemetry', 'UPS power + closet temperature', 'Yes', gate12],
-    ['Automation', 'Runbooks enabled (RB-101…110)', '10/10', gate12], ['Automation', 'Readiness checks at 05:30 local', '6/6', true], ['Automation', 'Nightly config backup with integrity check', 'Yes', gate12],
+    ['Telemetry', 'OpsRamp monitors (SNMP/API, syslog, NetFlow)', '100%', gate12], ['Telemetry', 'Aruba Central + Orchestrator', '100%', gate12], ['Telemetry', 'Synthetic probes: POS path, ERP path, tunnels', '3/3', gate12], ['Telemetry', 'LTE backup failover test', 'Passed', gate12],
+    ['Automation', 'Runbooks enabled (RB-101…110)', '10/10', gate12], ['Automation', 'Readiness checks at 05:30 local', '10/10', true], ['Automation', 'Nightly config backup with integrity check', 'Yes', gate12],
     ['AI coverage', 'Mova iO agents scoped to site', '9/9', gate12], ['AI coverage', 'Network knowledge graph – site topology', 'Built', gate12],
     ['Service', 'ServiceNow CMDB CIs + relationships', `${p.size === 'L' ? 14 : p.size === 'M' ? 9 : 6} CIs`, gate12], ['Service', 'SLA clocks (Annexure B)', 'Active', true], ['Service', 'KB articles + branch contacts', 'Linked', gate12],
   ];

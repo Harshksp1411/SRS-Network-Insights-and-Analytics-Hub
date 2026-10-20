@@ -13,7 +13,7 @@ export const AREAS = [
   { id: 'wan', label: 'SD-WAN and circuits', metric: 'Packet loss, fleet median', unit: '%', base: 0.18, vol: 0.03, lo: 0, hi: 3, dec: 2 },
   { id: 'apps', label: 'Path to data centre', metric: 'POS and ERP path latency', unit: ' ms', base: 24, vol: 1.2, lo: 8, hi: 400, dec: 0 },
   { id: 'lan', label: 'LAN and Wi-Fi', metric: 'Access points down', unit: '', base: 9, vol: 0.8, lo: 0, hi: 80, dec: 0 },
-  { id: 'power', label: 'Power and facilities', metric: 'Branches on UPS battery', unit: '', base: 1, vol: 0.3, lo: 0, hi: 40, dec: 0 },
+  { id: 'power', label: 'EdgeConnect', metric: 'Appliances unreachable', unit: '', base: 1, vol: 0.3, lo: 0, hi: 40, dec: 0 },
   { id: 'sec', label: 'Security', metric: 'Failed admin logins per 5 min', unit: '', base: 4, vol: 0.9, lo: 0, hi: 60, dec: 0 },
   { id: 'field', label: 'Field', metric: 'Technicians on site', unit: '', base: 5, vol: 0.5, lo: 0, hi: 20, dec: 0 },
 ];
@@ -23,8 +23,8 @@ export const TL_LANES = [...AREAS.map(a => ({ id: a.id, label: a.label })), { id
 export const AGENT_DEF = [
   { id: 'noise', name: 'Noise Reduction', group: 0, does: 'Clears transient alerts after the hold-down and rolls warnings into the daily digest.', tools: ['opsramp', 'aruba'], acts: b => [`Auto-cleared ${b.code}-wan1 flap after 40 s hold-down`, `Rolled 1 warning from ${b.name} into the daily digest`, `Suppressed SNMP timeout on ${b.code}-sw01 (next poll OK)`] },
   { id: 'correlation', name: 'Correlation', group: 0, does: 'Groups signals by topology, time window, carrier and change into one incident per branch.', tools: ['opsramp', 'servicenow'], acts: b => [`Grouped 4 signals at ${b.name} into one event`, `Linked ${b.code}-wan1 alarm to the open carrier incident`, `Matched ${b.name} alerts to the same carrier segment`] },
-  { id: 'diagnosis', name: 'Diagnosis', group: 1, does: 'Ranks likely causes and rules the others out with evidence.', tools: ['aruba', 'central'], acts: b => [`Ruled out branch LAN at ${b.name}: switches and Wi-Fi healthy`, `Ranked 3 causes for ${b.name}; top: carrier congestion (84%)`, `Checked UPS and EdgeConnect power at ${b.name}`] },
-  { id: 'prediction', name: 'Prediction', group: 1, does: 'Forecasts circuit decay, capacity and hardware failure.', tools: ['opsramp', 'movaio'], acts: b => [`Failure risk for ${b.code}-sw01 updated to ${rnd(0.2, 0.6).toFixed(2)}`, `Capacity forecast refreshed for ${b.code}-wan1`, `UPS runtime trend checked at ${b.name}`] },
+  { id: 'diagnosis', name: 'Diagnosis', group: 1, does: 'Ranks likely causes and rules the others out with evidence.', tools: ['aruba', 'central'], acts: b => [`Ruled out branch LAN at ${b.name}: switches and Wi-Fi healthy`, `Ranked 3 causes for ${b.name}; top: carrier congestion (84%)`, `Checked EdgeConnect health and both paths at ${b.name}`] },
+  { id: 'prediction', name: 'Prediction', group: 1, does: 'Forecasts circuit decay, capacity and hardware failure.', tools: ['opsramp', 'movaio'], acts: b => [`Failure risk for ${b.code}-sw01 updated to ${rnd(0.2, 0.6).toFixed(2)}`, `Capacity forecast refreshed for ${b.code}-wan1`, `LTE signal trend checked at ${b.code}-wan2`] },
   { id: 'runbook', name: 'Runbook', group: 2, does: 'Runs approved runbooks inside the gate rules.', tools: ['aruba', 'central'], acts: b => [`RB-109 config backup re-run at ${b.name}: success`, `RB-104 AP reboot at ${b.name}: success in 2 m 41 s`, `RB-103 port bounce at ${b.name}: skipped, branch trading, sent for approval`] },
   { id: 'carrier', name: 'Carrier', group: 2, does: 'Raises and chases carrier cases with an evidence pack.', tools: ['servicenow'], acts: b => { const c = D.CIR[b.wan[0]]; return [`Updated ${c.carrier} case for ${b.name} with a fresh loss graph`, `Chased ${c.carrier} for an ETA on ${b.name}`, `Attached MTR from ${b.code}-ec01 to the ${c.carrier} case`]; } },
   { id: 'dispatch', name: 'Dispatch', group: 2, does: 'Matches field visits to skills, parts and branch hours.', tools: ['servicenow'], acts: b => [`Matched a Rack & power technician for ${b.name}`, `Reserved a spare EC-XS at the nearest depot for ${b.name}`, `Moved the ${b.name} visit to after close`] },
@@ -33,14 +33,14 @@ export const AGENT_DEF = [
   { id: 'comms', name: 'Comms', group: 3, does: 'Keeps StoreOps and branch managers informed.', tools: ['servicenow'], acts: b => [`Sent a plain-language update to the ${b.name} manager`, `Posted the 30-minute update to StoreOps`, `Told ${b.name}: back on the main line, nothing to do`] },
   { id: 'change', name: 'Change Validation', group: 3, does: 'Checks freezes, calendar and canaries before and after every change.', tools: ['servicenow', 'central'], acts: () => { const c = pick(D.CHANGES); return [`${c.id}: pre-checks passed`, `${c.id}: canary within 2% of control`, `${c.id}: Network-as-Code lint and policy checks passed`]; } },
   { id: 'knowledge', name: 'Knowledge', group: 4, does: 'Suggests articles and similar past incidents; drafts new ones.', tools: ['servicenow'], acts: b => { const k = pick(D.KB); return [`Suggested ${k.id} on a ${b.name} ticket`, `Found 3 similar past incidents for ${b.name}`, `Drafted an article from a resolved ${b.name} ticket`]; } },
-  { id: 'readiness', name: 'Branch Readiness', group: 4, does: 'Runs pre-opening checks at 05:30 local for every branch.', tools: ['opsramp', 'central'], acts: b => [`Readiness probe at ${b.name}: 6/6 pass`, `Re-ran the label printer check at ${b.name}: pass`, `Readiness probe at ${b.name}: 5/6, printer retry OK`] },
+  { id: 'readiness', name: 'Branch Readiness', group: 4, does: 'Runs pre-opening checks at 05:30 local for every branch.', tools: ['opsramp', 'central'], acts: b => [`Readiness probe at ${b.name}: 10/10 pass`, `Re-ran the Wi-Fi check at ${b.name}: pass`, `Readiness probe at ${b.name}: 9/10, LTE backup retest OK`] },
 ];
 export const AGENT_GROUPS = ['Noise and correlation', 'Diagnosis and prediction', 'Runbooks, carriers, dispatch', 'Verify, ticket, comms, change', 'Knowledge and readiness'];
 
 export const TOOLS = [
   { id: 'aruba', name: 'EdgeConnect Orchestrator', srcs: ['Orchestrator'], base: 22 },
   { id: 'central', name: 'Aruba Central', srcs: ['Aruba Central'], base: 18 },
-  { id: 'opsramp', name: 'HPE OpsRamp', srcs: ['OpsRamp', 'UPS (SNMP)'], base: 26 },
+  { id: 'opsramp', name: 'HPE OpsRamp', srcs: ['OpsRamp'], base: 26 },
   { id: 'newrelic', name: 'New Relic', srcs: ['New Relic', 'Synthetic'], base: 12 },
   { id: 'servicenow', name: 'ServiceNow', srcs: ['ServiceNow', 'Field app'], base: 8 },
   { id: 'carrier', name: 'Carrier portals', srcs: ['Carrier portal'], base: 4 },

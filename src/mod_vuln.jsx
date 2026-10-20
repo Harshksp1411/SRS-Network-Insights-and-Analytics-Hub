@@ -24,7 +24,7 @@ export function Vulns() {
   const endingDevs = life.reduce((a, r) => a + r.n, 0);
   const patched = devs.length - anyDevs;
   const byRegion = useMemo(() => D.REGIONS.map(rg => rows.filter(r => r.cvss || r.sev === 'Lifecycle').map(r => r.ds.filter(d => D.BR[d.branchId].region === rg).length)), [rows]);
-  const lifeYears = [2025, 2026, 2027, 2028, 2029].map(y => ({ label: String(y), 'Aruba 2530 end of support (est.)': y === 2026 ? devs.filter(d => d.model === '2530').length : 0, 'ECOS 9.3 end of maintenance': y === 2025 ? devs.filter(d => d.type === 'SD-WAN' && d.fw.startsWith('9.3')).length : 0, 'Warranty ends': devs.filter(d => new Date(d.warranty).getFullYear() === y).length }));
+  const lifeYears = [2025, 2026, 2027, 2028, 2029].map(y => ({ label: String(y), 'Aruba 2530 end of support': y === 2027 ? devs.filter(d => d.model === '2530').length : 0, 'ECOS 9.3 end of maintenance': y === 2025 ? devs.filter(d => d.type === 'SD-WAN' && d.fw.startsWith('9.3')).length : 0, 'Warranty ends': devs.filter(d => new Date(d.warranty).getFullYear() === y).length }));
   const burn = useMemo(() => { const labels = [], act0 = [], fc = [], lo = [], hi = []; const cur = anyDevs; for (let i = -6; i <= 8; i++) { labels.push(i === 0 ? 'now' : i < 0 ? `W${i}` : `+${i}w`); if (i <= 0) { act0.push(Math.round(cur * (1 + (-i) * 0.09))); fc.push(i === 0 ? cur : null); lo.push(i === 0 ? cur : null); hi.push(i === 0 ? cur : null); } else { const v = Math.max(0, Math.round(cur * Math.pow(0.68, i))); act0.push(null); fc.push(v); lo.push(Math.max(0, Math.round(v * 0.7))); hi.push(Math.round(v * 1.35 + 6)); } } return { labels, act0, fc, lo, hi }; }, [anyDevs]);
   const topBranches = useMemo(() => { const m = {}; rows.filter(r => r.cvss).forEach(r => r.ds.forEach(d => { m[d.branchId] = (m[d.branchId] || 0) + (r.sev === 'Critical' ? 3 : 2); })); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id, v]) => ({ label: `${D.BR[id].name}`, sub: D.BR[id].brand, value: v, id, color: v >= 9 ? C.bad : v >= 6 ? C.warn : C.s1 })); }, [rows]);
   const sevMix = [{ label: 'Critical (CVSS 9.0+)', value: critDevs, color: C.bad }, { label: 'High (7.0 to 8.9)', value: high.reduce((a, r) => a + r.n, 0), color: C.warn }, { label: 'Lifecycle only', value: endingDevs, color: '#8a8f96' }, { label: 'No known issue', value: Math.max(0, devs.length - anyDevs - endingDevs), color: '#1f7a3a' }];
@@ -45,7 +45,7 @@ export function Vulns() {
         <Stat label="Devices with a critical CVE" value={num(critDevs)} tone={critDevs ? 'red' : 'green'} sub={`of ${num(devs.length)} in view`} />
         <Stat label="Open advisories" value={rows.filter(r => r.cvss && r.n).length} sub={`${crit.filter(r => r.n).length} critical, ${high.filter(r => r.n).length} high`} />
         <Stat label="Branches exposed" value={num(exposedBranches)} tone="amber" sub={`of ${num(filteredBranches(s).length)}`} />
-        <Stat label="Devices at end of support" value={num(endingDevs)} tone="amber" sub="2530 switches, ECOS 9.3" />
+        <Stat label="Devices nearing end of support" value={num(endingDevs)} tone="amber" sub="2530 switches (support ends 1 Feb 2027), ECOS 9.3" />
         <Stat label="Patch compliance" value={pct(patched / Math.max(1, devs.length))} sub="no known CVE on running firmware" />
         <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days" />
       </div>
@@ -56,7 +56,7 @@ export function Vulns() {
           <LineChart labels={burn.labels} series={[{ name: 'Vulnerable devices', data: burn.act0, color: C.bad }, { name: 'Projected', data: burn.fc, color: C.bad, forecastFrom: 6 }]} band={{ lo: burn.lo, hi: burn.hi, color: C.bad }} forecastFrom={6} h={170} yMin={0} yFmt={v => Math.round(v)} />
         </Card>
         <Card title="End of life and warranty, by year" sub="Devices reaching end of support or warranty end">
-          <Bars data={lifeYears} keys={['Aruba 2530 end of support (est.)', 'ECOS 9.3 end of maintenance', 'Warranty ends']} colors={[C.bad, C.warn, C.s1]} h={170} />
+          <Bars data={lifeYears} keys={['Aruba 2530 end of support', 'ECOS 9.3 end of maintenance', 'Warranty ends']} colors={[C.bad, C.warn, C.s1]} h={170} />
         </Card>
       </div>
       <Tabs value={tab} onChange={setTab} className="mt-3 mb-2" tabs={[{ id: 'advisories', label: 'Advisories', count: rows.filter(r => r.n).length }, { id: 'models', label: 'Models and lifecycle' }, { id: 'regions', label: 'Exposure by region' }, { id: 'branches', label: 'Most exposed branches' }]} />
@@ -82,7 +82,7 @@ export function Vulns() {
         { key: 'v', label: 'With open CVE', right: true, render: r => <span className={r.v ? 'text-bad font-bold' : 'text-ink3'}>{num(r.v)}</span> },
         { key: 'w', label: 'Warranty expired', right: true, render: r => num(r.w) },
         { key: 'replace', label: 'Replacement', render: r => r.replace || '—' },
-      ]} /><div className="text-[11.5px] text-ink3 mt-2">{D.SRC.eol2530}. End-of-support date for 2530 G models is an estimate (end of sale + 5 years); confirm with HPE before budgeting.</div></div></Card>}
+      ]} /><div className="text-[11.5px] text-ink3 mt-2">{D.SRC.eol2530}. 728 switches need replacing before then; refresh waves use the Branch-in-a-Box kit.</div></div></Card>}
       {tab === 'regions' && <Card title="Affected devices by region and advisory" sub="Darker cells need the earliest patch waves">
         <Heatmap rows={D.REGIONS} cols={rows.filter(r => r.cvss || r.sev === 'Lifecycle').map(r => r.cves[0] || r.id)} values={byRegion} cell={96} rowW={170} fmt={v => `${v} devices`} />
       </Card>}

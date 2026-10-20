@@ -38,22 +38,22 @@ export const SCENARIOS = [
       { at: 25, label: 'OpsRamp: 14 more events (BFD flaps, tunnel quality, latency)', run(act, c, T) {
         addSignals(act, c.id, [sig(T, 'OpsRamp', 'BFD session flap on overlay tunnel to Primary DC (x6)', 'Minor'), sig(T + 4e3, 'OpsRamp', 'Tunnel quality score 61 (was 98)', 'Major'), sig(T + 9e3, 'Orchestrator', 'Latency 96 ms on wan1 (baseline 24 ms)', 'Major')], 14);
       } },
-      { at: 70, label: 'New Relic + synthetic: Roof Hub p95 2.9 s, POS RTT 640 ms', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'New Relic', 'Roof Hub API p95 2.9 s from this branch (baseline 0.7 s)', 'Major'), sig(T + 6e3, 'Synthetic', 'POS path RTT 640 ms (threshold 400 ms)', 'Critical'), sig(T + 9e3, 'Aruba Central', 'Counter clients reporting retries (app)', 'Minor')], 12);
+      { at: 70, label: 'New Relic + synthetic: ERP path 180 ms, POS RTT 640 ms', run(act, c, T) {
+        addSignals(act, c.id, [sig(T, 'New Relic', 'ERP path latency 180 ms from this branch (baseline 40 ms)', 'Major'), sig(T + 6e3, 'Synthetic', 'POS path RTT 640 ms (threshold 400 ms)', 'Critical'), sig(T + 9e3, 'Aruba Central', 'Counter clients reporting retries (app)', 'Minor')], 12);
       } },
       { at: 125, label: 'Correlation Agent: 43 events → 1 incident, P2', run(act, c, T) {
-        act.upd('incidents', c.id, x => ({ pri: 'P2', title: 'MPLS jitter – AT&T: POS and Roof Hub slow at counter', corr: 43, suppressed: 41, state: 'In Progress', acked: T, assignee: 'Priya S.', group: 'Movate NOC – L2 Network', impact: ['Card payments slower at counter', 'Roof Hub orders slower', 'Delivery tracking OK'] }));
+        act.upd('incidents', c.id, x => ({ pri: 'P2', title: 'SD-WAN degradation – AT&T MPLS: POS and ERP at risk', corr: 43, suppressed: 41, state: 'In Progress', acked: T, assignee: 'Mova iO', group: 'Movate NOC – L2 Network', impact: ['Card payments at risk of slowing at the counter', 'ERP order entry at risk'] }));
         addStep(act, c.id, step('correlation', T, '43 raw events grouped into one incident (41 suppressed as duplicates/children). Priority raised to P2: branch open and POS impacted.'));
       } },
       { at: 160, label: 'Diagnosis Agent: carrier congestion 87%', run(act, c, T) {
         act.upd('incidents', c.id, { conf: 0.87, rca: [{ cause: 'Congestion on AT&T MPLS access / aggregation', conf: 0.87, ev: 'Jitter and loss rise together; local util only 29%; 3 other AT&T MPLS sites in Houston show the same pattern' }, { cause: 'Local WAN saturation', conf: 0.06, ev: 'wan1 utilisation 29%' }, { cause: 'EdgeConnect CPU / QoS', conf: 0.03, ev: 'CPU 11%, no drops in queue' }] });
         addStep(act, c.id, step('diagnosis', T, 'Ranked 3 causes. Top: AT&T MPLS congestion (87%). Blast radius: this branch only for POS; 3 more Houston sites watching.'));
       } },
-      { at: 190, label: 'Orchestrator path control steers POS/ERP/Roof Hub to broadband', run(act, c, T) {
-        addSignals(act, c.id, [sig(T, 'Orchestrator', `Dynamic path control moved POS, ERP, Roof Hub to ${c.s} (pre-approved business intent policy)`, 'Info')]);
+      { at: 190, label: 'Runbook RB-101 steers POS, ERP and voice to the healthy broadband path', run(act, c, T) {
+        addSignals(act, c.id, [sig(T, 'Orchestrator', `POS, ERP and voice moved to ${c.s}; QoS re-applied (pre-approved RB-101, Act tier)`, 'Info')]);
         act.map('branchHealth', c.b.id, 'degraded');
-        addStep(act, c.id, step('runbook', T, 'Path steer done by the SD-WAN policy (no config change). Recommends RB-101 to pin traffic to wan2 until AT&T confirms fix – branch is open, so this needs approval.'));
-        act.upd('incidents', c.id, { runbook: 'RB-101', rbState: 'proposed' });
+        addStep(act, c.id, step('runbook', T, 'Broadband path tested healthy first. RB-101 is a pre-approved Act-tier action, so it ran during trading hours and the NOC was notified.'));
+        act.upd('incidents', c.id, { runbook: 'RB-101', rbState: 'done' });
       } },
       { at: 230, label: 'Carrier Agent: evidence pack built, AT&T case raised', run(act, c, T) {
         const no = D.caseNo('AT&T');
@@ -63,18 +63,17 @@ export const SCENARIOS = [
         act.audit(`Carrier case ${no} opened for ${c.p}`, c.id, 'Carrier Agent');
       } },
       { at: 330, label: 'Comms Agent: StoreOps + branch manager notified (5 m 30 s)', run(act, c, T) {
-        addStep(act, c.id, step('comms', T, `StoreOps and ${c.b.name} manager told: "Card payments and Roof Hub moved to the backup line and are back to normal speed. AT&T is working the main line. Next update 60 min." – sent 5 m 30 s after first event.`));
+        addStep(act, c.id, step('comms', T, `StoreOps and ${c.b.name} manager told: "Card payments and ERP moved to the backup line before the counter noticed. AT&T is working the main line. Next update 60 min." – sent 5 m 30 s after first event.`));
         act.note(c.id, 'StoreOps notified (Teams + email) – 5 m 30 s from first signal. Target 15 min: met.', 'Comms Agent');
       } },
-      { at: 380, label: 'Verification: POS 180 ms, Roof Hub p95 0.8 s', run(act, c, T) {
-        act.upd('incidents', c.id, { verify: [{ v: 'POS RTT < 400 ms', st: 'pass', val: '180 ms' }, { v: 'Roof Hub p95 < 1.2 s', st: 'pass', val: '0.8 s' }, { v: 'Jitter < 10 ms on active path', st: 'pass', val: '2.1 ms' }] });
+      { at: 380, label: 'Verification: POS 180 ms, ERP path 42 ms', run(act, c, T) {
+        act.upd('incidents', c.id, { verify: [{ v: 'POS RTT < 400 ms', st: 'pass', val: '180 ms' }, { v: 'ERP path < 80 ms', st: 'pass', val: '42 ms' }, { v: 'Jitter < 10 ms on active path', st: 'pass', val: '2.1 ms' }] });
         addSignals(act, c.id, [sig(T, 'Synthetic', 'POS path RTT 180 ms via wan2', 'Info')]);
       } },
-      { at: 470, label: 'Decision: pin traffic to broadband (RB-101)?', await: { label: 'Approve RB-101 as NOC Engineer', run(act, c) {
-        act.upd('incidents', c.id, { rbState: 'done' });
-        act.note(c.id, 'Approved RB-101 pin to wan2 until AT&T confirms fix. Rollback: remove override.', 'Priya S.');
-        act.audit('Approved RB-101 LTE/broadband failover', c.id, 'Priya S. (NOC Engineer)');
-      } }, run() { } },
+      { at: 470, label: 'NOC notified: traffic stays on broadband until AT&T confirms the fix', run(act, c, T) {
+        act.note(c.id, 'RB-101 ran inside the Act tier (healthy backup confirmed). Rollback: remove the override. NOC notified.', 'Runbook Agent');
+        act.audit('RB-101 ran under policy (Act tier) and notified the NOC', c.id, 'Runbook Agent');
+      } },
       { at: 840, label: 'AT&T update: aggregation congestion relieved; 30-min watch before return to primary', run(act, c, T) {
         act.add('watches', { id: `W-${c.id}`, what: `Return ${c.p} to primary after 30 clean minutes`, branchId: c.b.id, created: T, by: 'Runbook Agent', rb: 'RB-102' });
         addStep(act, c.id, step('carrier', T, 'AT&T: congestion on aggregation router relieved, traffic re-balanced. Watching 30 min before RB-102 (needs approval if branch still open).'));
@@ -189,18 +188,18 @@ export const SCENARIOS = [
     },
     steps: [
       { at: 0, label: 'Weather feed: severe thunderstorm + hail warning, Dallas–Fort Worth', run(act, c, T) {
-        act.add('incidents', baseInc({ id: c.id, pri: 'P2', cat: 'Major incident', title: 'Severe weather – DFW branches: power blips and cable outages', branchId: c.list[0].id, ci: 'Region: DFW', opened: T, major: true, signals: [sig(T, 'Weather feed', 'Severe thunderstorm warning, hail up to 2", DFW metro until 18:00', 'Major')], corr: 1, children: [] }));
+        act.add('incidents', baseInc({ id: c.id, pri: 'P2', cat: 'Major incident', title: 'Severe weather – DFW branches: carrier cable outages', branchId: c.list[0].id, ci: 'Region: DFW', opened: T, major: true, signals: [sig(T, 'Weather feed', 'Severe thunderstorm warning, hail up to 2", DFW metro until 18:00', 'Major')], corr: 1, children: [] }));
       } },
       { at: 300, label: '5 branches lose primary (Spectrum area outage); move to LTE', run(act, c, T) {
         c.list.slice(0, 5).forEach(b => { act.map('branchHealth', b.id, 'degraded'); act.map('circuitState', b.wan[0], { status: 'Down' }); });
         addSignals(act, c.id, c.list.slice(0, 5).map((b, i) => sig(T + i * 7e3, 'Orchestrator', `${b.name}: wan1 down, traffic on ${D.CIR[b.wan[1]].type}`, 'Critical')), 37, 30);
       } },
-      { at: 480, label: '2 branches on UPS battery, 1 offline', run(act, c, T) {
+      { at: 480, label: '1 branch loses both paths, 1 more on its backup', run(act, c, T) {
         act.map('branchHealth', c.list[5].id, 'down'); act.map('branchHealth', c.list[6].id, 'degraded');
-        addSignals(act, c.id, [sig(T, 'UPS (SNMP)', `${c.list[5].name}: on battery → runtime exhausted`, 'Critical'), sig(T + 30e3, 'UPS (SNMP)', `${c.list[6].name}: on battery`, 'Major')], 26, 24);
+        addSignals(act, c.id, [sig(T, 'Orchestrator', `${c.list[5].name}: both paths down, EdgeConnect unreachable`, 'Critical'), sig(T + 30e3, 'Orchestrator', `${c.list[6].name}: wan1 down, traffic on ${D.CIR[c.list[6].wan[1]].type}`, 'Major')], 26, 24);
       } },
       { at: 560, label: 'Correlation: 64 events, 7 branches → one major incident (P1)', run(act, c, T) {
-        act.upd('incidents', c.id, { pri: 'P1', title: 'MAJOR – Severe weather DFW: 7 branches impacted (5 on backup, 1 down, 1 on battery)', state: 'In Progress', acked: T, assignee: 'Arjun M.', group: 'Movate NOC – Major Incident', children: c.list.slice(0, 7).map(b => b.id), corr: 64, conf: 0.95, rca: [{ cause: 'Regional weather: utility + Spectrum HFC outage', conf: 0.95, ev: 'Spectrum outage map + utility outage feed overlap 5 of 7 sites; timing matches storm cell track' }, { cause: 'Independent faults', conf: 0.03, ev: 'Unlikely – same 9-minute window' }], impact: ['1 branch offline', '5 branches on LTE (POS/ERP OK, slower Roof Hub)', 'LTE data pool burn rate ×3'] });
+        act.upd('incidents', c.id, { pri: 'P1', title: 'MAJOR – Severe weather DFW: 7 branches impacted (6 on backup, 1 down)', state: 'In Progress', acked: T, assignee: 'Arjun M.', group: 'Movate NOC – Major Incident', children: c.list.slice(0, 7).map(b => b.id), corr: 64, conf: 0.95, rca: [{ cause: 'Regional weather: Spectrum HFC outage', conf: 0.95, ev: 'Spectrum outage map covers 5 of 7 sites; timing matches the storm cell track' }, { cause: 'Independent faults', conf: 0.03, ev: 'Unlikely – same 9-minute window' }], impact: ['1 branch offline', '6 branches on backup lines (POS and ERP OK, less bandwidth)', 'LTE data pool burn rate ×3'] });
         addStep(act, c.id, step('correlation', T, '64 events across 7 branches grouped as one major incident; child incidents not created. Major-incident bridge opened; leadership updates every 60 min.'));
       } },
       { at: 600, label: 'Storm response freeze added for Texas & South Central', run(act, c, T) {
@@ -214,7 +213,7 @@ export const SCENARIOS = [
         addStep(act, c.id, step('carrier', T, `Master case ${no} (5 circuits) instead of 5 separate tickets. Spectrum confirms HFC node outage, ETR 5 h.`));
       } },
       { at: 900, label: 'Comms: leadership + StoreOps update #1', run(act, c, T) {
-        addStep(act, c.id, step('comms', T, 'Update #1 to leadership & StoreOps: 7 DFW branches affected, 6 trading (5 on LTE, 1 on battery), 1 offline. Next update in 60 min.'));
+        addStep(act, c.id, step('comms', T, 'Update #1 to leadership & StoreOps: 7 DFW branches affected, 6 trading on backup lines, 1 offline. Next update in 60 min.'));
       } },
       { at: 1500, label: 'Prediction Agent: LTE pool will exceed plan in 2 days at this burn', run(act, c, T) {
         act.add('approvals', { id: 'APR-2230', type: 'Prediction', title: 'Temporary LTE pool uplift with Verizon/AT&T for DFW storm', branchId: c.list[0].id, agent: 'prediction', conf: 0.9, risk: 'Low', created: T, status: 'Pending', why: ['Predictions never act directly – approval needed'], evidence: ['5 sites on LTE for est. 5 h', 'Pool at 81% before storm', 'Post-storm roofing demand surge expected (busy branches for weeks)'], rollback: 'Revert plan next billing cycle', verify: ['Carrier confirms uplift'] });
@@ -222,7 +221,7 @@ export const SCENARIOS = [
       } },
       { at: 2100, label: 'Dispatch: tech queued for offline branch once storm cell passes', run(act, c, T) {
         const wo = `WO00${42100 + Math.floor(Math.random() * 80)}`;
-        act.add('workOrders', { id: wo, branchId: c.list[5].id, inc: c.id, task: 'Post-storm site check: power-on order, UPS, closet water ingress, yard AP poles', skills: ['Rack & power', 'Outdoor AP / lift'], parts: ['UPS battery pack', 'AP-585'], tech: null, status: 'Unassigned', created: T, window: 'After storm warning expires', priority: 'P1' });
+        act.add('workOrders', { id: wo, branchId: c.list[5].id, inc: c.id, task: 'Post-storm site check: EdgeConnect, circuits at the demarc, yard AP poles', skills: ['EdgeConnect swap', 'Outdoor AP / lift'], parts: ['EC-XS', 'AP-585'], tech: null, status: 'Unassigned', created: T, window: 'After storm warning expires', priority: 'P1' });
         addStep(act, c.id, step('dispatch', T, `${wo} created – held until the storm warning expires (safety). Matching techs in Texas & South Central.`));
       } },
     ],
