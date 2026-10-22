@@ -4,6 +4,10 @@
 // the rest of the console shows, so a new incident in the feed also appears on every visual.
 import * as D from './data.js';
 import { rng, MIN, HR } from './util.js';
+import { SPEED } from './speed.js';
+
+// How long one heartbeat glow lasts (ms); the CSS beat animation uses the same length.
+export const BEAT = 1400;
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -65,7 +69,7 @@ export function seedX(now) {
     const used = (100 - actual) / (100 - target); const series = []; let left = 1; for (let d = 0; d < 30; d++) { left -= used / 30 * (0.6 + R() * 0.8) * (d > 24 && k === 1 ? 2.2 : 1); series.push(+Math.max(0, left).toFixed(3)); }
     return { name, sub, target, actual, series };
   });
-  return { lanes, markers, dots, agents, agentSeries, agentStream, tools, cands, corr, budgets, pulse: {}, seen: new Set(), tick: 0, minute: now };
+  return { lanes, markers, dots, agents, agentSeries, agentStream, tools, cands, corr, budgets, pulse: {}, rate: 36, seen: new Set(), tick: 0, minute: now };
 }
 
 export function tickX(Lc, st, now) {
@@ -85,7 +89,7 @@ export function tickX(Lc, st, now) {
   const fresh = Lc.feed.slice(0, 25).filter(e => !X.seen.has(e.id));
   fresh.forEach(e => {
     X.seen.add(e.id);
-    X.pulse[e.branchId] = now;
+    X.pulse[e.branchId] = now + Math.random() * SPEED.tick * 0.5;
     X.dots.push({ t: e.t, lane: e.inc ? CAT_AREA.incidents : (CAT_AREA[e.cat] || 'mova'), kind: e.inc ? 'inc' : 'ev' });
     if (MONITOR_SRC.has(e.src)) { const o = outcomeOf(e); X.corr[{ 'Auto-cleared': 'auto', 'To the digest': 'digest', Grouped: 'grouped', Watching: 'watch' }[o]]++; }
     if (e.inc) X.markers.push({ t: now, kind: /resolved/.test(e.msg) ? 'res' : 'inc', area: 'wan' });
@@ -93,9 +97,15 @@ export function tickX(Lc, st, now) {
     if (e.cat === 'changes') X.markers.push({ t: now, kind: 'chg', area: 'wan' });
   });
   if (X.seen.size > 600) X.seen = new Set([...X.seen].slice(-300));
-  // routine readings arriving (branch heartbeat)
-  for (let i = 0; i < 36; i++) X.pulse[D.BRANCHES[Math.floor(Math.random() * 900)].id] = now;
-  for (const k in X.pulse) if (now - X.pulse[k] > 2600) delete X.pulse[k];
+  // routine readings arriving (branch heartbeat). Each reading gets its own arrival time spread across
+  // the coming tick, so cells light up one after another instead of all at once every 2 seconds.
+  const tick = SPEED.tick, nRead = Math.round(rnd(30, 42));
+  for (let i = 0; i < nRead; i++) {
+    const id = D.BRANCHES[Math.floor(Math.random() * 900)].id, at = now + Math.random() * tick;
+    if (!(X.pulse[id] > at - BEAT)) X.pulse[id] = at;
+  }
+  X.rate += (nRead + fresh.length - X.rate) * 0.15;
+  for (const k in X.pulse) if (now - X.pulse[k] > BEAT + tick) delete X.pulse[k];
   // tool event rates (events in this tick, scaled to a per-minute rate)
   TOOLS.forEach(t => { const n = fresh.filter(e => t.srcs.includes(e.src)).length; const s = X.tools[t.id]; X.tools[t.id] = [...s.slice(1), Math.round(t.base * (0.75 + Math.random() * 0.5) + n * 6)]; });
   // agents

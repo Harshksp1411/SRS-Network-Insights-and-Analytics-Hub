@@ -60,3 +60,11 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 
 @keyframes toastIn { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 .toast-in { animation: toastIn .25s ease-out both; }
+
+/* branch heartbeat: a cell swells and brightens when its reading arrives, then fades back */
+@keyframes hbBeat { 0% { opacity: 0; transform: scale(1); } 18% { opacity: 1; transform: scale(1.45); } 45% { opacity: .85; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1); } }
+.hb-beat { position: absolute; inset: 0; border-radius: 1.5px; pointer-events: none; opacity: 0; box-shadow: 0 0 0 1px rgb(var(--ink) / .45); animation: hbBeat 1.4s ease-out both; will-change: opacity, transform; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .hb-beat { opacity: .9; } }
+/* live paths morph to their next reading instead of jumping (browsers without CSS d transitions just snap) */
+.morph { transition: d var(--tickh, 1s) ease-out; }
+@media (prefers-reduced-motion: reduce) { .morph { transition: none; } }
