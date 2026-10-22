@@ -420,7 +420,7 @@ export function ToolsStrip({ only }) {
   const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(D.CENTRAL_N - Math.round((100 - L.series.reporting.at(-1)) * 10))} devices reporting`, `of ${num(D.CENTRAL_N)} in Central; 2,080 standalone`], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
   const list = TOOLS.filter(t => !only || only.includes(t.id));
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+    <div className={cx('grid grid-cols-1 md:grid-cols-3 gap-3', list.length > 3 ? 'xl:grid-cols-6' : '')}>
       {list.map((t, k) => { const ser = L.x.tools[t.id]; return (
         <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0 flex flex-col">
           <div className="flex items-center gap-1.5 h-[18px]">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="flex-1" /><span className="w-2 h-2 rounded-full bg-ok" /></div>

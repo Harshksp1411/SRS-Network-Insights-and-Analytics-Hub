@@ -22,8 +22,8 @@ function Gauge({ value: v0, min = 0, max, warn, crit, label, sub, unit, fmt = v 
   const bands = invert ? [[min, crit, C.bad], [crit, warn, C.warn], [warn, max, '#1f7a3a']] : [[min, warn, '#1f7a3a'], [warn, crit, C.warn], [crit, max, C.bad]];
   const [nx, ny] = pt(ang(value), R - 20);
   return (
-    <div className="flex flex-col items-center">
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <div className="flex flex-col items-center min-w-0">
+      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto" style={{ maxWidth: W }}>
         {bands.map(([f, t, c], i) => <path key={i} d={arc(ang(f), ang(t), R + 7)} stroke={c} strokeWidth="4" fill="none" opacity="0.55" />)}
         <path d={arc(a0, a1, R - 5)} className="stroke-chip" strokeWidth="11" fill="none" />
         <path d={arc(a0, ang(value), R - 5)} stroke={col} strokeWidth="11" fill="none" strokeLinecap="butt" style={{ transition: 'all .6s' }} />

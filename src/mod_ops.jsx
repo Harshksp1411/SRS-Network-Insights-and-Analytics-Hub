@@ -202,7 +202,7 @@ export function Readiness() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
       <div className="mt-3"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3 items-start">
         <ReadinessTrendCard />
         <OpeningRiskCard />
       </div>

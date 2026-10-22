@@ -107,12 +107,14 @@ export function OpenByTimezone({ rows }) {
   const now = useNow();
   const g = TZS.map(z => { const rs = rows.filter(r => tzAbbr(r.b.tz) === z); return { z, n: rs.length, open: rs.filter(r => r.clk.open).length }; }).filter(x => x.n);
   const tot = g.reduce((a, x) => a + x.n, 0), op = g.reduce((a, x) => a + x.open, 0);
-  const S = 190, c0 = S / 2;
+  // rings stay outside the centre label however many time zones are in view; an empty ring draws no arc
+  const S = 190, c0 = S / 2, outer = c0 - 6, inner = 50, gap = g.length > 1 ? Math.min(11, (outer - inner) / (g.length - 1)) : 0, sw = Math.max(4, Math.min(8, gap - 2.5));
+  const pct = op === tot ? '100' : Math.min(99.9, op / Math.max(1, tot) * 100).toFixed(op / Math.max(1, tot) >= 0.99 ? 1 : 0);
   return (
     <Card title="Branches open by time zone" sub={`As of ${hhmmss(now)} CT`} right={<span className="text-[11px] font-bold text-ok inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />Live</span>}>
       <div className="flex items-center gap-5">
-        <svg width={S} height={S} className="shrink-0">{g.map((x, i) => { const r = c0 - 8 - i * 11; const cir = 2 * Math.PI * r; const f = x.open / x.n; return <g key={x.z}><circle cx={c0} cy={c0} r={r} fill="none" stroke="rgb(var(--chip))" strokeWidth="8" /><circle cx={c0} cy={c0} r={r} fill="none" stroke={TZC[x.z]} strokeWidth="8" strokeDasharray={`${cir * f} ${cir}`} strokeLinecap="round" transform={`rotate(-90 ${c0} ${c0})`} className="transition-all duration-700" /></g>; })}
-          <text x={c0} y={c0 + 2} textAnchor="middle" fontSize="22" fontWeight="700" fill="rgb(var(--ink))">{Math.round(op / Math.max(1, tot) * 100)}%</text><text x={c0} y={c0 + 18} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{op} of {tot} open</text></svg>
+        <svg width={S} height={S} className="shrink-0">{g.map((x, i) => { const r = outer - i * gap; const cir = 2 * Math.PI * r; const f = x.open / x.n; return <g key={x.z}><title>{`${x.z}: ${x.open} of ${x.n} open`}</title><circle cx={c0} cy={c0} r={r} fill="none" stroke="rgb(var(--chip))" strokeWidth={sw} />{f > 0 && <circle cx={c0} cy={c0} r={r} fill="none" stroke={TZC[x.z]} strokeWidth={sw} strokeDasharray={`${cir * f} ${cir}`} strokeLinecap={f < 1 ? 'round' : 'butt'} transform={`rotate(-90 ${c0} ${c0})`} className="transition-all duration-700" />}</g>; })}
+          <text x={c0} y={c0 + 2} textAnchor="middle" fontSize="22" fontWeight="700" fill="rgb(var(--ink))">{pct}%</text><text x={c0} y={c0 + 18} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{op} of {tot} open</text></svg>
         <div className="flex-1 space-y-1.5 text-[12.5px]">{g.map(x => <div key={x.z} className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: TZC[x.z] }} /><span className="text-ink2 flex-1">{{ ET: 'Eastern', CT: 'Central', MT: 'Mountain', MST: 'Arizona', PT: 'Pacific', AT: 'Atlantic', HT: 'Hawaii' }[x.z]}</span><b className="text-ink tabular-nums">{x.open} / {x.n}</b></div>)}</div>
       </div>
     </Card>

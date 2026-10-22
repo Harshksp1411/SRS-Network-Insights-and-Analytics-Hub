@@ -46,7 +46,7 @@ export function LiveFeed({ h = 360, compact }) {
             <span className="font-mono text-ink3 w-[58px] shrink-0">{hhmmss(e.t)}</span>
             <span className="w-[74px] shrink-0">{SRC_LOGO[e.src] ? <Logo k={SRC_LOGO[e.src]} h={10} /> : <span className="text-[11px] font-bold text-ai">{e.src}</span>}</span>
             <span className="flex-1 min-w-0"><span className="font-semibold text-ink">{b.name}</span> <span className="text-ink3">{b.brand}</span><span className="block text-ink2 truncate">{e.msg}</span></span>
-            <Badge tone={outTone(e.out)} title={e.out} className="shrink-0 max-w-[150px] truncate">{e.out.split(' – ')[0]}</Badge>
+            <Badge tone={outTone(e.out)} title={e.out} className="shrink-0 max-w-[150px] truncate">{e.out.split(' – ')[0].replace(/\s*\(.*\)$/, '')}</Badge>
           </button>); })}
         {!items.length && <div className="text-ink3 text-[12.5px] py-6 text-center">No events in this view yet – they will stream in.</div>}
       </div>
@@ -95,7 +95,8 @@ export function ExperienceCard() {
 export function AlertsPerMinCard() {
   const { L } = useLive();
   const S = L.series;
-  const data = Array.from({ length: 30 }, (_, k) => { const i = S.crit.length - 30 + k; return { label: k % 5 === 0 ? hhmmss(L.ts[i]).slice(0, 5) : '', Critical: Math.round(S.crit[i]), Major: Math.round(S.major[i]), Minor: Math.round(S.minor[i]) }; });
+  // one bar per live reading; labels follow the reading they name (every 5th), so they slide with the bars
+  const data = Array.from({ length: 30 }, (_, k) => { const i = S.crit.length - 30 + k; return { label: k < 28 && (L.x.tick - 29 + k) % 5 === 0 ? hhmmss(L.ts[i]) : '', tip: hhmmss(L.ts[i]), Critical: Math.round(S.crit[i]), Major: Math.round(S.major[i]), Minor: Math.round(S.minor[i]) }; });
   return (
     <Card title="Alerts per minute – live" sub="After correlation, by severity" icon={I.BarChart3} right={<Legend items={[['Critical', C.bad], ['Major', C.warn], ['Minor', C.minor]]} />}>
       <Bars data={data} keys={['Critical', 'Major', 'Minor']} colors={[C.bad, C.warn, C.minor]} h={170} />
@@ -164,7 +165,7 @@ export function LivePanel({ kind, className }) {
             <button key={e.id} onClick={() => e.inc ? act.openInc(e.inc) : act.openBranch(e.branchId)} className="w-full text-left flex gap-2 items-start text-[12px] py-1 border-b border-line/60 feed-in hover:bg-chip/60 rounded px-1">
               <span className="font-mono text-ink3 w-[54px] shrink-0">{hhmmss(e.t)}</span>
               <span className="flex-1 min-w-0"><span className="text-ink2">{SRC_LOGO[e.src] ? <Logo k={SRC_LOGO[e.src]} h={9} className="mr-1 align-[-1px]" /> : <b className="text-ai mr-1">{e.src}</b>}</span><span className="text-ink">{e.msg}</span><span className="text-ink3"> · {b.name}</span></span>
-              <Badge tone={outTone(e.out)} title={e.out} className="shrink-0 max-w-[150px] truncate">{e.out.split(' – ')[0]}</Badge></button>); })}
+              <Badge tone={outTone(e.out)} title={e.out} className="shrink-0 max-w-[150px] truncate">{e.out.split(' – ')[0].replace(/\s*\(.*\)$/, '')}</Badge></button>); })}
             {!items.length && <div className="text-ink3 text-[12.5px] py-4">Events will stream in.</div>}</div>
         </div>
       </div>
