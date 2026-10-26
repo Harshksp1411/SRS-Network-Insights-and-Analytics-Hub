@@ -1,7 +1,7 @@
 {
   "name": "srs-network-intelligence-hub",
   "version": "1.0.0",
-  "description": "SRS Network Intelligence Hub \u2013 managed network operations console (demo build, sample data). Operated by Movate.",
+  "description": "SRS Network Insights and Analytics Hub \u2013 managed network operations console and live demos (demo build, sample data). Operated by Movate.",
   "scripts": {
     "build": "node build.mjs",
     "map": "node genmap.mjs"

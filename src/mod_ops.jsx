@@ -48,7 +48,7 @@ export function Overview() {
   return (
     <div>
       <PageHead icon={I.LayoutDashboard} title={bm ? `My branch – ${list[0].name}` : 'Operations Overview'} sub={bm ? `${list[0].brand}, ${list[0].city}, ${list[0].state}. What the NOC sees for your branch, in plain terms.` : 'Live state of the in-scope SRS branch network. Filter by region, brand or branch from the bar above.'}
-        right={<><LiveBadge /><Btn icon={I.PlayCircle} onClick={() => act.set({ scenarioPicker: true })}>Run a scenario</Btn><ExportBtn onClick={() => exportCSV('srs-branch-health.csv', list, [{ label: 'Branch ID', key: 'id' }, { label: 'Branch', key: 'name' }, { label: 'Brand', key: 'brand' }, { label: 'City', key: 'city' }, { label: 'State', key: 'state' }, { label: 'Region', key: 'region' }, { label: 'Health', get: b => healthOf(s, b) }, { label: 'Primary', get: b => { const c = circuitOf(s, b.wan[0]); return `${c.carrier} ${c.type} ${c.status}`; } }, { label: 'Backup', get: b => { const c = circuitOf(s, b.wan[1]); return `${c.carrier} ${c.type} ${c.status}`; } }])} /></>} />
+        right={<><LiveBadge /><ExportBtn onClick={() => exportCSV('srs-branch-health.csv', list, [{ label: 'Branch ID', key: 'id' }, { label: 'Branch', key: 'name' }, { label: 'Brand', key: 'brand' }, { label: 'City', key: 'city' }, { label: 'State', key: 'state' }, { label: 'Region', key: 'region' }, { label: 'Health', get: b => healthOf(s, b) }, { label: 'Primary', get: b => { const c = circuitOf(s, b.wan[0]); return `${c.carrier} ${c.type} ${c.status}`; } }, { label: 'Backup', get: b => { const c = circuitOf(s, b.wan[1]); return `${c.carrier} ${c.type} ${c.status}`; } }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
         <Stat label="Branches open now" icon={I.Store} value={num(openNow)} sub={`of ${num(list.length)}, local hours`} />
         <Stat label="Healthy / degraded / down" icon={I.HeartPulse} value={<span><span className="text-ok">{num(health.up)}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{health.degraded}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{health.down}</span></span>}>
@@ -202,7 +202,7 @@ export function Readiness() {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
       <div className="mt-3"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3 items-start">
         <ReadinessTrendCard />
         <OpeningRiskCard />
       </div>

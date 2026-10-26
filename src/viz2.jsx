@@ -6,8 +6,8 @@ import * as D from './data.js';
 import { useApp, useNow, healthOf, inScope, filteredBranches, circuitOf } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo, SRC_LOGO, Dot } from './ui.jsx';
-import { Spark, Legend, C, useWidth, SEQ, TweenNum, FitText } from './charts.jsx';
-import { AREAS, TL_LANES, AGENT_DEF, AGENT_GROUPS, TOOLS, outcomeOf, MONITOR_SRC } from './liveext.js';
+import { Spark, Legend, C, useWidth, SEQ, TweenNum, FitText, useScale, useSlide } from './charts.jsx';
+import { AREAS, TL_LANES, AGENT_DEF, AGENT_GROUPS, TOOLS, outcomeOf, MONITOR_SRC, BEAT } from './liveext.js';
 import { hhmm, hhmmss, num, rng, MIN, HR, ago } from './util.js';
 
 const LiveTag = () => <span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok"><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />Live</span>;
@@ -84,20 +84,25 @@ export function ErrorBudgets() {
 }
 
 // ── Branch heartbeat: one cell per branch, lights up when a reading arrives ──
+// The delay is fixed when the glow mounts: changing animation-delay later would restart it mid-glow.
+function Beat({ at, color }) {
+  const [delay] = useState(() => Math.round(at - Date.now()));
+  return <span className="hb-beat" style={{ background: color, animationDelay: `${delay}ms`, animationDuration: `${BEAT}ms` }} />;
+}
 export function HeartbeatGrid() {
   const { L } = useLive(); const { s, act } = useApp(); const now = useNow();
   const [hv, setHv] = useState(null);
   const groups = useMemo(() => D.REGIONS.map(r => ({ r, bs: D.BRANCHES.filter(b => b.region === r) })), []);
-  const n = Object.keys(L.x.pulse).length;
   return (
-    <Card title="Branch heartbeat" sub="One cell per branch, all 900. A cell lights up when a reading from that branch arrives." right={<div className="flex items-center gap-3"><Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} /><span className="text-[11.5px] text-ink2 tabular-nums" ><b className="text-ink"><TweenNum value={n * 15} /></b> readings / 30 s</span></div>}>
+    <Card title="Branch heartbeat" sub="One cell per branch, all 900. A cell lights up when a reading from that branch arrives." right={<div className="flex items-center gap-3"><Legend items={[['Healthy', C.ok], ['Degraded', C.warn], ['Down', C.bad]]} /><span className="text-[11.5px] text-ink2 tabular-nums" ><b className="text-ink"><TweenNum value={Math.round(L.x.rate * 15)} /></b> readings / 30 s</span></div>}>
       <div className="space-y-1.5">{groups.map(g => (
         <div key={g.r} className="flex gap-2 items-start">
           <div className="w-[132px] shrink-0 text-[11.5px] text-ink2 leading-tight pt-0.5">{g.r}<span className="text-ink3"> {g.bs.length}</span></div>
           <div className="flex flex-wrap gap-[2px] flex-1">{g.bs.map(b => { const h = healthOf(s, b); const p = L.x.pulse[b.id]; const sc = inScope(s, b.id); return (
-            <button key={b.id} onClick={() => act.openBranch(b.id)} onMouseEnter={() => setHv(b)} onMouseLeave={() => setHv(null)} title={b.name}
-              className={cx('w-[9px] h-[9px] rounded-[1.5px] transition-[outline,opacity] duration-300', p && 'outline outline-2 outline-ink/70 outline-offset-0')}
-              style={{ background: HEALTH_C[h], opacity: sc ? (h === 'up' ? (p ? 1 : 0.42) : 1) : 0.12 }} />); })}</div>
+            <button key={b.id} onClick={() => act.openBranch(b.id)} onMouseEnter={() => setHv(b)} onMouseLeave={() => setHv(null)} title={b.name} className="relative w-[9px] h-[9px]">
+              <span className="absolute inset-0 rounded-[1.5px] transition-[background-color,opacity] duration-700" style={{ background: HEALTH_C[h], opacity: sc ? (h === 'up' ? 0.42 : 1) : 0.12 }} />
+              {p && sc && <Beat key={p} at={p} color={HEALTH_C[h]} />}
+            </button>); })}</div>
         </div>))}</div>
       <div className="text-[11.5px] text-ink3 mt-2 h-4">{hv ? <span><b className="text-ink">{hv.name}</b>, {hv.brand}, {hv.city} {hv.state}. {healthOf(s, hv) === 'up' ? 'Healthy' : healthOf(s, hv) === 'degraded' ? 'Degraded' : 'Down'}. Click for Branch 360.</span> : 'Hover a cell for the branch. Click to open Branch 360.'}</div>
     </Card>
@@ -150,18 +155,7 @@ export function AreaTimeline() {
     <Card title="Area timeline" sub="Key metric per area, last 60 minutes, with incidents, changes and Mova iO runs" right={<LiveTag />}>
       <div ref={ref} className="relative" onMouseLeave={() => setHx(null)} onMouseMove={e => { const b = e.currentTarget.getBoundingClientRect(); const x = e.clientX - b.left; const i = Math.round((x - lw) / (W - lw - rw) * (n - 1)); setHx(i >= 0 && i < n ? i : null); }}>
         <svg width={W} height={H} className="block">
-          {AREAS.map((a, k) => { const s = L.x.lanes[a.id]; const lo = Math.min(...s), hi = Math.max(...s); const rr = (hi - lo) || 1; const y0 = top + k * laneH; const Y = v => y0 + laneH - 6 - ((v - lo) / rr) * (laneH - 14);
-            const d = s.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
-            return (
-              <g key={a.id}>
-                <rect x={lw} y={y0 + 2} width={W - lw - rw} height={laneH - 4} fill="rgb(var(--chip))" opacity=".55" />
-                <text x={4} y={y0 + 18} fontSize="12" fontWeight="700" fill="rgb(var(--ink))">{a.label}</text>
-                <text x={4} y={y0 + 33} fontSize="10.5" fill="rgb(var(--ink3))">{a.metric.length > 30 ? a.metric.slice(0, 29) + '…' : a.metric}</text>
-                <path d={`${d}L${X(n - 1)},${y0 + laneH - 2}L${X(0)},${y0 + laneH - 2}Z`} fill={cols[k]} opacity=".14" />
-                <path d={d} fill="none" stroke={cols[k]} strokeWidth="1.8" strokeLinejoin="round" />
-                <circle cx={X(n - 1)} cy={Y(s[n - 1])} r="3.5" fill={cols[k]} />
-                <text x={W - rw + 8} y={Y(s[n - 1]) + 4} fontSize="12" fontWeight="700" fill="rgb(var(--ink))"><TweenNum value={fmtN(s[n - 1], a.dec)} />{a.unit}</text>
-              </g>); })}
+          {AREAS.map((a, k) => <AreaLane key={a.id} a={a} s={L.x.lanes[a.id]} y0={top + k * laneH} laneH={laneH} X={X} n={n} lw={lw} W={W} rw={rw} col={cols[k]} />)}
           {L.x.markers.map((m, i) => { const x = tX(m.t); if (x < lw) return null; return <g key={m.t + '-' + i} style={{ transform: `translateX(${x.toFixed(1)}px)`, transition: 'transform var(--tickh, 1s) linear' }}><line x1={0} x2={0} y1={top} y2={H - 20} stroke={MK[m.kind][0]} strokeWidth="1" opacity=".6" /><rect x={-4} y={H - 18} width="8" height="8" fill={MK[m.kind][0]} transform={m.kind === 'chg' ? `rotate(45 0 ${H - 14})` : undefined} /></g>; })}
           <text x={lw} y={H - 1} fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 60 * MIN)}</text><text x={(lw + W - rw) / 2} y={H - 1} textAnchor="middle" fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 30 * MIN)}</text><text x={W - rw} y={H - 1} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">now</text>
           {hx != null && <line x1={X(hx)} x2={X(hx)} y1={top} y2={H - 20} stroke="rgb(var(--ink))" strokeWidth="1" />}
@@ -170,6 +164,30 @@ export function AreaTimeline() {
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[11.5px] text-ink2">{Object.entries(MK).map(([k, [c, l]]) => <span key={k} className="inline-flex items-center gap-1.5"><span className={cx('w-2 h-2', k === 'chg' && 'rotate-45')} style={{ background: c }} />{l}</span>)}<span className="text-ink3">Hover a lane to read every area at that minute.</span></div>
     </Card>
+  );
+}
+
+// One lane of the area timeline. The y range eases between readings, the line morphs to each new
+// reading, and when a new minute starts the whole lane slides left by one step instead of jumping.
+function AreaLane({ a, s, y0, laneH, X, n, lw, W, rw, col }) {
+  const k = useSlide(s); const cid = React.useId().replace(/:/g, '');
+  const [lo, hi] = useScale(Math.min(...s), Math.max(...s)); const rr = (hi - lo) || 1;
+  const Y = v => y0 + laneH - 6 - ((v - lo) / rr) * (laneH - 14);
+  const d = s.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('');
+  const yl = Y(s[n - 1]), glide = { transition: 'transform var(--tickh, 1s) ease-out' };
+  return (
+    <g>
+      <rect x={lw} y={y0 + 2} width={W - lw - rw} height={laneH - 4} fill="rgb(var(--chip))" opacity=".55" />
+      <text x={4} y={y0 + 18} fontSize="12" fontWeight="700" fill="rgb(var(--ink))">{a.label}</text>
+      <text x={4} y={y0 + 33} fontSize="10.5" fill="rgb(var(--ink3))">{a.metric.length > 30 ? a.metric.slice(0, 29) + '…' : a.metric}</text>
+      <defs><clipPath id={`al${cid}`}><rect x={lw} y={y0} width={W - lw - rw + 6} height={laneH} /></clipPath></defs>
+      <g clipPath={`url(#al${cid})`}><g key={k} className={k ? 'slide-x' : ''} style={{ '--dx': `${((W - lw - rw) / (n - 1)).toFixed(2)}px` }}>
+        <path className="morph" d={`${d}L${X(n - 1)},${y0 + laneH - 2}L${X(0)},${y0 + laneH - 2}Z`} fill={col} opacity=".14" />
+        <path className="morph" d={d} fill="none" stroke={col} strokeWidth="1.8" strokeLinejoin="round" />
+        <circle cx={0} cy={0} r="3.5" fill={col} style={{ transform: `translate(${X(n - 1).toFixed(1)}px, ${yl.toFixed(1)}px)`, ...glide }} />
+      </g></g>
+      <text x={W - rw + 8} y={4} fontSize="12" fontWeight="700" fill="rgb(var(--ink))" style={{ transform: `translateY(${yl.toFixed(1)}px)`, ...glide }}><TweenNum value={fmtN(s[n - 1], a.dec)} />{a.unit}</text>
+    </g>
   );
 }
 
@@ -340,7 +358,8 @@ export function AgentActivity() {
   const { L } = useLive(); const now = useNow();
   const [ref, W] = useWidth(1000);
   const S = L.x.agentSeries; const n = S[0].length; const H = 170, L0 = 34, B = 20, T = 8;
-  const tot = Array.from({ length: n }, (_, i) => S.reduce((a, s) => a + s[i], 0)); const hi = Math.max(10, ...tot) * 1.1;
+  const tot = Array.from({ length: n }, (_, i) => S.reduce((a, s) => a + s[i], 0)); const hi = useScale(0, Math.max(10, ...tot) * 1.1)[1];
+  const sk = useSlide(S[0]); const cid = React.useId().replace(/:/g, '');
   const X = i => L0 + (i / (n - 1)) * (W - L0 - 8), Y = v => T + (1 - v / hi) * (H - T - B);
   let acc = Array(n).fill(0);
   const layers = S.map((s, k) => { const lo = acc.slice(); acc = acc.map((v, i) => v + s[i]); const top = acc.slice(); return { k, d: top.map((v, i) => `${i ? 'L' : 'M'}${X(i)},${Y(v)}`).join('') + lo.map((v, i) => `L${X(n - 1 - i)},${Y(lo[n - 1 - i])}`).join('') + 'Z' }; });
@@ -349,7 +368,10 @@ export function AgentActivity() {
       <Legend className="mb-1" items={AGENT_GROUPS.map((g, k) => [g, GC[k]])} />
       <div ref={ref}><svg width={W} height={H} className="block">
         {[0, 0.5, 1].map(f => <g key={f}><line x1={L0} x2={W - 8} y1={Y(hi * f)} y2={Y(hi * f)} stroke="rgb(var(--line))" /><text x={L0 - 6} y={Y(hi * f) + 4} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">{Math.round(hi * f)}</text></g>)}
-        {layers.map(l => <path key={l.k} d={l.d} fill={GC[l.k]} opacity=".85" stroke="rgb(var(--panel))" strokeWidth=".6" />)}
+        <defs><clipPath id={`aa${cid}`}><rect x={L0} y={0} width={W - L0 - 8} height={H} /></clipPath></defs>
+        <g clipPath={`url(#aa${cid})`}><g key={sk} className={sk ? 'slide-x' : ''} style={{ '--dx': `${((W - L0 - 8) / (n - 1)).toFixed(2)}px` }}>
+          {layers.map(l => <path key={l.k} className="morph" d={l.d} fill={GC[l.k]} opacity=".85" stroke="rgb(var(--panel))" strokeWidth=".6" />)}
+        </g></g>
         <text x={L0} y={H - 4} fontSize="10.5" fill="rgb(var(--ink3))">{hhmm(now - 29 * MIN)}</text><text x={W - 8} y={H - 4} textAnchor="end" fontSize="10.5" fill="rgb(var(--ink3))">now</text>
       </svg></div>
     </Card>
@@ -381,20 +403,31 @@ export function AgentStream({ h = 820 }) {
   );
 }
 
+// Event-rate columns for one tool: each new reading slides in from the right over one tick, and the
+// height scale eases, so the columns drift left instead of every column re-growing at once.
+function ToolBars({ ser }) {
+  const k = useSlide(ser); const mx = useScale(0, Math.max(...ser))[1] || 1;
+  return (
+    <div className="h-9 mt-auto pt-1.5 overflow-hidden">
+      <div key={k} className={cx('flex items-end gap-[2px] h-full', k && 'slide-x')} style={{ '--dx': `calc((100% + 2px) / ${ser.length})` }}>{ser.map((v, i) => <span key={i} className="flex-1 rounded-t-[1px]" style={{ height: `${Math.max(8, Math.min(100, v / mx * 100))}%`, background: i === ser.length - 1 ? C.s1 : 'rgb(var(--ink3) / .45)' }} />)}</div>
+    </div>
+  );
+}
+
 // ── Tools: status and event rate per source system ───────────────────
 export function ToolsStrip({ only }) {
   const { L } = useLive(); const { s } = useApp(); const now = useNow();
   const head = { aruba: [`${num(Math.round(L.series.tunnels.at(-1)))} tunnels up`, '933 EdgeConnects, both paths'], central: [`${num(D.CENTRAL_N - Math.round((100 - L.series.reporting.at(-1)) * 10))} devices reporting`, `of ${num(D.CENTRAL_N)} in Central; 2,080 standalone`], opsramp: ['4,075 devices polled', 'SNMP, syslog, config backups'], newrelic: [`${D.APPS.length * 900} checks / 10 min`, 'synthetic app probes'], servicenow: [`${s.incidents.filter(i => i.state !== 'Resolved').length} open incidents`, `${s.approvals.filter(a => a.status === 'Pending').length} approvals waiting`], carrier: [`${s.cases.filter(c => !c.closed).length} carrier cases open`, 'AT&T, Lumen, Spectrum, Comcast, Verizon, Cox'] };
   const list = TOOLS.filter(t => !only || only.includes(t.id));
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-      {list.map((t, k) => { const ser = L.x.tools[t.id]; const mx = Math.max(...ser); return (
+    <div className={cx('grid grid-cols-1 md:grid-cols-3 gap-3', list.length > 3 ? 'xl:grid-cols-6' : '')}>
+      {list.map((t, k) => { const ser = L.x.tools[t.id]; return (
         <div key={t.id} className="card bg-panel border border-line rounded-lg p-3 min-w-0 flex flex-col">
           <div className="flex items-center gap-1.5 h-[18px]">{t.id === 'carrier' ? <I.RadioTower size={14} className="text-ink2" /> : <Logo k={t.id} h={11} />}<span className="flex-1" /><span className="w-2 h-2 rounded-full bg-ok" /></div>
           <div className="text-[12px] font-bold text-ink leading-tight mt-1">{t.name}</div>
           <div className="text-[14px] font-bold text-ink mt-1.5 leading-tight"><TweenNum value={head[t.id][0]} /></div><div className="text-[11px] text-ink3 leading-snug line-clamp-2">{head[t.id][1]}</div>
           <div className="text-[11px] text-ink2 mt-1"><b className="text-ink tabular-nums"><TweenNum value={ser.at(-1)} /></b> events/min · synced {(Math.floor(now / 1000) + k) % 6 + 1}s ago</div>
-          <div className="flex items-end gap-[2px] h-9 mt-auto pt-1.5">{ser.map((v, i) => <span key={i} className="flex-1 rounded-t-[1px] transition-all duration-500" style={{ height: `${Math.max(8, v / mx * 100)}%`, background: i === ser.length - 1 ? C.s1 : 'rgb(var(--ink3) / .45)' }} />)}</div>
+          <ToolBars ser={ser} />
         </div>); })}
     </div>
   );

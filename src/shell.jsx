@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranches, cityKey } from './store.jsx';
 import * as D from './data.js';
-import { DEMOS as SCENARIOS } from './demos.js';
 import { DemoStage } from './stage.jsx';
 import { useLive } from './live.jsx';
-import { DEMOS } from './demos.js';
 import { LiveDemos } from './mod_demos.jsx';
+import { DEMOS_ONLY, APP_NAME, CONSOLE_URL } from './edition.js';
 import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, answer } from './ask.js';
@@ -42,7 +41,6 @@ export const MODULES = [
   { id: 'automation', label: 'Automation Library', icon: I.Workflow, group: 'Improve', C: Automation },
   { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
-  { id: 'demos', label: 'Live Demos', icon: I.PlayCircle, group: 'Demos', C: LiveDemos, badge: () => DEMOS.length },
 ];
 
 export function RoofMark({ size = 40, dark = false }) {
@@ -64,25 +62,26 @@ function Header() {
   const hb = 'h-8 rounded-[4px] border border-line text-ink hover:bg-chip';
   return (
     <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 [&>*]:shrink-0 sticky top-0 z-40 border-b border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
-      <div className="flex items-center gap-3 min-w-0 w-[220px] shrink-0">
+      <div className="flex items-center gap-3 min-w-0 min-[1440px]:w-[220px] shrink-0">
         <RoofMark />
-        <div className="leading-none min-w-0">
+        <div className="leading-none min-w-0 hidden min-[1280px]:block">
           <div className="font-display text-[22px] font-bold tracking-[0.02em] text-ink">SRS</div>
           <div className="text-[10.5px] text-ink2 mt-0.5 whitespace-nowrap uppercase tracking-[0.12em]">Distribution</div>
         </div>
       </div>
-      <div className="leading-tight min-w-0 !shrink border-l border-line pl-4">
-        <div className="font-display text-[19px] font-semibold text-ink whitespace-nowrap truncate">Network Intelligence Hub</div>
+      {/* the name wraps onto two lines when the header is short of room, instead of being cut off */}
+      <div className="min-w-[150px] max-w-[460px] !shrink border-l border-line pl-4">
+        <div className="font-display text-[16px] leading-[19px] min-[1600px]:text-[19px] min-[1600px]:leading-[23px] font-semibold text-ink line-clamp-2" title={APP_NAME}>{APP_NAME}{DEMOS_ONLY && <span className="text-ink3 font-normal"> · Live demos</span>}</div>
       </div>
       <div className="flex-1 !shrink" />
       <div className="hidden min-[1800px]:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">
         {[['opsramp', 1], ['central', 2], ['servicenow', 1], ['movaio', 0]].map(([k, sec]) => <span key={k} className="inline-flex items-center gap-1.5"><span className="bg-white rounded-[3px] px-1 py-[2px] inline-flex border border-line"><img src={LOGOS[k]} alt={k} style={{ height: 11 }} /></span><span className="w-1.5 h-1.5 rounded-full bg-ok" />{(Math.floor(now / 1000) + sec) % 7 + 1}s</span>)}
       </div>
-      <button onClick={() => act.go('demos')} title="Live demos" className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.PlayCircle size={15} /><span className="hidden min-[1440px]:inline">Live demos</span></button>
+      {DEMOS_ONLY ? <a href={CONSOLE_URL} title="Open the operations console" className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.LayoutDashboard size={15} />Open the console</a> : <>
       <button onClick={() => act.set({ askOpen: !s.askOpen })} className="h-8 rounded-[4px] px-3 text-[13px] font-semibold inline-flex items-center gap-1.5 bg-brand hover:brightness-110 text-white"><I.Sparkles size={15} />Ask Mova iO</button>
-      <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px]'}>
+      <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px] max-[1279px]:w-[150px]'}>
         <I.UserRound size={14} className="text-ink3" />
-        <select value={s.role} onChange={e => { const v = e.target.value; const r = ROLES.find(x => x.id === v); act.set(st => ({ role: v, module: r.home, selInc: null, askLog: [], tab: r.tab ? { ...st.tab, changes: r.tab } : st.tab, filters: { region: 'All', city: 'All', brand: 'All', branchId: null } })); act.toast(`Viewing as ${r.name} (${r.who})`, 'info'); }} className="bg-transparent outline-none appearance-none font-semibold cursor-pointer">
+        <select value={s.role} onChange={e => { const v = e.target.value; const r = ROLES.find(x => x.id === v); act.set(st => ({ role: v, module: r.home, selInc: null, askLog: [], tab: r.tab ? { ...st.tab, changes: r.tab } : st.tab, filters: { region: 'All', city: 'All', brand: 'All', branchId: null } })); act.toast(`Viewing as ${r.name} (${r.who})`, 'info'); }} className="bg-transparent outline-none appearance-none font-semibold cursor-pointer min-w-0 w-full truncate">
           {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
         <I.ChevronDown size={14} className="absolute right-2 text-ink3 pointer-events-none" />
@@ -90,8 +89,9 @@ function Header() {
       <button onClick={() => act.set({ notifOpen: !s.notifOpen })} className={hb + ' relative w-8 flex items-center justify-center'} title="Notifications">
         <I.Bell size={16} />{pendingNotif > 0 && <span className="absolute -top-1.5 -right-1.5 bg-bad text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{pendingNotif}</span>}
       </button>
+      </>}
       <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={hb + ' w-8 flex items-center justify-center'} title="Toggle light / dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
-      <SpeedControl />
+      {!DEMOS_ONLY && <SpeedControl />}
       <div className="flex items-baseline gap-1.5 px-1 font-mono text-[14px] text-ink tabular"><span className="self-center w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />{hhmmss(now)}<span className="text-[10.5px] text-ink3">CT</span></div>
     </header>
   );
@@ -229,22 +229,6 @@ function AskPanel() {
   );
 }
 
-const SC_ICONS = { Activity: I.Activity, Zap: I.Zap, Server: I.Server, CloudLightning: I.CloudLightning, Package: I.Package, PauseCircle: I.PauseCircle, Shuffle: I.Shuffle, RadioTower: I.RadioTower, ShieldAlert: I.ShieldAlert, Wifi: I.Wifi, ScanLine: I.ScanLine, Repeat: I.Repeat, GitCompare: I.GitCompare, Network: I.Network, Bug: I.Bug, CalendarClock: I.CalendarClock, BatteryWarning: I.BatteryWarning, TrendingUp: I.TrendingUp, Sunrise: I.Sunrise, Unplug: I.Unplug, Cable: I.Cable, RefreshCw: I.RefreshCw, DatabaseBackup: I.DatabaseBackup, Plug: I.Plug, TrendingDown: I.TrendingDown, MoonStar: I.MoonStar };
-function ScenarioPicker() {
-  const { s, act } = useApp();
-  return (
-    <Modal open={!!s.scenarioPicker} onClose={() => act.set({ scenarioPicker: false })} title="Scripted scenarios" sub="Each one replays a realistic event sequence into the live console. Timestamps are anchored so the last step lands at the current time." wide>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {SCENARIOS.map(sc => { const Ic = SC_ICONS[sc.icon] || I.Play; return (
-          <button key={sc.id} onClick={() => { act.set({ scenarioPicker: false, scenario: { id: sc.id, run: Date.now() } }); }} className="text-left border border-line rounded-md p-3.5 hover:border-brand hover:bg-chip/60 flex gap-3">
-            <span className="w-9 h-9 rounded-md bg-brand/10 text-brand dark:text-[#e8a3a5] flex items-center justify-center shrink-0"><Ic size={18} /></span>
-            <span><span className="block font-bold text-ink text-[14px]">{sc.title}</span><span className="block text-[12.5px] text-ink2 mt-0.5">{sc.sub}</span><span className="block text-[11px] text-ink3 mt-1">{sc.steps.length} steps, {Math.round(sc.span / 60)} min of events</span></span>
-          </button>); })}
-      </div>
-    </Modal>
-  );
-}
-
 function Toasts() {
   const { s, act } = useApp();
   if (s.scenario) return null; // the demo stage shows its own events
@@ -310,8 +294,20 @@ export function BranchDrawer() {
   );
 }
 
+// The demos page: the demo library and the demo player, nothing else from the console.
+function DemosApp() {
+  return (
+    <div className="min-h-screen bg-canvas text-ink">
+      <Header />
+      <main className="p-5 max-w-[1680px] mx-auto"><LiveDemos /></main>
+      <DemoStage /><Toasts />
+    </div>
+  );
+}
+
 export default function App() {
   const { s } = useApp();
+  if (DEMOS_ONLY) return <DemosApp />;
   const M = MODULES.find(m => m.id === s.module) || MODULES[0];
   return (
     <div className="min-h-screen bg-canvas text-ink">
@@ -323,7 +319,7 @@ export default function App() {
           <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
         </main>
       </div>
-      <AskPanel /><ScenarioPicker /><DemoStage /><Toasts /><Notifications /><BranchDrawer />
+      <AskPanel /><Toasts /><Notifications /><BranchDrawer />
     </div>
   );
 }

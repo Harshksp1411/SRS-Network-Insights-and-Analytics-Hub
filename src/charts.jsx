@@ -204,7 +204,7 @@ export function Bars({ data, keys, colors, h = 170, stacked = true, onBar, fmt =
               <rect x={L + i * bw} y={T} width={bw} height={ph} fill="transparent" />
               {stacked ? segs.map((sg, idx) => { const gap = idx ? 2 : 0; const hh = Math.max(0, (sg.v / hi) * ph - gap); y -= hh + gap; const top = idx === segs.length - 1; return <path key={sg.k} d={col(cx0 - colW / 2, y, colW, hh, top ? Math.min(3, hh) : 0)} fill={colors[sg.j]} opacity={(hover == null || hover === i ? 1 : 0.55) * (isF ? 0.5 : 1)} />; })
                 : keys.map((k, j) => { const hh = ((d[k] || 0) / hi) * ph; const ww = Math.min(14, (colW + 6) / keys.length); const x = cx0 - (ww * keys.length + 2 * (keys.length - 1)) / 2 + j * (ww + 2); return <path key={k} d={col(x, T + ph - hh, ww, hh, Math.min(3, hh))} fill={colors[j]} opacity={hover == null || hover === i ? 1 : 0.55} />; })}
-              {d.label && <text x={cx0 + 18 > W ? W - 1 : cx0} y={H - 8} textAnchor={cx0 + 18 > W ? 'end' : 'middle'} fontSize="10.5" className="fill-ink3">{d.label}</text>}
+              {d.label && (() => { const hw = String(d.label).length * 3; const a = cx0 + hw > W ? 'end' : cx0 - hw < L ? 'start' : 'middle'; return <text x={a === 'end' ? W - 1 : a === 'start' ? L + 1 : cx0} y={H - 8} textAnchor={a} fontSize="10.5" className="fill-ink3">{d.label}</text>; })()}
             </g>
           );
         })}

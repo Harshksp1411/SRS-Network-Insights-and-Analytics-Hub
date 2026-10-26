@@ -266,8 +266,8 @@ export function FirmwareProjectionCard({ cur }) {
 // ─────────────── Branch-in-a-Box ───────────────
 export function ThroughputCard() {
   return (
-    <Card title="Branches onboarded per month" sub="Actual to October, then the plan from signed deals and lease dates" right={<Legend items={[['Acquired', C.s7], ['Greenfield', C.s1]]} />}>
-      <Bars data={P.onboardingThroughput()} keys={['Acquired', 'Greenfield']} colors={[C.s7, C.s1]} h={170} forecastFrom={6} />
+    <Card title="Branches onboarded per month" sub="Actual to October, then the plan from signed deals and lease dates" right={<Legend items={[['Greenfield', C.info], ['Acquired', C.ai]]} />}>
+      <Bars data={P.onboardingThroughput()} keys={['Greenfield', 'Acquired']} colors={[C.info, C.ai]} h={170} forecastFrom={6} />
       <ModelNote>November peaks with Mingledorff's wave 2 plus LS Building Products; the kit and gate list stay the same at any volume.</ModelNote>
     </Card>
   );

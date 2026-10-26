@@ -55,7 +55,7 @@ function Queue() {
   return (
     <div>
       <PageHead icon={I.Siren} title="Live Incidents" sub="ServiceNow incident queue with SLA clocks from Annexure B: P1 15 min / 4 h, P2 15 min / 8 h, P3 30 min / 24 h, P4 30 min / 96 h."
-        right={<><LiveBadge /><Btn icon={I.PlayCircle} onClick={() => act.set({ scenarioPicker: true })}>Scenarios</Btn><ExportBtn onClick={() => exportCSV('srs-incidents.csv', rows, [{ label: 'Number', key: 'id' }, { label: 'Priority', key: 'pri' }, { label: 'Title', key: 'title' }, { label: 'Branch', get: i => D.BR[i.branchId].name }, { label: 'Brand', get: i => D.BR[i.branchId].brand }, { label: 'Category', key: 'cat' }, { label: 'State', key: 'state' }, { label: 'Assigned', key: 'assignee' }, { label: 'Opened', get: i => dt(i.opened) }])} /></>} />
+        right={<><LiveBadge /><ExportBtn onClick={() => exportCSV('srs-incidents.csv', rows, [{ label: 'Number', key: 'id' }, { label: 'Priority', key: 'pri' }, { label: 'Title', key: 'title' }, { label: 'Branch', get: i => D.BR[i.branchId].name }, { label: 'Brand', get: i => D.BR[i.branchId].brand }, { label: 'Category', key: 'cat' }, { label: 'State', key: 'state' }, { label: 'Assigned', key: 'assignee' }, { label: 'Opened', get: i => dt(i.opened) }])} /></>} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mb-3">
         <QueueForecastCard />
         <BreachRiskCard />

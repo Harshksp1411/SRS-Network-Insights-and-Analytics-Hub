@@ -47,7 +47,7 @@ export function Predictive() {
           </div></Card>); })}
       </div>
       <Card title={`Capacity forecast – ${D.BR[dal.branchId].name} (${D.BR[dal.branchId].brand}) primary WAN`} sub="p95 utilisation, 10 weeks actual + 4 weeks forecast. Hail season drives roofing demand and traffic." icon={I.LineChart} className="mt-3">
-        <LineChart series={[{ name: 'p95 utilisation %', data: fc, color: C.info }]} labels={fc.map((_, k) => k < 10 ? `W-${10 - k}` : `+${k - 9}w`)} h={200} refLines={[{ v: 90, label: '90% upgrade threshold', color: C.bad }]} yFmt={v => `${Math.round(v)}%`} yMin={50} yMax={100} />
+        <LineChart series={[{ name: 'p95 utilisation %', data: fc, color: C.info }]} labels={fc.map((_, k) => k < 10 ? `W-${10 - k}` : `+${k - 9}w`)} h={200} refLines={[{ v: 90, label: '90% upgrade threshold', color: C.bad }]} yFmt={v => `${Math.round(v)}%`} yMin={50} yMax={100} forecastFrom={9} />
       </Card>
     </div>
   );
@@ -190,7 +190,7 @@ export function SLATracker() {
           <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{x.c.resLeft < 0 ? 'breached' : dur(x.c.resLeft)}</span></button>)}</div>
         </div>)}</div>
       </Card>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
         <Card pad={false}><div className="p-3">{lines.map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={D.SLA.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
@@ -201,7 +201,7 @@ export function SLATracker() {
             { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
           ]} /></div>)}</div></Card>
-        <SLAProjectionCard m={m} />
+        <div className="xl:sticky xl:top-3"><SLAProjectionCard m={m} /></div>
       </div>
     </div>
   );
