@@ -32,6 +32,8 @@ function facts(s, now, L, bs = D.BRANCHES) {
     drift: s.drift.filter(d => ids.has(d.branchId)), lat: L && L.series ? Math.round(L.series.wan.at(-1)) : D.AVG_LAT,
     circuitsDown: D.CIRCUITS.filter(c => ids.has(c.branchId) && circuitOf(s, c.id).status === 'Down').length,
     breaching: open.filter(i => slaClock(i, now).resBreached).length,
+    belowFw: D.DEVICES.filter(d => ids.has(d.branchId) && D.FW_TARGET[d.type === 'AP' ? 'AP' : d.model].indexOf(d.fw) > (d.type === 'SD-WAN' ? 1 : 2)).length,
+    backFail: D.DEVICES.filter(d => ids.has(d.branchId) && d.backup.st === 'Failed').length,
   };
 }
 
@@ -50,44 +52,92 @@ function agenda(p, s, now, bs) {
   return out.sort((a, b) => (a.t == null) - (b.t == null) || (a.t || 0) - (b.t || 0)).slice(0, 9);
 }
 
+// The front page in plain words: headline, one-line deck, three things to know, four numbers (with an icon name
+// from lucide-react) and the picture's caption, which names the branch drawn on the front-page photo.
+const hero = n => D.storeOf(n);
+const pct = (a, b) => `${Math.round(a / Math.max(1, b) * 100)}%`;
+const pl = (n, one, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
 const H = {
   cio: (f) => ({
-    headline: `${num(f.up)} of ${num(f.n)} branches trading normally; automation fixed ${f.auto7.length} incidents this week`,
-    deck: `${f.month} uptime ${P(f.uptime, 3)} against ${P(f.uptimeT, 2)}; time to restore inside every target. ${f.pend.length} decision${f.pend.length === 1 ? '' : 's'} waiting for you or your team.`,
-    lead: [`${f.down ? `${f.down} branch${f.down > 1 ? 'es are' : ' is'} offline` : 'No branch is offline'} and ${f.degraded} are trading with a problem; ${f.onB.length} kept trading on their backup ISP after carrier faults. Of last week's resolved incidents, ${P(f.auto7.length / Math.max(1, f.resolved7.length), 0)} closed with no human touch.`, `${f.cap.length} branches will reach a bandwidth or Wi-Fi limit within 90 days, and 728 Aruba 2530 switches reach end of support in early 2027 – both need budget.`],
-    numbers: [['Trading normally', P(f.up / f.n, 1), 'ok'], [`Uptime, ${f.month}`, P(f.uptime, 3), f.uptime >= f.uptimeT ? 'ok' : 'warn'], ['Auto-fixed, 7 days', P(f.auto7.length / Math.max(1, f.resolved7.length), 0), 'ok'], ['Open incidents', f.open.length], ['Decisions waiting', f.pend.length, f.pend.length ? 'warn' : 'ok']],
+    headline: `${num(f.up)} of ${num(f.n)} branches open and trading normally`,
+    deck: `Automation fixed ${pl(f.auto7.length, 'problem')} on its own this week. ${pl(f.pend.length, 'decision')} ${f.pend.length === 1 ? 'waits' : 'wait'} for your team.`,
+    know: [`${f.down ? `${pl(f.down, 'branch', 'branches')} offline` : 'No branch is offline'} and ${num(f.degraded)} open with a problem; ${num(f.onB.length)} are trading on their backup internet line.`, `${f.month} uptime was ${P(f.uptime, 3)}, ${f.uptime >= f.uptimeT ? 'on' : 'just under'} the ${P(f.uptimeT, 2)} goal. Major outages were fixed in ${f.mttrP1} hours on average (goal: 4).`, `${pl(f.cap.length, 'branch', 'branches')} will outgrow their bandwidth or Wi-Fi within 90 days, and 728 older switches lose vendor support in early 2027. Both need budget.`],
+    numbers: [['Trading normally', pct(f.up, f.n), 'ok', 'Store'], [`Uptime, ${f.month}`, P(f.uptime, 3), f.uptime >= f.uptimeT ? 'ok' : 'warn', 'Activity'], ['Fixed automatically', num(f.auto7.length), 'ok', 'Sparkles'], ['Decisions waiting', num(f.pend.length), f.pend.length ? 'warn' : 'ok', 'ListChecks']],
+    pic: [D.HERO.config, 'ok', `${hero(D.HERO.config).name} is back to normal after Mova iO undid a faulty change on its own this morning. It stays under watch for 24 hours.`],
   }),
   networks: (f) => ({
-    headline: `${f.down} branches down, ${f.onB.length} riding out carrier faults on backup ISP; Branch ${D.HERO.config} policy change rolled back on its own`,
-    deck: `${f.circuitsDown} circuits down, ${f.drift.length} devices drifted from the golden config, average latency to the data centre ${f.lat} ms.`,
-    lead: [`${f.degraded} branches are degraded. The worst are unreachable EdgeConnects and carrier faults; SD-WAN kept the carrier-hit branches trading. One unrecorded switch change at Branch ${D.HERO.changes} is the top cause of an open incident and waits for your approval to roll back.`],
-    numbers: [['Branches down', f.down, f.down ? 'bad' : 'ok'], ['On backup ISP', f.onB.length, 'warn'], ['Circuits down', f.circuitsDown, 'warn'], ['Config drift', f.drift.length, f.drift.length ? 'warn' : 'ok'], ['Latency to DC', `${f.lat} ms`]],
+    headline: `${pl(f.down, 'branch', 'branches')} offline, ${num(f.onB.length)} riding on backup lines`,
+    deck: `A bad policy change at Branch ${D.HERO.config} was rolled back automatically. A switch fix at Branch ${D.HERO.changes} waits for your approval.`,
+    know: [`${pl(f.circuitsDown, 'internet circuit')} ${f.circuitsDown === 1 ? 'is' : 'are'} down; SD-WAN moved those branches to their backup line and they kept trading.`, `${pl(f.drift.length, 'device')} no longer ${f.drift.length === 1 ? 'matches' : 'match'} the standard setup.`, `Average delay to the data centre is ${f.lat} ms.`],
+    numbers: [['Offline', num(f.down), f.down ? 'bad' : 'ok', 'WifiOff'], ['On backup line', num(f.onB.length), 'warn', 'ArrowLeftRight'], ['Circuits down', num(f.circuitsDown), f.circuitsDown ? 'warn' : 'ok', 'Cable'], ['Settings drifted', num(f.drift.length), f.drift.length ? 'warn' : 'ok', 'GitCompare']],
+    pic: [D.HERO.config, 'ok', `${hero(D.HERO.config).name}: a policy change slowed the ordering system at opening. Mova iO spotted it, rolled it back and the branch was back to normal in 15 minutes.`],
   }),
   stores: (f) => ({
-    headline: `${f.notReady} branches not ready to open, ${f.onB.length} trading on backup lines`,
-    deck: `${num(f.up)} branches are trading normally. ${f.attention} need attention before opening; technician visits and carrier fixes are below.`,
-    lead: [`Branches on a backup line can still take card payments; ERP is slower on LTE. Branch managers have been told what still works and when the next update comes.`],
-    numbers: [['Trading normally', num(f.up), 'ok'], ['Not ready to open', f.notReady, f.notReady ? 'bad' : 'ok'], ['Need attention', f.attention, 'warn'], ['On backup lines', f.onB.length, 'warn'], ['Down', f.down, f.down ? 'bad' : 'ok']],
+    headline: `${pl(f.notReady, 'branch', 'branches')} not ready to open; ${num(f.up)} trading normally`,
+    deck: `${pl(f.onB.length, 'branch', 'branches')} ${f.onB.length === 1 ? 'is' : 'are'} taking payments on a backup line. Technician visits and fixes are on your list for today.`,
+    know: [`${pl(f.attention, 'more branch', 'more branches')} need a quick check before opening.`, 'On a backup line, card payments work as normal; the ordering system is a little slower.', `${pl(f.down, 'branch', 'branches')} ${f.down === 1 ? 'is' : 'are'} offline right now. Branch managers have been told what still works.`],
+    numbers: [['Trading normally', num(f.up), 'ok', 'Store'], ['Not ready to open', num(f.notReady), f.notReady ? 'bad' : 'ok', 'DoorClosed'], ['Need a check', num(f.attention), 'warn', 'ClipboardCheck'], ['On backup line', num(f.onB.length), 'warn', 'ArrowLeftRight']],
+    pic: [D.HERO.failover, 'info', `${hero(D.HERO.failover).name} lost its main internet line to a fibre cut and switched to its backup in 4 seconds. Customers did not notice.`],
   }),
   itservice: (f) => ({
-    headline: `${f.open.length} incidents open, ${f.risk.length} past half their SLA clock`,
-    deck: `${f.breaching ? `${f.breaching} past resolution SLA. ` : 'None past resolution SLA. '}${f.pend.length} actions wait for a human; ${f.auto7.length} incidents fixed themselves in the last 7 days.`,
-    lead: [`Mean time to restore last month: P1 ${f.mttrP1} h, P2 ${f.mttrP2} h – inside target. Carrier cases are the main thing holding incidents open; their ETAs are on today's agenda.`],
-    numbers: [['Open incidents', f.open.length], ['Above 50% SLA', f.risk.length, f.risk.length ? 'warn' : 'ok'], ['Past SLA', f.breaching, f.breaching ? 'bad' : 'ok'], ['Waiting on a human', f.pend.length, 'warn'], ['Auto-fixed, 7 days', f.auto7.length, 'ok']],
+    headline: `${pl(f.open.length, 'open incident')}; ${num(f.risk.length)} close to their deadline`,
+    deck: `${pl(f.auto7.length, 'problem')} fixed themselves this week. ${pl(f.pend.length, 'action')} ${f.pend.length === 1 ? 'waits' : 'wait'} for a person.`,
+    know: [f.breaching ? `${pl(f.breaching, 'incident')} ${f.breaching === 1 ? 'is' : 'are'} past the deadline.` : 'Nothing is past its deadline.', `Last month, major outages were fixed in ${f.mttrP1} hours on average (goal: 4).`, 'Carrier repairs are the main thing keeping incidents open. Their promised times are on your list.'],
+    numbers: [['Open incidents', num(f.open.length), 'info', 'Inbox'], ['Near deadline', num(f.risk.length), f.risk.length ? 'warn' : 'ok', 'Timer'], ['Past deadline', num(f.breaching), f.breaching ? 'bad' : 'ok', 'AlarmClock'], ['Waiting on a person', num(f.pend.length), 'warn', 'Hand']],
+    pic: [D.HERO.autoAP, 'ok', `${hero(D.HERO.autoAP).name}: a warehouse Wi-Fi point went dark. Mova iO restarted it from the switch and the handhelds were back in under 3 minutes, with no ticket worked by hand.`],
   }),
   security: (f) => ({
-    headline: `${f.crit.length} devices exposed to a critical CVE; ${f.drift.filter(d => d.sev === 'High').length} high-severity config drifts`,
-    deck: `An unrecorded DHCP relay change at Branch ${D.HERO.changes} was made by a local account with no change record. Patch waves for the exposed devices are scheduled outside trading hours.`,
-    lead: [`Most exposed devices are access points on HPESBNW04712 and CX switches on HPESBNW05027; the fixed builds are in the advisory story below. The 728 Aruba 2530 switches reach end of support in early 2027.`],
-    numbers: [['Critical CVE devices', f.crit.length, f.crit.length ? 'bad' : 'ok'], ['High-severity drift', f.drift.filter(d => d.sev === 'High').length, 'warn'], ['Below firmware policy', num(D.DEVICES.filter(d => { const l = D.FW_TARGET[d.type === 'AP' ? 'AP' : d.model].indexOf(d.fw); return l > (d.type === 'SD-WAN' ? 1 : 2); }).length), 'warn'], ['Backups failed', D.DEVICES.filter(d => d.backup.st === 'Failed').length, 'warn']],
+    headline: `${pl(f.crit.length, 'device')} need a critical security patch`,
+    deck: `A switch at Branch ${D.HERO.changes} was changed by a local account with no change record. Fixes for the exposed devices run outside trading hours.`,
+    know: [`${pl(f.drift.filter(d => d.sev === 'High').length, 'device')} ${f.drift.filter(d => d.sev === 'High').length === 1 ? 'has' : 'have'} high-risk settings that differ from the standard.`, `${num(f.belowFw)} devices run older software than policy allows.`, '728 older Aruba 2530 switches lose vendor support in early 2027.'],
+    numbers: [['Critical patch needed', num(f.crit.length), f.crit.length ? 'bad' : 'ok', 'ShieldAlert'], ['High-risk drift', num(f.drift.filter(d => d.sev === 'High').length), 'warn', 'GitCompare'], ['Older software', num(f.belowFw), 'warn', 'Cpu'], ['Backups failed', num(f.backFail), f.backFail ? 'warn' : 'ok', 'HardDrive']],
+    pic: [D.HERO.changes, 'warn', `${hero(D.HERO.changes).name}: warehouse handhelds lost their connection after a switch setting was changed overnight with no change record.`],
   }),
   regional: (f, p) => ({
-    headline: `${p.region}: ${f.up} of ${f.n} branches trading normally; Branch ${D.HERO.failover} on backup after an AT&T fibre cut`,
-    deck: `${f.down} down, ${f.degraded} degraded, ${f.notReady} not ready to open. Branch ${D.HERO.changes} handhelds wait on a config rollback; Branch ${D.HERO.bandwidth} is heading for its bandwidth limit.`,
-    lead: [`Visits, carrier restore times and changes that touch the region are on today's agenda. Everything below is limited to the ${p.region} region.`],
-    numbers: [['Branches', f.n], ['Trading normally', f.up, 'ok'], ['Down / degraded', `${f.down} / ${f.degraded}`, 'warn'], ['Not ready to open', f.notReady, f.notReady ? 'bad' : 'ok'], ['On backup ISP', f.onB.length, 'warn']],
+    headline: `${p.region}: ${num(f.up)} of ${num(f.n)} branches trading normally`,
+    deck: `Branch ${D.HERO.failover} is on its backup line after a fibre cut. Branch ${D.HERO.changes}'s handhelds wait on a quick fix.`,
+    know: [`${f.down ? `${pl(f.down, 'branch', 'branches')} offline` : 'No branch is offline'} and ${num(f.degraded)} ${f.degraded === 1 ? 'is' : 'are'} open with a problem.`, `${pl(f.notReady, 'branch', 'branches')} not ready to open.`, `${pl(f.onB.length, 'branch', 'branches')} on a backup internet line.`],
+    numbers: [['Branches', num(f.n), 'info', 'Store'], ['Trading normally', num(f.up), 'ok', 'CircleCheck'], ['Not ready to open', num(f.notReady), f.notReady ? 'bad' : 'ok', 'DoorClosed'], ['On backup line', num(f.onB.length), 'warn', 'ArrowLeftRight']],
+    pic: [D.HERO.failover, 'info', `${hero(D.HERO.failover).name} lost its main internet line to a fibre cut and switched to its backup in 4 seconds. Customers did not notice.`],
   }),
 };
+
+// today's "network weather" from the share of branches with a problem
+function weatherOf(f) {
+  const share = (f.down + f.degraded) / Math.max(1, f.n);
+  const kind = share < 0.02 && !f.down ? 'sun' : share < 0.06 ? 'partly' : share < 0.12 ? 'cloud' : 'storm';
+  return { kind, word: { sun: 'Clear skies', partly: 'Mostly sunny', cloud: 'Cloudy', storm: 'Stormy' }[kind], line: `${pct(f.up, f.n)} of branches trading normally` };
+}
+
+// A story boiled down for the front page: a plain title, one sentence, up to three numbers or bars and three short
+// points. The full answer stays on the story for "Read the full story".
+const PLAIN = [[/\bMTTR\b/g, 'time to fix'], [/\bcritical CVEs?\b/g, 'critical security flaw'], [/\bCVEs?\b/g, 'security flaw'], [/\bSLA clock\b/g, 'deadline'], [/\bcarrier availability SLA\b/g, 'carrier uptime promise'], [/\bSLAs?\b/g, 'target'], [/\bgolden config\b/g, 'standard setup'], [/\bWAN\b/g, 'bandwidth'], [/\bbackup ISP\b/g, 'backup internet line'], [/\bp95\b/gi, 'peak']];
+const plain = t => PLAIN.reduce((x, [re, to]) => x.replace(re, to), String(t || ''));
+const txt = c => c == null ? '' : typeof c === 'object' ? String(c.text ?? '') : String(c);
+const clip = (t, n) => t.length > n ? `${t.slice(0, n).replace(/[\s,;:–-]+\S*$/, '')}…` : t;
+// the lead's first sentence, without brackets, cut at a clause break when it runs long
+function sentence(t) {
+  let x = ((t || '').replace(/\s*\([^)]*\)/g, '').match(/^.*?[.!?](?=\s|$)/) || [t || ''])[0].trim();
+  if (x.length > 120) { const m = x.slice(40).search(/[:;]| – /); if (m >= 0 && m + 40 < 120) x = `${x.slice(0, m + 40).trim()}.`; }
+  return plain(clip(x, 140));
+}
+function summarize(a) {
+  const B = a.blocks || [];
+  const tb = B.find(k => k.type === 'table' && k.rows.length), ls = B.find(k => k.type === 'list' && k.items.length), tl = B.find(k => k.type === 'timeline'), lay = B.find(k => k.type === 'layers');
+  let points = [];
+  if (lay) points = lay.items.map(x => ({ b: x.name, t: x.verdict }));
+  else if (tb) points = tb.rows.map(r => { const tone = r.cells.slice(1).find(c => c && typeof c === 'object' && c.tone && txt(c).length <= 32); return { b: clip(txt(r.cells[0]), 44), t: clip(txt(tone || r.cells[1]), 40), tone: tone && tone.tone }; });
+  else if (ls) points = ls.items.map(x => ({ b: x.k && x.k !== '•' ? clip(x.k, 40) : '', t: clip(x.v, 60) }));
+  else if (tl) points = tl.items.map(x => ({ b: x.t, t: clip(x.text, 60) }));
+  const kp = B.find(k => k.type === 'kpis'), bars = B.find(k => k.type === 'bars');
+  return {
+    title: plain(a.title), line: sentence(a.lead),
+    stats: kp ? kp.items.slice(0, 3).map(x => ({ label: plain(x.label), value: String(x.value), tone: x.tone })) : [],
+    bars: !kp && bars ? { title: bars.title, max: bars.max, items: bars.items.slice(0, 4) } : null,
+    points: points.filter(x => x.b || x.t).slice(0, 3),
+    empty: !B.some(k => (k.type === 'table' ? k.rows.length : k.type === 'list' ? k.items.length : true)),
+  };
+}
 
 // region-limited stories for the regional manager, in the same answer shape Ask Mova iO uses
 function regionStories(p, s, now, L, period) {
@@ -119,11 +169,19 @@ export function compose(p, s, now, L, period = 'daily') {
   const list = p.region ? regionStories(p, s, now, L, period) : p[period].map(([kicker, q]) => [kicker, ask(s, q, now, L)]);
   const label = { daily: 'Morning Brief', weekly: 'Weekly Report', monthly: 'Monthly Report' }[period];
   const range = period === 'daily' ? dateShort(now) : period === 'weekly' ? `${dateShort(now - 7 * DAY)} – ${dateShort(now)}` : `${D.MTTR_MONTHS.months.at(-2)} (last full month) and month to date`;
+  const stories = list.map(([kicker, a]) => ({ kicker, a, sum: summarize(a) }));
+  const top = stories.filter(x => !x.sum.empty).slice(0, 4);
+  const ids = new Set(bs.map(b => b.id));
   return {
     persona: p, period, label, range, at: now,
-    headline: h.headline, deck: h.deck, lead: h.lead,
-    numbers: h.numbers.map(([label, value, tone]) => ({ label, value, tone })),
-    agenda: agenda(p, s, now, bs).map(x => ({ ...x, when: x.t == null ? 'Today' : x.t < now ? 'Overdue' : x.label || (dateShort(x.t) === dateShort(now) ? ct(x.t) : `${dateShort(x.t)} ${ct(x.t)}`) })),
-    stories: list.map(([kicker, a]) => ({ kicker, a })),
+    weather: weatherOf(f), headline: h.headline, deck: h.deck, know: h.know,
+    pic: { sign: `BRANCH ${h.pic[0]}`, badge: h.pic[1], caption: h.pic[2] },
+    numbers: h.numbers.map(([label, value, tone, icon]) => ({ label, value, tone, icon })),
+    agenda: agenda(p, s, now, bs).slice(0, 5).map(x => ({ ...x, what: x.what.replace(/^CHG\d+\s+/, '').replace(/^Decide (APR-\d+): /, 'Decide: '), when: x.t == null ? 'Today' : x.t < now ? 'Overdue' : x.label || (dateShort(x.t) === dateShort(now) ? ct(x.t) : `${dateShort(x.t)} ${ct(x.t)}`) })),
+    stories: top, inBrief: stories.filter(x => !top.includes(x)),
+    map: {
+      focus: !!p.region,
+      points: D.BRANCHES.map(b => { const hs = healthOf(s, b); return { x: b.x, y: b.y, in: ids.has(b.id), tone: hs === 'down' ? 'bad' : onBackupOf(s, b) ? 'info' : hs !== 'up' ? 'warn' : 'ok' }; }),
+    },
   };
 }
