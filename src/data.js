@@ -739,6 +739,9 @@ export const HERO_STORY = {};
   };
   RESOLVED.push(inc);
   PROBLEMS.push({ id: 'PRB0004236', title: 'Policy v41 maps ERP DSCP to the bulk class; pre-open validation has no ERP test', incidents: 1, state: 'Fix in progress', owner: 'Network Eng L3', opened: done });
+  // the branch stays under a 24-hour watch after the automatic fix, so it shows as degraded until the fix is proven
+  b.health = 'degraded'; b.score = 84; b.watch = { inc: inc.id, until: ok + DAY, why: `Under 24-hour watch after Mova iO rolled back ${chg.id} (ERP was slow at opening; back to normal)` };
+  b.why = b.watch.why;
   HERO_STORY[HERO.config] = { inc: inc.id, chg: chg.id, push, slow, call, open, roll, ok, done, back };
 }
 
@@ -799,7 +802,7 @@ PREDICTIONS.push({ id: 'PRD-510', kind: 'Capacity forecast', target: `${HB.chg.c
 
 // Degraded branches with no open incident still say why (watch level, below the incident threshold).
 const WATCH_WHY = ['Wi-Fi retry rate 18% on the warehouse AP', 'EdgeConnect CPU 82% at peak', 'Uplink errors on sw01 below the incident threshold', 'Backup line failed its weekly test; retest booked', 'Payment path 380 ms, close to the 400 ms limit', 'Primary line jitter 22 ms in the evening peak'];
-BRANCHES.forEach(b => { if (b.health !== 'up' && !INCIDENTS.some(i => i.branchId === b.id && i.state !== 'Resolved')) b.why = WATCH_WHY[b.num % WATCH_WHY.length]; });
+BRANCHES.forEach(b => { if (b.health !== 'up' && !b.why && !INCIDENTS.some(i => i.branchId === b.id && i.state !== 'Resolved')) b.why = WATCH_WHY[b.num % WATCH_WHY.length]; });
 
 // ---------- circuit flaps and monthly availability ----------
 {

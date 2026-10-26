@@ -81,28 +81,32 @@ const brandIn = q => { const t = q.toLowerCase(); return D.BRANDS.find(x => t.in
 const carrierIn = q => { const t = q.toLowerCase(); return D.CARRIERS.find(c => new RegExp(`\\b${c.toLowerCase().replace('&', '&')}\\b`).test(t)) || (/\batt\b/.test(t) ? 'AT&T' : null); };
 
 // why a branch is not healthy, from what the console knows
-function whyOf(s, b) {
+function whyOf(s, b, now = Date.now()) {
   const incs = s.incidents.filter(i => i.branchId === b.id && i.state !== 'Resolved').sort((x, y) => x.pri.localeCompare(y.pri));
   if (incs.length) return { text: incs[0].title, inc: incs[0], since: Math.min(...incs.map(i => i.opened)), impact: incs[0].impact && incs[0].impact[0] };
   const p = circuitOf(s, b.wan[0]), c2 = circuitOf(s, b.wan[1]);
   if (p.status !== 'Up') return { text: `Primary ${p.carrier} ${p.type} ${p.status.toLowerCase()} (short flap, watching)`, impact: `On ${c2.carrier} ${c2.type}` };
   if (c2.status !== 'Up') return { text: `Backup ${c2.carrier} ${c2.type} ${c2.status.toLowerCase()}`, impact: 'No failover path if the primary fails' };
+  if (b.watch && now < b.watch.until) return { text: b.watch.why, impact: 'Trading normally; the fix is being verified', since: D.HERO_STORY[b.num] && D.HERO_STORY[b.num].ok, recovering: true, inc: null };
   return { text: b.why || 'Health score below 90 (watch, no incident)', impact: 'No trading impact; watch level' };
 }
 
 // ── 1. down or degraded ──────────────────────────────────────────────
 function downDegraded(s, now) {
-  const bad = D.BRANCHES.map(b => ({ b, h: healthOf(s, b) })).filter(x => x.h !== 'up').map(x => ({ ...x, w: whyOf(s, x.b), open: branchClock(x.b, now).open }));
-  const rank = x => (x.h === 'down' ? 0 : 10) + (x.w.inc ? +x.w.inc.pri[1] : 6);
-  bad.sort((a, b) => rank(a) - rank(b));
-  const down = bad.filter(x => x.h === 'down'), deg = bad.filter(x => x.h === 'degraded');
+  const all = D.BRANCHES.map(b => ({ b, h: healthOf(s, b) })).filter(x => x.h !== 'up').map(x => ({ ...x, w: whyOf(s, x.b, now), open: branchClock(x.b, now).open }));
+  // down first, then by incident priority; within a priority the scripted stories lead
+  // down first, then branches recovering after an automatic fix, then by incident priority; the scripted stories lead each band
+  const rank = x => (x.h === 'down' ? 0 : x.w.recovering ? 9 : 10) + (x.w.inc ? +x.w.inc.pri[1] : x.w.recovering ? 0 : 6) - (D.HERO_STORY[x.b.num] ? 0.5 : 0);
+  all.sort((a, b) => rank(a) - rank(b));
+  const bad = all;
+  const down = all.filter(x => x.h === 'down'), deg = all.filter(x => x.h === 'degraded');
   const withInc = bad.filter(x => x.w.inc).length, trading = bad.filter(x => x.open).length;
   return {
-    title: `${down.length} stores down, ${deg.length} degraded, ${num(900 - bad.length)} healthy`,
+    title: `${down.length} stores down, ${deg.length} degraded, ${num(900 - all.length)} healthy`,
     lead: down.length ? `${down.length} store${down.length > 1 ? 's are' : ' is'} offline and ${deg.length} trading with a problem. ${withInc} have an open incident with an owner; the rest are watch-level.` : `No store is offline. ${deg.length} are trading with a problem; ${withInc} have an open incident with an owner.`,
     blocks: [
-      kpis([{ label: 'Down', value: down.length, tone: down.length ? 'bad' : 'ok' }, { label: 'Degraded', value: deg.length, tone: 'warn' }, { label: 'Open now, affected', value: trading }, { label: 'Healthy', value: num(900 - bad.length), tone: 'ok' }]),
-      tbl(['Store', 'Status', 'Why', 'Since'], bad.slice(0, 14).map(x => ({ branch: x.b.id, cells: [{ text: sn(x.b), bold: true, sub: x.b.brand }, { text: x.h === 'down' ? 'Down' : 'Degraded', tone: x.h === 'down' ? 'bad' : 'warn' }, { text: x.w.text, sub: x.w.impact }, x.w.since ? ago(x.w.since, now) : '–'] }))),
+      kpis([{ label: 'Down', value: down.length, tone: down.length ? 'bad' : 'ok' }, { label: 'Degraded', value: deg.length, tone: 'warn' }, { label: 'Open now, affected', value: trading }, { label: 'Healthy', value: num(900 - all.length), tone: 'ok' }]),
+      tbl(['Store', 'Status', 'Why', 'Since'], bad.slice(0, 14).map(x => ({ branch: x.b.id, cells: [{ text: sn(x.b), bold: true, sub: x.b.brand }, { text: x.h === 'down' ? 'Down' : x.w.recovering ? 'Degraded – watching after auto-fix' : 'Degraded', tone: x.h === 'down' ? 'bad' : 'warn' }, { text: x.w.text, sub: x.w.impact }, x.w.since ? ago(x.w.since, now) : '–'] }))),
       ...(bad.length > 14 ? [text(`…and ${bad.length - 14} more on the Operations Overview map.`)] : []),
     ],
     src: 'Orchestrator path state, OpsRamp, Aruba Central, ServiceNow incidents', links: [L('Operations overview', 'overview'), L('Live incidents', 'incidents')],
