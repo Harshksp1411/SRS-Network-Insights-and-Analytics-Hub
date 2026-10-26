@@ -32,7 +32,7 @@ Branches are numbered 1 to 900 across the estate, with their location in the nam
 
 ## Morning briefs (`briefs/`)
 
-A third page, separate from the console and the demos: a newspaper-style morning brief for six roles, written from the same live data. Each role signs in and sees only its own edition (role-based access): a lead story, "By the numbers", "Your day" (changes, decisions, visits, carrier restore times, go-lives and freezes that need them) and the stories that matter to that role. "This week" and "This month" switch the edition, and the Daily, Weekly and Monthly buttons download it as a PDF, generated in the browser.
+A third page, separate from the console and the demos: a two-minute newspaper front page for six roles, written in plain words from the same live data. Each role signs in and sees only its own edition (role-based access): the network weather, a headline, an illustrated front-page picture of the branch in the news, three things to know, four numbers at a glance, "Your day" (up to five changes, decisions, visits, carrier restore times, go-lives and freezes), four illustrated stories, a map of where the trouble is and the rest in brief. Detail stays out of the way: "Read the full story" opens the whole answer. "This week" and "This month" switch the edition, and the Daily, Weekly and Monthly buttons download the same edition, pictures included, as a short PDF generated in the browser. The nameplate and headline fonts load from Google Fonts; offline the page falls back to Georgia.
 
 | Role | Username | Password |
 |---|---|---|
