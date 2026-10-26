@@ -58,8 +58,9 @@ allCities.forEach((c, ci) => {
     BRANCHES.push({
       id: `BR-${String(bn).padStart(4, '0')}`, num: bn, code: `${st.toLowerCase()}${String(bn).padStart(4, '0')}`,
       brand, segment: seg, city, state: st, region: REGION_OF[st], tz: TZ_CITY[city] || TZ_STATE[st],
-      // one estate-wide number, 1 to 900 (BR-0214 is Branch 214); `local` keeps the city-wise label for lookups
-      name: `Branch ${bn}`, local: `${city}${n > 1 ? ` #${k + 1}` : ''}`,
+      // one estate-wide number, 1 to 900 (BR-0214 is Branch 214), with the location: "Branch 214 – Virginia Beach, VA".
+      // `local` keeps the old city-wise label for lookups.
+      name: `Branch ${bn} – ${city}, ${st}`, local: `${city}${n > 1 ? ` #${k + 1}` : ''}`,
       x: +(x + Math.cos(ang) * rad).toFixed(1), y: +(y + Math.sin(ang) * rad).toFixed(1), cx: x, cy: y,
       size, hours: { open: seg === 'Pool' ? '07:00' : '06:30', close: seg === 'Landscape' ? '16:30' : '17:00', sat: sat ? (seg === 'Pool' ? '08:00-12:00' : '07:00-12:00') : null },
       yard: seg !== 'Pool' || R() < 0.4, fleet: size === 'L' ? R.int(8, 16) : size === 'M' ? R.int(4, 9) : R.int(2, 5),

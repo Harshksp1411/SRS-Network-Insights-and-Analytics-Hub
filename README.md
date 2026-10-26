@@ -28,11 +28,11 @@ The **live demos** are a separate page (`demos/`) with its own link; the two pag
 
 Filter everything by Region › City › Branch › Brand. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".
 
-Branches are numbered 1 to 900 across the estate ("Branch 214" is BR-0214); city, state and region show alongside.
+Branches are numbered 1 to 900 across the estate, with their location in the name: "Branch 214 – Virginia Beach, VA" is BR-0214.
 
 ## Ask Mova iO
 
-The assistant in the console header answers from the same live data as every screen: stores down or degraded, backup ISP, root cause by layer (network, ISP or application), changes and drift, NetFlow top talkers, flapping circuits and carrier SLA credits, auto-remediation, uptime and MTTR against target, capacity in the next 90 days, a copyable leadership summary, and any branch, incident, change, approval, work order, runbook, article, prediction, project, device, circuit, advisory or SLA metric by number. "Start here" lists the questions in walkthrough order.
+The assistant in the console header answers from the same live data as every screen: stores down or degraded, backup ISP, root cause by layer (network, ISP or application), changes and drift, NetFlow top talkers, flapping circuits and carrier SLA credits, auto-remediation, uptime and MTTR against target, capacity in the next 90 days, a copyable leadership summary, and any branch, incident, change, approval, work order, runbook, article, prediction, project, device, circuit, advisory or SLA metric by number. "Start here" lists the questions in walkthrough order. Questions can be typed in your own words and with typos ("why was 214 slow", "what got fixed automatically this week", "brach degarded"); a bare number names a branch.
 
 Five branches carry scripted, connected stories so these answers are never empty (all illustrative):
 

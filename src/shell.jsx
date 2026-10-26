@@ -319,7 +319,7 @@ export function BranchDrawer() {
   const devs = D.devicesOf(b.id);
   const close = () => act.set({ selBranch: null });
   return (
-    <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}, {b.brand}</span>} sub={`${b.id}, ${b.city}, ${b.state}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
+    <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}, {b.brand}</span>} sub={`${b.id}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
       footer={<><Btn icon={I.Sunrise} onClick={() => { close(); act.set(st => ({ module: 'readiness', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Readiness checks</Btn><Btn icon={I.Network} onClick={() => { close(); act.set({ module: 'graph', graphBranch: b.id }); }}>Show in network graph</Btn><Btn icon={I.Boxes} onClick={() => { close(); act.set(st => ({ module: 'inventory', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Devices</Btn><div className="flex-1" /><Btn kind="brand" icon={I.Filter} onClick={() => { close(); act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } }); }}>Filter console to this branch</Btn></>}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>

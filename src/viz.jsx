@@ -188,7 +188,7 @@ export function DeviceRiskCard() {
   const [done, setDone] = useState({});
   return (
     <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age">
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} className="flex items-center gap-3 py-1.5 text-[12.5px]"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[150px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}</div>)}</div>
+      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} className="flex items-center gap-3 py-1.5 text-[12.5px]"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}</div>)}</div>
     </Card>
   );
 }

@@ -36,7 +36,7 @@ export function LiveOps() {
             <div className="px-4 pb-3 max-h-[210px] overflow-y-auto">{L.x.agentStream.slice(0, 8).map(e => <div key={e.id} className="flex gap-2 py-1 text-[12px] border-b border-line/60 feed-in"><code className="text-[11px] text-ink3 w-[54px] shrink-0">{hhmmss(e.t)}</code><span className="text-ink"><b>{AGENT_DEF.find(a => a.id === e.agent).name}:</b> {e.text}</span></div>)}</div>
           </Card>
           <Card title="Needs attention" sub="Open incidents in this view, highest priority first" pad={false}>
-            <div className="px-4 pb-3">{attention.map(i => <button key={i.id} onClick={() => act.openInc(i.id)} className="w-full flex items-center gap-2 py-1.5 text-[12.5px] border-b border-line/60 text-left hover:bg-chip/50"><Dot tone={i.pri <= 'P2' ? 'red' : 'amber'} /><b className="text-ink w-[110px] truncate">{D.BR[i.branchId].name}</b><span className="text-ink2 truncate flex-1">{i.title}</span></button>)}{!attention.length && <div className="text-[12.5px] text-ink3 py-2">Nothing open in this view.</div>}</div>
+            <div className="px-4 pb-3">{attention.map(i => <button key={i.id} onClick={() => act.openInc(i.id)} className="w-full flex items-center gap-2 py-1.5 text-[12.5px] border-b border-line/60 text-left hover:bg-chip/50"><Dot tone={i.pri <= 'P2' ? 'red' : 'amber'} /><b className="text-ink w-[225px] shrink-0 truncate">{D.BR[i.branchId].name}</b><span className="text-ink2 truncate flex-1">{i.title}</span></button>)}{!attention.length && <div className="text-[12.5px] text-ink3 py-2">Nothing open in this view.</div>}</div>
           </Card>
         </div>
       </div>
