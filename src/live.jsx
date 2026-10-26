@@ -159,7 +159,7 @@ export function LiveProvider({ children }) {
         if (c) {
           const rb = c.kind === 'backup' ? 'RB-109' : c.kind === 'apdown' ? 'RB-103' : 'RB-103';
           act.del('incidents', c.id);
-          act.add('resolved', { ...c, state: 'Resolved', resolved: now, closeCode: 'Auto-resolved (zero touch)', rbState: 'done', verify: c.verify.map(v => ({ ...v, st: 'pass', val: 'OK' })), notes: [...c.notes, { t: now, who: 'Runbook Agent', text: `${rb} ran outside the branch's trading window / on an already-down device; verification passed; closed with zero human touch.` }] });
+          act.add('resolved', { ...c, state: 'Resolved', resolved: now, closeCode: 'Auto-resolved (zero touch)', auto: true, runbook: rb, autoAction: `${rb} ${D.RB[rb].name.toLowerCase()} ran once the store closed (or on an already-down device); verification passed`, rbState: 'done', verify: c.verify.map(v => ({ ...v, st: 'pass', val: 'OK' })), notes: [...c.notes, { t: now, who: 'Runbook Agent', text: `${rb} ran outside the branch's trading window / on an already-down device; verification passed; closed with zero human touch.` }] });
           if (!st.incidents.some(i => i.id !== c.id && i.branchId === c.branchId && i.state !== 'Resolved')) act.map('branchHealth', c.branchId, 'up');
           act.audit(`Auto-resolved ${c.id} with ${rb} (zero touch)`, c.id, 'Runbook Agent');
           Lc.counters.autoRes++;

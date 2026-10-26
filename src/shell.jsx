@@ -8,7 +8,8 @@ import { LiveDemos } from './mod_demos.jsx';
 import { DEMOS_ONLY, APP_NAME } from './edition.js';
 import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
-import { CANNED, answer } from './ask.js';
+import { CANNED, STORY, MORE, answer } from './ask.js';
+import { C } from './charts.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card } from './ui.jsx';
 import LOGOS from './logos.js';
 import { hhmmss, hhmm, ago, dt, num, MIN } from './util.js';
@@ -189,40 +190,89 @@ function FilterBar() {
   );
 }
 
+// ── Ask Mova iO ──────────────────────────────────────────────────────
+const TONE_TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', muted: 'text-ink3', info: 'text-info' };
+const TONE_C = { ok: C.ok, warn: C.warn, bad: C.bad, info: C.s1, muted: C.s3 };
+function Cell({ c }) {
+  if (c == null || typeof c !== 'object') return <span className="text-ink2">{c}</span>;
+  return <span><span className={cx(c.bold ? 'font-semibold text-ink' : 'text-ink2', TONE_TX[c.tone], c.tone && 'font-semibold')}>{c.text}</span>{c.sub && <span className="block text-[11px] text-ink3 leading-tight">{c.sub}</span>}</span>;
+}
+function AskBlock({ k }) {
+  const { act } = useApp();
+  const go = r => { if (r.inc) act.openInc(r.inc); else if (r.branch) act.openBranch(r.branch); };
+  switch (k.type) {
+    case 'kpis': return (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">{k.items.map(x => (
+        <div key={x.label} className="bg-panel border border-line rounded px-2 py-1.5 min-w-0"><div className="text-[10.5px] text-ink3 leading-tight truncate">{x.label}</div><div className={cx('text-[16px] font-bold tabular-nums leading-tight truncate', TONE_TX[x.tone] || 'text-ink')}>{x.value}</div>{x.sub && <div className="text-[10.5px] text-ink3 truncate">{x.sub}</div>}</div>))}</div>);
+    case 'table': return (
+      <div className="bg-panel border border-line rounded overflow-x-auto"><table className="w-full text-[11.5px]"><thead><tr className="text-left text-ink3 border-b border-line">{k.cols.map(c => <th key={c} className="px-2 py-1 font-semibold whitespace-nowrap">{c}</th>)}</tr></thead>
+        <tbody>{k.rows.map((r, i) => <tr key={i} onClick={() => go(r)} className={cx('border-b border-line/60 last:border-0 align-top', (r.inc || r.branch) && 'cursor-pointer hover:bg-chip/60')}>{r.cells.map((c, j) => <td key={j} className="px-2 py-1">{<Cell c={c} />}</td>)}</tr>)}</tbody></table></div>);
+    case 'bars': { const mx = k.max || Math.max(1, ...k.items.map(x => x.value)); return (
+      <div className="bg-panel border border-line rounded p-2">{k.title && <div className="text-[11px] font-bold text-ink3 mb-1">{k.title}</div>}<div className="space-y-1">{k.items.map(x => (
+        <div key={x.label} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto] items-center gap-2 text-[11.5px]"><span className="truncate text-ink" title={x.label}>{x.label}{x.sub && <span className="block text-[10.5px] text-ink3 truncate">{x.sub}</span>}</span><span className="h-2 bg-chip rounded-sm overflow-hidden"><span className="block h-full rounded-sm" style={{ width: `${Math.max(2, x.value / mx * 100)}%`, background: TONE_C[x.tone] || C.s1 }} /></span><b className="tabular-nums text-ink">{x.display ?? x.value}</b></div>))}</div></div>); }
+    case 'layers': return (
+      <div className="space-y-1">{k.items.map(x => (
+        <div key={x.name} className={cx('bg-panel border rounded px-2 py-1.5 border-l-[3px]', x.tone === 'bad' ? 'border-l-bad border-line' : x.tone === 'warn' ? 'border-l-warn border-line' : 'border-l-ok border-line')}><div className="flex items-center gap-2"><b className="text-ink text-[12.5px]">{x.name}</b><span className={cx('text-[11px] font-bold', TONE_TX[x.tone])}>{x.verdict}</span></div><div className="text-[11.5px] text-ink2 leading-snug">{x.text}</div></div>))}</div>);
+    case 'timeline': return (
+      <div className="bg-panel border border-line rounded p-2"><div className="relative pl-3"><span className="absolute left-[3px] top-1 bottom-1 w-px bg-line" />{k.items.map((x, i) => (
+        <div key={i} className="relative pb-1.5 last:pb-0 text-[11.5px]"><span className={cx('absolute -left-[12px] top-[5px] w-[7px] h-[7px] rounded-full', x.tone === 'bad' ? 'bg-bad' : x.tone === 'warn' ? 'bg-warn' : x.tone === 'ok' ? 'bg-ok' : 'bg-ink3')} /><span className="font-mono text-ink3 mr-1.5">{x.t}</span><span className="text-ink">{x.text}</span>{x.src && <span className="block text-[10.5px] text-ink3">{x.src}</span>}</div>))}</div></div>);
+    case 'spark': { const mx = k.max || Math.max(1, ...k.values); const w = 300, h = 46, st = w / Math.max(1, k.values.length - 1); const pts = k.values.map((v, i) => `${(i * st).toFixed(1)},${(h - 3 - v / mx * (h - 8)).toFixed(1)}`).join(' '); return (
+      <div className="bg-panel border border-line rounded p-2"><div className="text-[11px] font-bold text-ink3 mb-1">{k.label}</div><svg viewBox={`0 0 ${w} ${h}`} className="w-full block" style={{ height: h }} preserveAspectRatio="none">{k.mark && <line x1="0" x2={w} y1={h - 3 - k.mark / mx * (h - 8)} y2={h - 3 - k.mark / mx * (h - 8)} stroke={C.bad} strokeDasharray="4 3" strokeWidth="1" vectorEffect="non-scaling-stroke" />}<polyline points={`0,${h} ${pts} ${w},${h}`} fill={C.s1} opacity=".12" /><polyline points={pts} fill="none" stroke={C.s1} strokeWidth="1.6" vectorEffect="non-scaling-stroke" /></svg>{k.values.length === 24 && <div className="flex justify-between text-[10px] text-ink3"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>}</div>); }
+    case 'list': return (
+      <div className="space-y-0.5">{k.items.map((l, j) => (
+        <div key={j} className="flex gap-2 text-[12px]"><span className={cx('font-semibold shrink-0', l.inc || l.branch ? 'text-info cursor-pointer hover:underline' : 'text-ink')} onClick={() => go(l)}>{l.k}</span><span className="text-ink2">{l.v}</span></div>))}</div>);
+    case 'heading': return <div className="text-[11.5px] font-bold text-ink pt-1">{k.text}</div>;
+    case 'text': return <p className={cx('text-[12px] leading-snug', k.tone === 'muted' ? 'text-ink3 text-[11px]' : TONE_TX[k.tone] || 'text-ink2')}>{k.text}</p>;
+    default: return null;
+  }
+}
+function copyText(txt, act) {
+  const done = () => act.toast('Copied – paste it into your email or report', 'info');
+  try { navigator.clipboard.writeText(txt).then(done, () => { fallback(); }); } catch { fallback(); }
+  function fallback() { const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch { } t.remove(); }
+}
 function AskPanel() {
   const { s, act } = useApp();
-  const now = useNow();
+  const { L } = useLive();
   const [q, setQ] = useState('');
   const endRef = useRef(null);
-  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth' }); }, [s.askLog.length]);
+  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [s.askLog.length]);
   if (!s.askOpen) return null;
-  const ask = text => { if (!text.trim()) return; const a = answer(s, text, Date.now()); act.set(st => ({ askLog: [...st.askLog, { q: text, a, t: Date.now() }] })); setQ(''); };
+  const ask = text => { if (!text.trim()) return; const a = answer(s, text, Date.now(), L); act.set(st => ({ askLog: [...st.askLog, { q: text, a, t: Date.now() }] })); setQ(''); };
   const role = ROLES.find(r => r.id === s.role);
+  const chip = (c, n) => <button key={c} onClick={() => ask(c)} className="text-[12px] text-left border border-line rounded-md px-2 py-1 hover:bg-chip text-ink inline-flex gap-1.5 items-start">{n && <b className="text-brand tabular-nums">{n}</b>}<span>{c}</span></button>;
   return (
-    <aside className="fixed right-0 top-16 bottom-0 w-[440px] max-w-full bg-panel border-l border-line shadow-2xl z-50 flex flex-col">
+    <aside className="fixed right-0 top-[60px] bottom-0 w-[540px] max-w-full bg-panel border-l border-line shadow-2xl z-50 flex flex-col">
       <div className="px-4 py-3 border-b border-line flex items-center gap-2">
         <Logo k="movaio" h={16} /><div className="flex-1"><div className="font-bold text-ink text-[14px]">Ask Mova iO</div><div className="text-[11.5px] text-ink3">Answers come from live console data, as {role.name}</div></div>
+        {s.askLog.length > 0 && <Btn size="sm" kind="ghost" onClick={() => act.set({ askLog: [] })}>Clear</Btn>}
         <Btn size="sm" kind="ghost" icon={I.X} onClick={() => act.set({ askOpen: false })} />
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="text-[12px] text-ink3 font-semibold">Suggested for {role.name}</div>
-        <div className="flex flex-wrap gap-1.5">{CANNED[s.role].map(c => <button key={c} onClick={() => ask(c)} className="text-[12px] text-left border border-line rounded-full px-2.5 py-1 hover:bg-chip text-ink">{c}</button>)}</div>
+        <div className="space-y-2">
+          <div className="text-[12px] text-ink3 font-semibold">Start here</div>
+          <div className="flex flex-col gap-1.5">{STORY.map((c, i) => chip(c, i + 1))}</div>
+          <div className="text-[12px] text-ink3 font-semibold pt-1">More questions</div>
+          <div className="flex flex-wrap gap-1.5">{MORE.map(c => chip(c))}</div>
+          <div className="text-[12px] text-ink3 font-semibold pt-1">For {role.name}</div>
+          <div className="flex flex-wrap gap-1.5">{CANNED[s.role].map(c => chip(c))}</div>
+        </div>
         {s.askLog.map((x, i) => (
-          <div key={i} className="space-y-2">
+          <div key={i} className="space-y-2" ref={i === s.askLog.length - 1 ? endRef : null}>
             <div className="flex justify-end"><div className="bg-ink text-canvas rounded-md rounded-br-sm px-3 py-1.5 text-[13px] max-w-[85%]">{x.q}</div></div>
-            <div className="bg-chip border border-line rounded-md rounded-bl-sm p-3 text-[12.5px]">
-              <div className="font-bold text-ink mb-1.5">{x.a.title}</div>
-              <div className="space-y-1">{x.a.lines.map((l, j) => typeof l === 'string' ? <p key={j} className="text-ink2">{l}</p> : (
-                <div key={j} className="flex gap-2"><span className={cx('font-semibold shrink-0', l.inc || l.branch ? 'text-info cursor-pointer hover:underline' : 'text-ink')} onClick={() => { if (l.inc) act.openInc(l.inc); if (l.branch) act.openBranch(l.branch); }}>{l.k}</span><span className="text-ink2">{l.v}</span></div>))}</div>
-              {x.a.src && <div className="mt-2 text-[11px] text-ink3 flex items-center gap-1"><I.Database size={11} />Grounded in: {x.a.src}, {hhmm(x.t)} CT</div>}
-              {x.a.links.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{x.a.links.map(l => <Btn key={l.label} size="xs" icon={I.ArrowRight} onClick={() => act.set(st => ({ module: l.module, selInc: null, ...l.extra, tab: { ...st.tab, ...(l.extra.tab || {}) }, filters: l.extra.filters || st.filters }))}>{l.label}</Btn>)}</div>}
+            <div className="bg-chip border border-line rounded-md rounded-bl-sm p-3 text-[12.5px] space-y-2">
+              <div className="font-bold text-ink text-[13.5px] leading-snug">{x.a.title}</div>
+              {x.a.lead && <p className="text-ink2 leading-snug">{x.a.lead}</p>}
+              {(x.a.blocks || []).map((k, j) => <AskBlock key={j} k={k} />)}
+              {x.a.lines && x.a.lines.length > 0 && <AskBlock k={{ type: 'list', items: x.a.lines.map(l => typeof l === 'string' ? { k: '', v: l } : l) }} />}
+              {x.a.src && <div className="text-[11px] text-ink3 flex items-center gap-1"><I.Database size={11} />Grounded in: {x.a.src}, {hhmm(x.t)} CT</div>}
+              {(x.a.links.length > 0 || x.a.copy) && <div className="flex flex-wrap gap-1.5">{x.a.copy && <Btn size="xs" kind="brand" icon={I.Copy} onClick={() => copyText(x.a.copy, act)}>Copy for my report</Btn>}{x.a.links.map(l => <Btn key={l.label} size="xs" icon={I.ArrowRight} onClick={() => act.set(st => ({ module: l.module, selInc: null, ...l.extra, tab: { ...st.tab, ...(l.extra.tab || {}) }, filters: l.extra.filters || st.filters }))}>{l.label}</Btn>)}</div>}
             </div>
           </div>
         ))}
-        <div ref={endRef} />
       </div>
       <form onSubmit={e => { e.preventDefault(); ask(q); }} className="p-3 border-t border-line flex gap-2">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder='e.g. "Is Tampa #2 ready to open?"' className="flex-1 h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none focus:border-ink3" />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder='e.g. "Why was Branch 214 slow this morning?"' className="flex-1 h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none focus:border-ink3" />
         <Btn kind="brand" icon={I.Send} type="submit">Ask</Btn>
       </form>
     </aside>

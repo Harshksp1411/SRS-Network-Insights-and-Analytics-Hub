@@ -5,7 +5,11 @@ import { SCENARIOS, baseInc, sig, step, addSignals, addStep } from './scenarios.
 import { MIN, HR, DAY } from './util.js';
 
 export const AREAS = ['SD-WAN and carriers', 'LAN and Wi-Fi', 'Patching and firmware', 'Config and automation', 'Predict and prevent', 'Branch readiness', 'Branch-in-a-Box'];
-const byName = n => D.BRANCHES.find(b => b.name === n);
+const byName = n => D.BRANCHES.find(b => b.local === n || b.name === n);
+// Stories were written with city-wise names ("Atlanta #3"); show them with the estate-wide number instead.
+const LOCAL = new Map(D.BRANCHES.map(b => [b.local, b]));
+const relabel = s => s.replace(/([A-Z][A-Za-z.']*(?: [A-Z][A-Za-z.']*)*) #(\d+)/g, (m, city, k) => { const b = LOCAL.get(`${city} #${k}`); return b ? `${b.name} (${b.city})` : m; });
+const relabelAll = o => { for (const k in o) { if (typeof o[k] === 'string') o[k] = relabel(o[k]); else if (o[k] && typeof o[k] === 'object') relabelAll(o[k]); } return o; };
 const pickB = (city, brand, k = 0) => (D.BRANCHES.filter(b => b.city === city && (!brand || b.brand === brand))[k]) || D.BRANCHES.find(b => b.city === city);
 
 function H(act, c, T) {
@@ -136,7 +140,7 @@ const NEW = [
     ] }),
   mk({ id: 'hardown', area: 'SD-WAN and carriers', title: 'Branch hard down after a carrier fiber cut', icon: 'Unplug', who: 'A person approves', runbook: 'RB-101', systems: ['aruba', 'opsramp', 'servicenow', 'movaio'],
     story: { problem: 'At 07:42 Charlotte #3 goes dark: the AT&T fiber primary is cut and the broadband backup, which shares the same street duct, is degraded. More than 60 device-down events arrive in a minute.', impact: 'The branch cannot trade: counter sales, card payments and dispatch stop until a path is restored.', resolution: 'Correlation makes it one P1, diagnosis rules out the branch and opens the carrier case with evidence, and the NOC engineer approves bringing up the LTE/5G router as a temporary path with POS, ERP and voice first. The branch trades again about 13 minutes after going dark; failback runs after the carrier repair.' },
-    branch: () => pickB('Charlotte', null, 6),
+    branch: () => byName('Charlotte #3') || pickB('Charlotte', null, 2),
     steps: [
       [0, 'OpsRamp: EdgeConnect, switches and APs unreachable; 62 events', h => { h.open({ pri: 'P1', cat: 'Carrier / LEC', title: 'Branch hard down – AT&T fiber cut, broadband backup degraded', ci: `${h.b.code}-ec01`, impact: ['Branch cannot trade', 'Card payments and dispatch stopped'] }); h.circ(0, { status: 'Down' }); h.circ(1, { status: 'Degraded' }); h.health('down'); h.sig('OpsRamp', `${h.b.code}-ec01, 2 switches and 4 APs unreachable`, 'Critical', 62, 60); }],
       [30, 'Diagnosis: upstream fiber cut on the local loop (93%)', h => { h.set({ state: 'In Progress', acked: h.T, assignee: 'Priya S.', conf: 0.93 }); h.rca([['Carrier fiber cut on the local loop', 0.93, 'Last-gasp from the EdgeConnect; AT&T portal shows LOS on the loop; broadband shares the duct'], ['EdgeConnect fault', 0.03, 'EdgeConnect sent last-gasp on the WAN only; OOB router still answers on cellular']]); h.agent('diagnosis', 'Local hardware and config ruled out: the out-of-band router at the branch still answers over cellular.'); }],
@@ -344,5 +348,5 @@ const TITLE = {
 };
 export const MODES = ['Autonomous', 'Human-on-the-loop', 'Human-in-the-loop'];
 const ORDER = ['mpls', 'hardown', 'fibercut', 'chronic', 'failback', 'ec', 'storm', 'yardap', 'scanners', 'crc', 'failedauto', 'loop', 'dhcp', 'day0', 'patch', 'cve', 'fw', 'major', 'compliance', 'errbudget', 'eol', 'backup', 'drift', 'catalog', 'central', 'toil', 'lte', 'predcircuit', 'capacity', 'notready', 'sitehold', 'day1', 'cutover'];
-export const DEMOS = [...SCENARIOS.map(sc => ({ ...sc, ...META[sc.id] })), ...NEW].filter(d => ORDER.includes(d.id)).sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id)).map(d => ({ ...d, title: TITLE[d.id] || d.title, who: MODE_OVR[d.id] || MODE[d.who] || d.who }));
+export const DEMOS = [...SCENARIOS.map(sc => ({ ...sc, ...META[sc.id] })), ...NEW].filter(d => ORDER.includes(d.id)).sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id)).map(d => ({ ...d, title: relabel(TITLE[d.id] || d.title), sub: d.sub && relabel(d.sub), story: d.story && relabelAll(d.story), who: MODE_OVR[d.id] || MODE[d.who] || d.who }));
 export const demoById = id => DEMOS.find(d => d.id === id);

@@ -1,5 +1,5 @@
 import MAP from './mapdata.json';
-import { rng, T0, MIN, HR, DAY, sum } from './util.js';
+import { rng, T0, MIN, HR, DAY, sum, parts, hhmm } from './util.js';
 
 const R = rng(20261019);
 
@@ -42,7 +42,7 @@ let diff = 900 - sum(alloc);
 for (let i = 0; diff !== 0; i = (i + 7) % alloc.length) { if (diff > 0) { alloc[i]++; diff--; } else if (alloc[i] > 2) { alloc[i]--; diff++; } }
 
 export const BRANCHES = [];
-let bn = 101;
+let bn = 1;
 allCities.forEach((c, ci) => {
   const [city, st, x, y, , brands] = c;
   const n = alloc[ci];
@@ -58,7 +58,8 @@ allCities.forEach((c, ci) => {
     BRANCHES.push({
       id: `BR-${String(bn).padStart(4, '0')}`, num: bn, code: `${st.toLowerCase()}${String(bn).padStart(4, '0')}`,
       brand, segment: seg, city, state: st, region: REGION_OF[st], tz: TZ_CITY[city] || TZ_STATE[st],
-      name: `${city}${n > 1 ? ` #${k + 1}` : ''}`,
+      // one estate-wide number, 1 to 900 (BR-0214 is Branch 214); `local` keeps the city-wise label for lookups
+      name: `Branch ${bn}`, local: `${city}${n > 1 ? ` #${k + 1}` : ''}`,
       x: +(x + Math.cos(ang) * rad).toFixed(1), y: +(y + Math.sin(ang) * rad).toFixed(1), cx: x, cy: y,
       size, hours: { open: seg === 'Pool' ? '07:00' : '06:30', close: seg === 'Landscape' ? '16:30' : '17:00', sat: sat ? (seg === 'Pool' ? '08:00-12:00' : '07:00-12:00') : null },
       yard: seg !== 'Pool' || R() < 0.4, fleet: size === 'L' ? R.int(8, 16) : size === 'M' ? R.int(4, 9) : R.int(2, 5),
@@ -331,13 +332,17 @@ export function buildIncident(kind, b, openedAgo, extra = {}) {
   };
 }
 
+// Hero stores: five branches with scripted, connected stories that Ask Mova iO and every screen agree on
+// (see the hero section at the end of this file). Store number = branch number (BR-0214 is Store 214).
+export const HERO = { failover: 73, config: 214, changes: 118, bandwidth: 45, autoAP: 309 };
+const heroIds = new Set(Object.values(HERO).map(n => `BR-${String(n).padStart(4, '0')}`));
 export const INCIDENTS = [];
 const openPlan = [
   ['circuit', 'P3', 92], ['circuit', 'P3', 41], ['circuit', 'P3', 260], ['jitter', 'P3', 33], ['apdown', 'P4', 300], ['apdown', 'P4', 125], ['apdown', 'P4', 610],
   ['crc', 'P4', 190], ['lte', 'P3', 400], ['lte', 'P3', 1300], ['scanner', 'P3', 52], ['pos', 'P2', 11], ['dhcp', 'P3', 75], ['backup', 'P4', 470], ['backup', 'P4', 480],
   ['cpu', 'P2', 4], ['circuit', 'P3', 1500], ['scanner', 'P3', 140], ['apdown', 'P4', 2900], ['crc', 'P4', 3300], ['jitter', 'P3', 9],
 ];
-const usedB = new Set();
+const usedB = new Set(heroIds);
 openPlan.forEach(([k, p, minAgo], i) => {
   let b; do { b = BRANCHES[R.int(0, 899)]; } while (usedB.has(b.id) || b.region === 'Canada');
   usedB.add(b.id);
@@ -352,19 +357,19 @@ openPlan.forEach(([k, p, minAgo], i) => {
 export const CLOSE_CODES = [['After-hours mended', 1977], ['No trouble found (NTF)', 875], ['Carrier / LEC', 533], ['Customer-caused', 254], ['Reboot', 134]];
 export const RESOLVED = [];
 for (let i = 0; i < 168; i++) {
-  const b = BRANCHES[R.int(0, 899)];
+  let b; do { b = BRANCHES[R.int(0, 899)]; } while (heroIds.has(b.id));
   const k = R.weighted(TEMPLATE_W);
   const ago = R.int(40, 7 * 24 * 60) * MIN;
   const inc = buildIncident(k, b, ago);
   const code = R.weighted(CLOSE_CODES);
-  const ttr = { P1: R.int(40, 200), P2: R.int(30, 400), P3: R.int(25, 900), P4: R.int(30, 2400) }[inc.pri] * MIN;
+  const ttr = { P1: R.int(40, 260), P2: R.int(30, 520), P3: R.int(25, 1600), P4: R.int(30, 6200) }[inc.pri] * MIN;
   Object.assign(inc, { state: 'Resolved', resolved: inc.opened + ttr, closeCode: code, acked: inc.opened + R.int(1, 12) * MIN, assignee: R.pick(ENGINEERS), rbState: 'done' });
   RESOLVED.push(inc);
 }
 // two incidents that failed overnight then recovered (for "what failed overnight")
 // branch health
 let downN = 0;
-BRANCHES.forEach(b => { if (b.health === 'up') b.health = R() < 0.0035 && downN++ < 3 ? 'down' : R() < 0.02 ? 'degraded' : 'up'; b.score = b.health === 'up' ? R.int(93, 100) : b.health === 'degraded' ? R.int(70, 88) : R.int(20, 45); });
+BRANCHES.forEach(b => { if (b.health === 'up' && !heroIds.has(b.id)) b.health = R() < 0.0035 && downN++ < 3 ? 'down' : R() < 0.02 ? 'degraded' : 'up'; b.score = b.health === 'up' ? R.int(93, 100) : b.health === 'degraded' ? R.int(70, 88) : R.int(20, 45); });
 BRANCHES.filter(b => b.health === 'down').forEach(b => {
   const inc = buildIncident('edgedown', b, R.int(8, 70) * MIN, { pri: 'P2', title: 'Branch unreachable – EdgeConnect not responding' });
   inc.signals.push({ t: inc.opened + 38 * MIN > T0 ? T0 - 60e3 : inc.opened + 38 * MIN, src: 'Orchestrator', msg: `${b.code}-ec01 unreachable – no heartbeat on either path, remote recovery queued`, sev: 'Critical' });
@@ -674,3 +679,177 @@ export const lifecycleOf = d => {
   if (d.warranty < T0) return { status: 'Warranty expired', tone: 'amber', note: 'No end of sale announced; warranty lapsed' };
   return { status: 'Current', tone: 'green', note: 'No end of sale announced' };
 };
+
+// ---------- auto-remediation flags on last week's resolved incidents ----------
+// About 23% of tickets close with zero human touch (Annexure B #37). The runbooks that can act on their own (L3/L4)
+// fix these kinds; anything that needs a carrier, a part or a person stays with an engineer.
+const AUTO_ACTION = {
+  apdown: (i, b) => [`RB-103 bounced the PoE port feeding ${i.ci}; AP back in ${2 + (b.num % 3)} m ${10 + (b.num % 47)} s and clients re-associated`, 'RB-103'],
+  backup: () => ['RB-109 re-ran the nightly config backup; hash verified and stored', 'RB-109'],
+  jitter: (i, b) => [`RB-101 steered POS, ERP and voice to wan2; payment path back under 400 ms in ${30 + (b.num % 25)} s`, 'RB-101'],
+  pos: () => ['RB-101 steered the POS class to wan2; payment path back under 400 ms', 'RB-101'],
+  scanner: (i) => [`RB-104 rebooted ${i.ci} after close and moved it off channel 36; roaming failures stopped`, 'RB-104'],
+  cpu: () => ['Loop-protect plus RB-103 shut the looping access port; CPU back under 40% in 2 minutes', 'RB-103'],
+};
+{
+  const want = Math.round(RESOLVED.length * 0.231);
+  let n = 0;
+  RESOLVED.forEach((inc, k) => {
+    const f = AUTO_ACTION[inc.kind];
+    if (!f || n >= want || k % 4 === 3) return;
+    const [action, rb] = f(inc, BR[inc.branchId]);
+    Object.assign(inc, { auto: true, autoAction: action, runbook: rb, closeCode: 'Auto-resolved (zero touch)', resolved: inc.opened + (8 + (k % 19)) * MIN });
+    n++;
+  });
+}
+
+// ---------- hero stores ----------
+export const storeOf = n => BR[`BR-${String(n).padStart(4, '0')}`];
+// epoch ms of hh:mm local time at a branch, `back` days before today
+function wall(b, h, m, back = 0) {
+  const p = parts(T0, b.tz);
+  return T0 - (Date.UTC(p.y, p.mo - 1, p.d, p.h, p.m, p.s) - Date.UTC(p.y, p.mo - 1, p.d - back, h, m));
+}
+const HB = { fo: storeOf(HERO.failover), cfg: storeOf(HERO.config), chg: storeOf(HERO.changes), bw: storeOf(HERO.bandwidth), ap: storeOf(HERO.autoAP) };
+export const HERO_STORY = {};
+
+// Store 214: a policy change slowed ERP at opening; the change check rolled it back on its own.
+{
+  const b = HB.cfg, c1 = CIR[b.wan[0]], c2 = CIR[b.wan[1]];
+  const back = wall(b, 7, 20) <= T0 ? 0 : 1; // the most recent morning that has happened
+  const at = (h, m) => wall(b, h, m, back);
+  const push = at(5, 40), slow = at(6, 34), call = at(6, 41), open = at(6, 43), diag = at(6, 46), roll = at(6, 51), ok = at(6, 58), done = at(7, 15);
+  const chg = { id: 'CHG0031907', title: 'Business intent policy v41 – ERP class remap (Carolinas wave 1, 38 EdgeConnects)', type: 'Standard', risk: 'Low', state: 'Failed – rolled back', start: push, end: push + 14 * MIN, window: '05:30–06:00 ET', scope: 'Carolinas & Mid-Atlantic', devices: 38, owner: 'Network Eng L3', validation: 'Failed – ERP canary at opening', nac: 'sdwan/bio/v41.yaml', branchIds: [b.id] }; // paused after the first branch
+  CHANGES.push(chg);
+  const inc = {
+    id: nextInc(), kind: 'hero-config', pri: 'P2', title: 'ERP slow at the counter after opening – order entry timing out', cat: 'SD-WAN', branchId: b.id, ci: `${b.code}-ec01`, opened: open,
+    acked: open + 2 * MIN, state: 'Resolved', resolved: done, closeCode: 'Auto-resolved (zero touch)', group: GROUPS.P2, assignee: 'Priya S.',
+    signals: [{ t: slow, src: 'New Relic', msg: 'ERP login synthetic 4.8 s from this branch (baseline 1.2 s)', sev: 'Major' }, { t: call, src: 'ServiceNow', msg: 'Branch call: order entry timing out at the counter', sev: 'Major' }, { t: open - 30e3, src: 'Orchestrator', msg: `${b.code}-ec01 ERP class queue drops 18% (other classes 0%)`, sev: 'Major' }],
+    corr: 14, suppressed: 11,
+    rca: [
+      { cause: `Network: EdgeConnect policy change ${chg.id} put ERP traffic in the bulk class`, conf: 0.91, ev: 'ERP-class queue drops 18% from the first ERP traffic of the day; every other class clean; v41 pushed at 05:40' },
+      { cause: `ISP: ${c1.carrier} ${c1.type} congestion`, conf: 0.05, ev: `wan1 loss ${c1.loss}%, latency ${c1.lat} ms, jitter ${c1.jit} ms – all at baseline; wan2 (${c2.carrier}) clean` },
+      { cause: 'Application: ERP slow at the data centre', conf: 0.03, ev: 'ERP login 1.2 s from 41 other branches at the same minute; ERP servers healthy in New Relic' },
+    ], conf: 0.91,
+    agentSteps: [['correlation', 'Grouped 14 events (synthetic, branch call, queue drops) into one incident'], ['diagnosis', 'Ruled out the ISP and the ERP application; top cause: policy change CHG0031907 (91%)'], ['change', 'CHG0031907 canary breach at the first branch with ERP traffic; rollback plan pre-approved in the change'], ['runbook', 'RB-105 rolled the EdgeConnect back to policy v40; 5-minute stop window, Priya S. notified'], ['verify', 'ERP login 1.3 s, queue drops 0%; wave paused for the other 37 branches'], ['comms', 'Branch manager told: fixed, nothing to do']].map(([agent, text], i) => ({ agent, text, t: [open, diag, diag + 2 * MIN, roll, ok, ok + 2 * MIN][i], st: 'done' })),
+    runbook: 'RB-105', rbState: 'done', auto: true, autoAction: 'Change Validation agent rolled the EdgeConnect back to policy v40 (RB-105) under the change\'s pre-approved rollback plan; ERP back to 1.3 s in 7 minutes', impact: ['ERP order entry slow at the counter'], verify: [{ v: 'ERP login < 1.5 s', st: 'pass' }, { v: 'ERP class queue drops 0%', st: 'pass' }],
+    notes: [{ t: roll, who: 'Change Validation Agent', text: 'Rollback under CHG0031907 plan; wave paused at 1 of 38 branches.' }, { t: done, who: 'Priya S.', text: 'Confirmed with branch manager; closing. Problem PRB0004236 raised for the v41 DSCP mapping.' }],
+    carrierCase: null, workOrder: null, major: false,
+  };
+  RESOLVED.push(inc);
+  PROBLEMS.push({ id: 'PRB0004236', title: 'Policy v41 maps ERP DSCP to the bulk class; pre-open validation has no ERP test', incidents: 1, state: 'Fix in progress', owner: 'Network Eng L3', opened: done });
+  HERO_STORY[HERO.config] = { inc: inc.id, chg: chg.id, push, slow, call, open, roll, ok, done, back };
+}
+
+// Store 73: AT&T fibre cut; the branch trades on its backup ISP while AT&T splices.
+{
+  const b = HB.fo, c1 = CIR[b.wan[0]], c2 = CIR[b.wan[1]];
+  const ago = 192 * MIN, t0 = T0 - ago;
+  const inc = buildIncident('circuit', b, ago, { pri: 'P3' });
+  inc.signals = [{ t: t0, src: 'Orchestrator', msg: `${c1.id} (${c1.carrier} ${c1.type}) loss 100%, tunnel down`, sev: 'Critical' }, { t: t0 + 4e3, src: 'Orchestrator', msg: `POS, ERP and voice moved to ${c2.id} (${c2.carrier} ${c2.type}) in 4 s`, sev: 'Info' }, { t: t0 + 70e3, src: 'Synthetic', msg: 'POS path test 180 ms via wan2', sev: 'Info' }, { t: t0 + 3 * MIN, src: 'Carrier portal', msg: `${c1.carrier}: fibre cut by third-party excavation; splice crew dispatched`, sev: 'Major' }];
+  inc.rca = [{ cause: `${c1.carrier} fibre cut upstream of the demarc`, conf: 0.94, ev: 'Loss 100% both directions; EdgeConnect port up/up; carrier confirms an excavation cut affecting 3 customers' }, { cause: 'NTE fault at the branch', conf: 0.04, ev: 'NTE answers its loopback from the branch side' }];
+  inc.conf = 0.94; inc.state = 'On Hold – Carrier';
+  INCIDENTS.push(inc);
+  c1.status = 'Down'; b.health = 'degraded';
+  const cs = { id: caseNo(c1.carrier), carrier: c1.carrier, circuit: c1.id, inc: inc.id, branchId: b.id, opened: t0 + 3 * MIN, status: 'Dispatched – LEC tech', eta: t0 + 5 * HR, lastUpdate: T0 - 25 * MIN, evidence: ['60-min loss graph', 'MTR from EdgeConnect', 'Interface counters', 'Carrier excavation notice'], escal: 0, closed: false };
+  inc.carrierCase = cs.id; CARRIER_CASES.push(cs);
+  c1.flaps30 = 4; c1.outage30 = Math.round(ago / MIN) + 26;
+  HERO_STORY[HERO.failover] = { inc: inc.id, case: cs.id, t0 };
+}
+
+// Store 118: last night's AP firmware wave and an unrecorded switch change; handhelds lose DHCP this morning.
+{
+  const b = HB.chg, sw = `${b.code}-sw01`, ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP');
+  const fwAt = T0 - 15 * HR - 20 * MIN, rssiAt = T0 - 20 * HR, cliAt = T0 - 9 * HR - 20 * MIN, bkAt = T0 - 9 * HR + 14 * MIN, incAt = T0 - 2 * HR - 10 * MIN;
+  CHANGES.push({ id: 'CHG0031902', title: 'AP firmware 10.7.1.0 – Wave 2 (Georgia, 96 APs)', type: 'Normal', risk: 'Medium', state: 'Implemented', start: fwAt - 40 * MIN, end: fwAt + 80 * MIN, window: `${hhmm(fwAt - 40 * MIN, b.tz)}–${hhmm(fwAt + 80 * MIN, b.tz)} ET`, scope: 'Southeast', devices: 96, owner: 'Network Eng L3', validation: 'Passed', nac: 'aps/firmware/wave2.yaml', states: ['GA'] });
+  CHANGES.push({ id: 'CHG0031898', title: 'SRS-SCAN minimum RSSI -75 → -70 dBm (Central group template)', type: 'Standard', risk: 'Low', state: 'Implemented', start: rssiAt, end: rssiAt + 30 * MIN, window: `${hhmm(rssiAt, b.tz)}–${hhmm(rssiAt + 30 * MIN, b.tz)} ET`, scope: 'Southeast', devices: 214, owner: 'Network Eng L3', validation: 'Passed', nac: 'wireless/templates/srs-scan.yaml' });
+  const fwFrom = ap.fw === AP_FW[0] ? AP_FW[1] : ap.fw; ap.fw = AP_FW[0];
+  DRIFT.push({ device: sw, branchId: b.id, item: 'DHCP relay on VLAN 30 points to 10.20.5.12 (golden 10.20.5.11)', sev: 'High', since: cliAt, source: 'Manual CLI change (no CHG) – local account "branchtech"' });
+  const inc = buildIncident('dhcp', b, T0 - incAt, { pri: 'P3' });
+  Object.assign(inc, {
+    title: 'Handhelds failing to get an IP on warehouse Wi-Fi (VLAN 30)', cat: 'Config management', ci: sw, state: 'In Progress', assignee: 'Dana W.',
+    signals: [{ t: incAt - 6 * MIN, src: 'Aruba Central', msg: 'Clients failing DHCP on SRS-SCAN (17 in 10 min)', sev: 'Major' }, { t: incAt - 2 * MIN, src: 'OpsRamp', msg: `${sw} DHCP relay: no offers from 10.20.5.12`, sev: 'Major' }, { t: incAt, src: 'OpsRamp', msg: 'Readiness probe: DHCP test on VLAN 30 failed', sev: 'Major' }],
+    rca: [{ cause: `Unrecorded DHCP relay change on ${sw} (config drift)`, conf: 0.88, ev: 'Relay target changed overnight by a local account with no CHG; wired scanners on VLAN 30 fail too, so Wi-Fi is not the cause' }, { cause: 'AP firmware 10.7.1.0 upgrade last night', conf: 0.07, ev: 'Same firmware runs clean at 95 other Georgia APs; wired clients also affected' }, { cause: 'DHCP scope exhaustion', conf: 0.03, ev: 'Scope 41% used' }],
+    conf: 0.88, runbook: 'RB-105', rbState: 'proposed', impact: ['Receiving slower; handhelds cannot connect'], verify: [{ v: 'DHCP offers on VLAN 30', st: 'pending' }, { v: 'Handhelds back on SRS-SCAN', st: 'pending' }],
+  });
+  inc.agentSteps = [['correlation', 'Grouped 23 events (Central, OpsRamp, branch call) into one incident'], ['diagnosis', `Top cause: unrecorded DHCP relay change on ${sw} (88%); firmware upgrade ruled out`], ['change', 'No approved change covers the relay edit; drift flagged against golden config'], ['runbook', 'Recommends RB-105 roll back to golden; branch open – waiting for approval'], ['comms', 'StoreOps told: receiving handhelds affected, picking OK']].map(([agent, text], i) => ({ agent, text, t: incAt + (i + 1) * 25e3, st: 'done' }));
+  INCIDENTS.push(inc); b.health = 'degraded';
+  APPROVALS.push({ id: 'APR-2213', type: 'Runbook', title: `RB-105 roll back DHCP relay on ${sw} to golden`, inc: inc.id, branchId: b.id, agent: 'runbook', conf: 0.88, risk: 'Low', created: incAt + 3 * MIN, status: 'Pending', why: ['Branch is open – config change needs a human'], evidence: ['Relay changed at night with no CHG', 'Wired and wireless clients on VLAN 30 both fail', 'Golden config verified on 211 other Southeast switches'], rollback: 'Re-apply the current running config from the 02:00 backup', verify: ['DHCP offers on VLAN 30', 'Handhelds back on SRS-SCAN'] });
+  HERO_STORY[HERO.changes] = { inc: inc.id, sw, ap: ap.id, fwFrom, fwAt, rssiAt, cliAt, bkAt, incAt };
+}
+
+// Store 309: warehouse AP stopped answering yesterday; a port bounce fixed it with no human touch.
+{
+  const b = HB.ap, ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP');
+  const t0 = wall(b, 14, 12, 1);
+  const inc = buildIncident('apdown', b, T0 - t0, { pri: 'P4' });
+  Object.assign(inc, { title: `Warehouse AP offline – ${ap.model}`, ci: ap.id, state: 'Resolved', resolved: t0 + 9 * MIN, acked: t0 + 1 * MIN, assignee: 'Mova iO', closeCode: 'Auto-resolved (zero touch)', rbState: 'done', auto: true, runbook: 'RB-103',
+    autoAction: `RB-103 bounced PoE port 1/1/14 on ${b.code}-sw01; ${ap.id} back in 2 m 41 s, 23 handhelds re-associated`, why: 'The AP was already down, so a port bounce could not make it worse – allowed to run on its own',
+    signals: [{ t: t0, src: 'Aruba Central', msg: `${ap.id} down`, sev: 'Major' }, { t: t0 + 15e3, src: 'Aruba Central', msg: `PoE port ${b.code}-sw01 1/1/14 drawing 0 W`, sev: 'Minor' }] });
+  inc.verify = inc.verify.map(v => ({ ...v, st: 'pass' }));
+  RESOLVED.push(inc);
+  HERO_STORY[HERO.autoAP] = { inc: inc.id, ap: ap.id, t0 };
+}
+
+// Store 45: NetFlow top talkers; cloud camera backup and Windows updates push the line towards its limit.
+HERO_STORY[HERO.bandwidth] = {};
+PREDICTIONS.push({ id: 'PRD-509', kind: 'Capacity forecast', target: HB.bw.wan[0], branchId: HB.bw.id, conf: 0.85, horizon: '5 weeks', signal: 'WAN p95 81% and rising 1.8%/week as cloud camera backup grows; hits 90% in ~5 weeks', series: [66, 68, 70, 71, 73, 75, 76, 78, 79, 81], status: 'New', suggest: 'Move camera backup after close; then request 500 Mb/s upgrade (approval)' });
+PREDICTIONS.push({ id: 'PRD-510', kind: 'Capacity forecast', target: `${HB.chg.code}-ap01`, branchId: HB.chg.id, conf: 0.8, horizon: '7 weeks', signal: 'Warehouse AP airtime 74% at peak after 24 new handhelds; one AP for the whole warehouse; hits 85% in ~7 weeks', series: [48, 51, 53, 55, 58, 61, 64, 68, 71, 74], status: 'New', suggest: 'Add an AP-635 near receiving (approval)' });
+
+// Degraded branches with no open incident still say why (watch level, below the incident threshold).
+const WATCH_WHY = ['Wi-Fi retry rate 18% on the warehouse AP', 'EdgeConnect CPU 82% at peak', 'Uplink errors on sw01 below the incident threshold', 'Backup line failed its weekly test; retest booked', 'Payment path 380 ms, close to the 400 ms limit', 'Primary line jitter 22 ms in the evening peak'];
+BRANCHES.forEach(b => { if (b.health !== 'up' && !INCIDENTS.some(i => i.branchId === b.id && i.state !== 'Resolved')) b.why = WATCH_WHY[b.num % WATCH_WHY.length]; });
+
+// ---------- circuit flaps and monthly availability ----------
+{
+  const R2 = rng(7707);
+  CIRCUITS.forEach(c => { if (c.flaps30 == null) c.flaps30 = c.tickets90 >= 6 ? 3 + (c.tickets90 % 3) : c.tickets90 >= 4 ? 2 : R2() < 0.004 ? R2.int(3, 5) : R2() < 0.06 ? 1 : 0; if (c.outage30 == null) c.outage30 = c.flaps30 * R2.int(2, 9); });
+  INCIDENTS.filter(i => i.kind === 'circuit' && i.state !== 'Resolved').forEach(i => { const c = CIR[i.ci]; if (!c) return; c.flaps30 = Math.max(1, c.flaps30); if (c.outage30 < (T0 - i.opened) / MIN) c.outage30 += Math.round((T0 - i.opened) / MIN); });
+}
+// carrier availability commitment by line type (monthly), and an illustrative monthly charge used for credit estimates
+export const LINE_SLA = { MPLS: 0.9995, DIA: 0.9995, Broadband: 0.999, 'LTE/5G': 0.99 };
+export const lineMRC = c => ({ MPLS: 9, DIA: 4.2, Broadband: 0.55, 'LTE/5G': 0.6 }[c.type] || 1) * c.bw + 120;
+export const availOf = c => 1 - c.outage30 / (30 * 24 * 60);
+
+// ---------- NetFlow top talkers (yesterday) ----------
+const NF_APPS = [['Microsoft 365 / OneDrive', 'Business'], ['ERP (order, inventory, invoicing)', 'Business'], ['Windows Update', 'IT'], ['Cloud camera backup', 'Security'], ['Teams video', 'Business'], ['Pricing & quoting API', 'Business'], ['Guest Wi-Fi web and video', 'Guest'], ['Aruba Central / OpsRamp telemetry', 'IT'], ['POS & card payments', 'Business']];
+export function netflowOf(b) {
+  const R3 = rng(b.num * 131 + 9);
+  const c = CIR[b.wan[0]];
+  const scale = { S: 0.55, M: 1, L: 1.7 }[b.size];
+  let apps = NF_APPS.map(([name, cls], i) => ({ name, cls, gb: +((([14, 9, 6, 7, 5, 3, 6, 1.5, 0.6][i]) * scale) * (0.6 + R3() * 0.8)).toFixed(1) }));
+  let clients = [[`${b.code}-nvr01`, 'Camera recorder'], [`bo-pc0${1 + R3.int(0, 8)}`, 'Back-office PC'], [`ctr-pc0${1 + R3.int(0, 5)}`, 'Counter PC'], [`mgr-lt0${1 + R3.int(0, 3)}`, 'Manager laptop'], [`hh-${R3.int(10, 60)}`, 'Handheld scanner'], ['guest-pool', 'Guest Wi-Fi (all)']].map(([name, kind], i) => ({ name, kind, gb: +(([7, 5, 3.5, 3, 0.8, 4][i] * scale * (0.6 + R3() * 0.8))).toFixed(1) }));
+  let peak = Math.min(88, Math.round(c.util * 1.25 + R3.int(4, 14))), peakAt = `${9 + R3.int(0, 5)}:00`;
+  let note = null;
+  if (b.num === HERO.bandwidth) {
+    apps = [['Cloud camera backup', 'Security', 41.2], ['Windows Update', 'IT', 22.6], ['Microsoft 365 / OneDrive', 'Business', 14.9], ['ERP (order, inventory, invoicing)', 'Business', 9.8], ['Teams video', 'Business', 6.1], ['Guest Wi-Fi web and video', 'Guest', 5.4], ['Pricing & quoting API', 'Business', 3.2], ['Aruba Central / OpsRamp telemetry', 'IT', 1.4], ['POS & card payments', 'Business', 0.7]].map(([name, cls, gb]) => ({ name, cls, gb }));
+    clients = [[`${b.code}-nvr01`, 'Camera recorder', 41.2], ['bo-pc07', 'Back-office PC (Windows Update + OneDrive)', 6.8], ['bo-pc03', 'Back-office PC (Windows Update)', 5.9], ['ctr-pc02', 'Counter PC', 3.4], ['mgr-lt01', 'Manager laptop (Teams)', 2.9], ['guest-pool', 'Guest Wi-Fi (all)', 5.4]].map(([name, kind, gb]) => ({ name, kind, gb }));
+    peak = 94; peakAt = '10:00';
+    note = 'Camera backup and Windows Update ran during trading hours and took 64% of the line; moving both after 17:00 frees about 60 Mb/s at peak.';
+  }
+  apps.sort((x, y) => y.gb - x.gb); clients.sort((x, y) => y.gb - x.gb);
+  const hours = Array.from({ length: 24 }, (_, h) => { const open = h >= 6 && h < 17; const base = open ? 0.35 + 0.4 * Math.sin((h - 6) / 11 * Math.PI) : 0.06; return Math.min(100, Math.round(base * peak / 0.75 + R3() * 6)); });
+  hours[+peakAt.split(':')[0]] = peak;
+  return { b, line: c, apps, clients, total: +sum(apps, a => a.gb).toFixed(1), peak, peakAt, hours, note };
+}
+
+// ---------- capacity outlook (WAN and Wi-Fi), next 90 days ----------
+export function capacityOf(b) {
+  const R4 = rng(b.num * 17 + 5);
+  const c = CIR[b.wan[0]];
+  let wanP95 = Math.min(86, Math.round(c.util * 1.05 + R4.int(4, 16))), wanGrowth = +(0.2 + R4() * 1.0).toFixed(1);
+  let wifiPeak = Math.round(34 + R4() * 40 + (b.size === 'L' ? 6 : 0)), wifiGrowth = +(0.1 + R4() * 0.9).toFixed(1);
+  const pr = PREDICTIONS.filter(p => p.branchId === b.id && p.kind === 'Capacity forecast');
+  const days = (now, g, lim) => now >= lim ? 0 : Math.round((lim - now) / g * 7);
+  let wanDays = null, wifiDays = null;
+  // a capacity prediction on the Predictive Watchlist sets the numbers, so both screens agree
+  pr.forEach(p => {
+    const last = p.series[p.series.length - 1], g = +((last - p.series[0]) / (p.series.length - 1)).toFixed(1);
+    const h = p.horizon.match(/(\d+)\s*(day|week)/); const hd = h ? +h[1] * (h[2] === 'week' ? 7 : 1) : null;
+    if (/-ap\d/.test(p.target)) { wifiPeak = last; wifiGrowth = g; wifiDays = hd; } else { wanP95 = last; wanGrowth = g; wanDays = hd; }
+  });
+  return { b, line: c, wanP95, wanGrowth, wanDays: wanDays ?? days(wanP95, wanGrowth, 90), wifiPeak, wifiGrowth, wifiDays: wifiDays ?? days(wifiPeak, wifiGrowth, 85), pred: pr.map(p => p.id) };
+}
+
+// ---------- mean time to restore by month (hours) ----------
+export const MTTR_MONTHS = { months: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'], P1: [2.6, 2.4, 2.3, 2.1, 1.9, 1.7], P2: [5.2, 5.0, 4.7, 4.4, 4.1, 3.9], P3: [15.8, 15.1, 14.2, 13.4, 12.3, 11.6], target: { P1: 4, P2: 8, P3: 24 } };

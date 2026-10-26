@@ -31,7 +31,7 @@ function init() {
       { t: Date.now() - 52 * MIN, who: 'Marcus L. (Network Engineer L3)', what: 'Approved CHG0031869 ECOS 9.4.2.6 – Texas wave 2 (CAB)', ref: 'CHG0031869' },
       { t: Date.now() - 95 * MIN, who: 'Omar N. (Security Lead)', what: 'Approved CHG0031895 LS Building Products cutover – PCI plan reviewed', ref: 'CHG0031895' },
       { t: Date.now() - 140 * MIN, who: 'Runbook Agent', what: 'RB-109 re-ran 6 failed config backups after TACACS+ timeout – all OK', ref: 'RB-109' },
-      { t: Date.now() - 200 * MIN, who: 'Kevin T. (NOC Engineer)', what: 'Approved RB-102 return to primary at Mobile #2 (after 30 clean minutes)', ref: '' },
+      { t: Date.now() - 200 * MIN, who: 'Kevin T. (NOC Engineer)', what: `Approved RB-102 return to primary at ${(D.findBranch('Mobile') || D.BRANCHES[0]).name} (after 30 clean minutes)`, ref: '' },
     ],
     toasts: [], selInc: null, selBranch: null, askOpen: false, askLog: [], scenario: null, scenarioLog: [], notif: 3, wizard: false, guide: false,
   };
