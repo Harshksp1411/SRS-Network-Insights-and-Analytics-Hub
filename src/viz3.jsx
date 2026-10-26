@@ -101,7 +101,7 @@ export function CreditHeadroomCard() {
 
 // ── Mean time to restore and tickets per month ──────────────────────
 export function MTTRTrendCard() {
-  const series = [['P1', [2.6, 2.4, 2.3, 2.1, 1.9, 1.7], COL.red], ['P2', [5.2, 5.0, 4.7, 4.4, 4.1, 3.9], COL.amber], ['P3', [15.8, 15.1, 14.2, 13.4, 12.3, 11.6], COL.blue]];
+  const series = [['P1', D.MTTR_MONTHS.P1, COL.red], ['P2', D.MTTR_MONTHS.P2, COL.amber], ['P3', D.MTTR_MONTHS.P3, COL.blue]];
   return (
     <Card title="Mean time to restore, hours" sub="Monthly average by priority; falling as automation and carrier evidence packs take hold" right={<Legend items={series.map(([n, , c]) => [n, c])} />}>
       <LineChart labels={MONTHS6} series={series.map(([n, d, c]) => ({ name: n, data: d, color: c }))} h={170} yFmt={v => `${Math.round(v)}h`} yMin={0} />

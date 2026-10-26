@@ -42,8 +42,10 @@ export function branchChecks(s, b) {
   set('tun', down ? 'fail' : p.status !== 'Up' && sc.status !== 'Up' ? 'fail' : p.status !== 'Up' ? 'warn' : 'pass', down ? 'No tunnels' : p.status !== 'Up' ? 'Tunnels up on the backup path only' : 'DC and Azure tunnels up on both paths');
   set('sw', down ? 'fail' : has('crc') || has('cpu') ? 'warn' : 'pass', has('cpu') ? 'Core switch CPU high (broadcast)' : has('crc') ? 'CRC errors on an uplink' : `${b.dev.sw}/${b.dev.sw} switches up, uplinks clean`);
   set('wifi', down ? 'fail' : has('apdown') ? (b.dev.ap <= 1 ? 'fail' : 'warn') : has('scanner') ? 'warn' : 'pass', has('apdown') ? (b.dev.ap <= 1 ? 'The only access point is down' : `${b.dev.ap - 1}/${b.dev.ap} APs up (one yard or warehouse AP down)`) : has('scanner') ? 'Roaming failures in the warehouse aisles' : `${b.dev.ap}/${b.dev.ap} APs up`);
-  set('dhcp', down ? 'fail' : has('dhcp') ? 'fail' : 'pass', has('dhcp') ? 'VLAN 30 address pool 100% used' : `Largest pool ${38 + Math.floor(R() * 40)}% used`);
-  const drift = R() < 0.01; set('cfg', has('backup') ? 'warn' : drift ? 'warn' : 'pass', has('backup') ? 'Nightly config backup failed' : drift ? 'Drift from golden config (2 lines)' : 'Backup taken 02:00, matches golden config');
+  const dInc = incs.find(i => i.kind === 'dhcp');
+  set('dhcp', down ? 'fail' : dInc ? 'fail' : 'pass', dInc ? (/relay|get an IP/.test(dInc.title) ? 'VLAN 30 clients get no DHCP offer (relay changed)' : 'VLAN 30 address pool 100% used') : `Largest pool ${38 + Math.floor(R() * 40)}% used`);
+  R(); // keeps the per-branch random sequence where it was before drift came from the drift list
+  const drift = (s.drift || []).find(x => x.branchId === b.id); set('cfg', has('backup') ? 'warn' : drift ? 'warn' : 'pass', has('backup') ? 'Nightly config backup failed' : drift ? `Drift from golden config: ${drift.item}` : 'Backup taken 02:00, matches golden config');
   const lineIn = p.status === 'Down' ? D.CIR[b.wan[1]] : p; const posMs = Math.round(2 * (lineIn.lat || 30) + 70 + (lineIn.loss || 0.05) * 140 + R() * 20);
   set('pos', down ? 'fail' : has('pos') ? 'fail' : has('jitter') ? 'warn' : 'pass', has('pos') ? 'Payment path 1.9 s (limit 400 ms)' : `Payment path ${posMs} ms`);
   set('erp', down ? 'fail' : has('jitter') ? 'warn' : 'pass', has('jitter') ? `Jitter ${p.jit} ms on the active path` : `${p.lat + 6} ms to DC, loss ${p.loss}%`);

@@ -28,6 +28,22 @@ The **live demos** are a separate page (`demos/`) with its own link; the two pag
 
 Filter everything by Region › City › Branch › Brand. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".
 
+Branches are numbered 1 to 900 across the estate ("Branch 214" is BR-0214); city, state and region show alongside.
+
+## Ask Mova iO
+
+The assistant in the console header answers from the same live data as every screen: stores down or degraded, backup ISP, root cause by layer (network, ISP or application), changes and drift, NetFlow top talkers, flapping circuits and carrier SLA credits, auto-remediation, uptime and MTTR against target, capacity in the next 90 days, a copyable leadership summary, and any branch, incident, change, approval, work order, runbook, article, prediction, project, device, circuit, advisory or SLA metric by number. "Start here" lists the questions in walkthrough order.
+
+Five branches carry scripted, connected stories so these answers are never empty (all illustrative):
+
+| Branch | Story |
+|---|---|
+| 214 | Policy change CHG0031907 slowed ERP at opening; the change check rolled it back on its own and paused the wave |
+| 73 | AT&T fibre cut; trading on the backup ISP with a carrier case open; the line flapped earlier in the month |
+| 118 | AP firmware wave last night plus an unrecorded DHCP relay change (drift); handhelds lose addresses; rollback waits for approval |
+| 45 | NetFlow top talkers: cloud camera backup and Windows Update during trading hours; WAN capacity forecast |
+| 309 | Warehouse AP stopped answering; a port bounce fixed it with no human touch |
+
 Vulnerability data is matched against public HPE Aruba Networking bulletins HPESBNW04712, HPESBNW05027 and HPESBNW04943, plus the Aruba 2530 end-of-sale notice. The 2530 end-of-support date and the CX fixed build are estimates; confirm with HPE.
 
 ## Build
