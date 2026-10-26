@@ -225,3 +225,16 @@ export function Section({ title, right, children, className }) {
 export function KV({ k, v, className }) { return <div className={cx('flex justify-between gap-3 py-1 text-[12.5px] border-b border-line/60 last:border-0', className)}><span className="text-ink3">{k}</span><span className="text-ink font-semibold text-right">{v}</span></div>; }
 export function ExportBtn({ onClick, label = 'Export CSV' }) { return <Btn size="sm" icon={Download} onClick={onClick}>{label}</Btn>; }
 export function Illus({ children = 'Illustrative' }) { return <span className="text-[10.5px] font-bold text-ink3 border border-dashed border-line rounded px-1 py-[1px]">{children}</span>; }
+
+// SRS roof mark, used in the console header and the briefs masthead
+export function RoofMark({ size = 40, dark = false }) {
+  const ink = dark ? '#ffffff' : 'rgb(var(--ink))';
+  return (
+    <svg width={size} height={size * 0.8} viewBox="0 0 45 36" aria-label="SRS roof mark">
+      <path d="M2.5 19 L22.5 4.5 L42.5 19" fill="none" stroke="#762123" strokeWidth="4.6" strokeLinejoin="miter" strokeMiterlimit="10" />
+      <path d="M22.5 4.5 L42.5 19" fill="none" stroke={ink} strokeWidth="4.6" />
+      <path d="M9.5 21 V33.5 H35.5 V21" fill="none" stroke={ink} strokeWidth="2.4" />
+      <path d="M18.5 33.5 V26 H26.5 V33.5" fill="none" stroke="#762123" strokeWidth="2.4" />
+    </svg>
+  );
+}

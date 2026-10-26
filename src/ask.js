@@ -53,10 +53,12 @@ const bars = (items, opts = {}) => ({ type: 'bars', items, ...opts });
 // ── reading a typed question ─────────────────────────────────────────
 // People type fast: a word one or two letters off a known term is read as that term ("brach" → "branch").
 const VOCAB = 'branch branches store stores site sites location down degraded offline outage outages unhealthy impacted affected problems issues broken backup primary secondary failover failed lte isp circuit circuits line lines carrier carriers slow slowness why root cause network application changed change changes configuration bandwidth traffic talkers users netflow flapping flaps breaching breach breached credits remediated remediation automatically fixed healed resolved uptime availability mttr restore capacity limits forecast summarize summary summarise leadership report incidents incident yesterday morning week weekly month monthly target targets approvals approval drift firmware technician technicians spares depot predictions runbook runbooks knowledge devices device switches access points readiness ready open closed opened scheduled overnight acknowledged breaching vulnerabilities vulnerability lifecycle support warranty region regions brand performance happening happened problem record records caused case cases'.split(' ');
+// real words that sit one or two letters from a term above; they are never "corrected"
+const KEEP = new Set('close closes reach reached approve approved approver backups credit breaches stored sited lined chance charge range stage state sides slows'.split(' '));
 function lev(a, b) { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1), i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1] ? d[i - 2][j - 2] + 1 : 99); return d[a.length][b.length]; }
 export function normalize(q) {
   return q.toLowerCase().replace(/[’']/g, "'").replace(/[a-z][a-z-]{4,}/g, w => {
-    if (VOCAB.includes(w) || /^(?:what|which|where|when|with|this|that|them|they|have|from|were|will|right|there|last|next|show|tell|give|list|many|much|most|about|after|before|today|hours|days)$/.test(w)) return w;
+    if (VOCAB.includes(w) || KEEP.has(w) || /^(?:what|which|where|when|with|this|that|them|they|have|from|were|will|right|there|last|next|show|tell|give|list|many|much|most|about|after|before|today|hours|days)$/.test(w)) return w;
     const max = w.length >= 8 ? 2 : 1; let best = null, bd = 9;
     for (const v of VOCAB) { if (Math.abs(v.length - w.length) > max) continue; const x = lev(w, v); if (x < bd) { bd = x; best = v; } }
     return best && bd <= max ? best : w;
@@ -505,7 +507,7 @@ export function answer(s, q, now, live) {
     const top = D.BRANCHES.map(x => ({ b: x, nf: D.netflowOf(x) })).sort((x, y) => y.nf.peak - x.nf.peak).slice(0, 8);
     return { title: 'Busiest branches yesterday (peak line use)', lead: 'Name a branch for its top applications and devices, e.g. "Show top bandwidth users at Branch 45 yesterday."', blocks: [bars(top.map(x => ({ label: sn(x.b), sub: `${x.nf.line.carrier} ${x.nf.line.bw} Mb/s`, value: x.nf.peak, display: `${x.nf.peak}%`, tone: x.nf.peak >= 90 ? 'bad' : 'warn' })))], src: 'NetFlow, Orchestrator', links: [] };
   }
-  const changeQ = has(/what (?:has |was |got )?change|changes? (?:at|to|on|in|for|made)|recent(?:ly)? change|anything (?:been )?change|config(?:uration)? change|who changed|modified|modifications?|what was done (?:at|to)/) && !has(/scheduled|planned|upcoming|next|coming/);
+  const changeQ = has(/what (?:has |was |got )?change|changes? (?:at|to|on|in|for|made)\b|recent(?:ly)? change|anything (?:been )?change|config(?:uration)? change|who changed|modified|modifications?|what was done (?:at|to)/) && !has(/scheduled|planned|upcoming|next|coming|approv/);
   if (changeQ) return b ? whatChanged(s, b, q, now) : changesEstate(s, now);
   const slowQ = has(/\bslow|slowness|sluggish|lag(?:gy|ging)?|latency issue|performance (?:issue|problem)|root cause|\brca\b|what caused|why (?:was|is|did)|what happened (?:at|to|with)|network,? (?:or )?isp|isp,? or|isp or application/);
   if (b && slowQ) return rootCause(s, b, q, now);

@@ -1,5 +1,6 @@
-// Which page this build is. build.mjs builds the source twice: the console (index.html) and the
-// demos page (demos/index.html). The two pages do not link to each other.
-/* global __DEMOS_ONLY__ */
-export const DEMOS_ONLY = typeof __DEMOS_ONLY__ !== 'undefined' && __DEMOS_ONLY__;
+// Which page this build is. build.mjs builds three pages: the console (index.html), the demos (demos/index.html)
+// and the role-based morning briefs (briefs/index.html). The pages do not link to each other.
+/* global __EDITION__ */
+export const EDITION = typeof __EDITION__ !== 'undefined' ? __EDITION__ : 'console';
+export const DEMOS_ONLY = EDITION === 'demos';
 export const APP_NAME = 'Network Insights and Analytics Hub';
