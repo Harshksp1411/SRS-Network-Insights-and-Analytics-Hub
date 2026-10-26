@@ -47,7 +47,7 @@ function SignIn({ onIn }) {
           <div className="text-[13px] font-bold text-ink mb-2">Demo accounts <span className="font-normal text-ink3">– click one to fill the form</span></div>
           <div className="border border-line rounded-md overflow-hidden bg-panel">
             <table className="w-full text-[12.5px]"><thead><tr className="text-left text-ink3 border-b border-line"><th className="px-3 py-2 font-semibold">Role</th><th className="px-3 py-2 font-semibold">Username</th><th className="px-3 py-2 font-semibold">Password</th></tr></thead>
-              <tbody>{PERSONAS.map(p => <tr key={p.id} onClick={() => { setU(p.user); setPw(p.password); setErr(''); }} className="border-b border-line/60 last:border-0 cursor-pointer hover:bg-chip/60"><td className="px-3 py-2"><div className="font-semibold text-ink">{p.title}</div><div className="text-[11.5px] text-ink3">{p.name}</div></td><td className="px-3 py-2 font-mono text-ink">{p.user}</td><td className="px-3 py-2 font-mono text-ink">{p.password}</td></tr>)}</tbody></table>
+              <tbody>{PERSONAS.map(p => <tr key={p.id} onClick={() => { setU(p.user); setPw(p.password); setErr(''); }} className="border-b border-line/60 last:border-0 cursor-pointer hover:bg-chip/60"><td className="px-3 py-2 font-semibold text-ink">{p.title}</td><td className="px-3 py-2 font-mono text-ink">{p.user}</td><td className="px-3 py-2 font-mono text-ink">{p.password}</td></tr>)}</tbody></table>
           </div>
         </div>
       </div>
@@ -102,7 +102,7 @@ function Edition({ p, onOut }) {
       <div className="flex items-center gap-3 py-2 border-b border-line text-[12px] text-ink2">
         <RoofMark size={26} /><span className="font-bold tracking-[0.12em] uppercase text-ink3 text-[10.5px] hidden sm:inline">SRS {APP_NAME}</span>
         <span className="flex-1" />
-        <span className="hidden md:inline">Signed in as <b className="text-ink">{p.name}</b>, {p.title}</span>
+        <span className="hidden md:inline">Signed in as <b className="text-ink">{p.title}</b></span>
         <button onClick={onOut} className="h-8 px-3 rounded-md border border-line hover:bg-chip font-semibold text-ink inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"><I.LogOut size={14} />Sign out</button>
       </div>
       <header className="text-center pt-5 pb-3 border-b-[3px] border-double border-ink">
