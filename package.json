@@ -1,7 +1,7 @@
 {
   "name": "srs-network-intelligence-hub",
   "version": "1.0.0",
-  "description": "SRS Network Insights and Analytics Hub \u2013 managed network operations console and live demos (demo build, sample data). Operated by Movate.",
+  "description": "SRS Network Insights and Analytics Hub – managed network operations console and live demos (demo build, sample data). Operated by Movate.",
   "scripts": {
     "build": "node build.mjs",
     "map": "node genmap.mjs"
@@ -10,6 +10,8 @@
   "dependencies": {
     "d3-geo": "^3.1.1",
     "esbuild": "^0.28.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.59.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

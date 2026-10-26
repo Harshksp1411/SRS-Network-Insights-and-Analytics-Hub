@@ -1,6 +1,6 @@
 # SRS Network Insights and Analytics Hub
 
-Two self-contained, offline web pages: the operations console and the live demos. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
+Three self-contained, offline web pages: the operations console, the live demos and the role-based morning briefs. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
 
 **Everything runs in the browser with sample data.** Fleet totals match the SRS RFP inventory (900 branches, 933 EdgeConnect EC-XS, 4,075 devices, 1,800 circuits) and the 6-month ticket history. Per-branch placement, firmware, serials, schedules and trend histories are illustrative and are labelled as such on screen.
 
@@ -30,6 +30,21 @@ Filter everything by Region › City › Branch › Brand. Switch role (NOC Engi
 
 Branches are numbered 1 to 900 across the estate, with their location in the name: "Branch 214 – Virginia Beach, VA" is BR-0214.
 
+## Morning briefs (`briefs/`)
+
+A third page, separate from the console and the demos: a newspaper-style morning brief for six roles, written from the same live data. Each role signs in and sees only its own edition (role-based access): a lead story, "By the numbers", "Your day" (changes, decisions, visits, carrier restore times, go-lives and freezes that need them) and the stories that matter to that role. "This week" and "This month" switch the edition, and the Daily, Weekly and Monthly buttons download it as a PDF, generated in the browser.
+
+| Role | Username | Password |
+|---|---|---|
+| Chief Information Officer | `cio` | `Brief@CIO1` |
+| Head of Networks | `head.networks` | `Brief@NET1` |
+| Head of Stores & Branches | `head.stores` | `Brief@STR1` |
+| Head of IT Service & NOC | `head.itservice` | `Brief@ITS1` |
+| Head of Security | `head.security` | `Brief@SEC1` |
+| Regional Manager, Southeast | `regional.se` | `Brief@REG1` |
+
+The accounts are demo accounts shown on the sign-in screen: the page is static with sample data, so the sign-in shows how access is split by role; it is not a security control. Personas and their stories are in `src/briefs/personas.js`; each story is an Ask Mova iO question, so the brief, the PDFs and the console agree.
+
 ## Ask Mova iO
 
 The assistant in the console header answers from the same live data as every screen: stores down or degraded, backup ISP, root cause by layer (network, ISP or application), changes and drift, NetFlow top talkers, flapping circuits and carrier SLA credits, auto-remediation, uptime and MTTR against target, capacity in the next 90 days, a copyable leadership summary, and any branch, incident, change, approval, work order, runbook, article, prediction, project, device, circuit, advisory or SLA metric by number. "Start here" lists the questions in walkthrough order. Questions can be typed in your own words and with typos ("why was 214 slow", "what got fixed automatically this week", "brach degarded"); a bare number names a branch.
@@ -52,7 +67,7 @@ Requires Node 18 or newer.
 
 ```bash
 npm ci
-npm run build        # writes dist/site/index.html (console) and dist/site/demos/index.html (demos)
+npm run build        # writes dist/site/index.html (console), dist/site/demos/index.html (demos) and dist/site/briefs/index.html (briefs)
 ```
 
 Open either file directly in a browser. No server and no network calls are needed. Both pages come from the same source: `src/edition.js` holds the name and the flag the build sets for the demos page.
@@ -61,7 +76,7 @@ Open either file directly in a browser. No server and no network calls are neede
 
 ## Publishing
 
-`.github/workflows/pages.yml` builds on every push to `main` and publishes both pages to GitHub Pages: the console at the site root and the demos at `demos/`. Turn it on once in **Settings → Pages → Build and deployment → Source: GitHub Actions**. Note: a Pages site is reachable by anyone with the link, even from a private repository (except on GitHub Enterprise with private Pages).
+`.github/workflows/pages.yml` builds on every push to `main` and publishes all three pages to GitHub Pages: the console at the site root, the demos at `demos/` and the briefs at `briefs/`. Turn it on once in **Settings → Pages → Build and deployment → Source: GitHub Actions**. Note: a Pages site is reachable by anyone with the link, even from a private repository (except on GitHub Enterprise with private Pages).
 
 ## Source layout
 
