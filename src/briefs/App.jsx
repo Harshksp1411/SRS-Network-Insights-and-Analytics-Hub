@@ -108,7 +108,7 @@ function Edition({ p, onOut }) {
       <header className="text-center pt-5 pb-3 border-b-[3px] border-double border-ink">
         <h1 className="text-[42px] sm:text-[56px] font-bold text-ink leading-none tracking-tight" style={DISPLAY}>The {ed.label}</h1>
         <div className="mt-2 text-[12.5px] text-ink2 flex flex-wrap justify-center gap-x-4 gap-y-1">
-          <span className="font-semibold text-ink">{period === 'daily' ? longDate(ed.at) : ed.range}</span><span>Edition for {p.title}</span><span>Network weather: <b className="text-ink">{ed.weather.word}</b></span><span>Printed {hhmm(ed.at)} CT</span>
+          <span className="font-semibold text-ink">{period === 'daily' ? longDate(ed.at) : ed.range}</span><span>Edition for {p.title}</span>{ed.weather && <span>Network weather: <b className="text-ink">{ed.weather.word}</b></span>}<span>Printed {hhmm(ed.at)} CT</span>
           <button onClick={() => setVer(v => v + 1)} className="text-info hover:underline inline-flex items-center gap-1"><I.RefreshCw size={12} />Refresh</button>
         </div>
       </header>
@@ -139,7 +139,7 @@ function Edition({ p, onOut }) {
             <div className="grid grid-cols-2 gap-x-4 gap-y-4">{ed.numbers.map(x => <div key={x.label}><div className={cx('text-[30px] font-bold leading-none tabular-nums', TONE[x.tone] || 'text-ink')} style={DISPLAY}>{x.value}</div><div className="text-[12px] text-ink2 mt-1 leading-tight">{x.label}</div></div>)}</div>
           </div>
           <div>
-            <Section className="mb-1">{period === 'daily' ? 'Your day' : 'Coming up'}</Section>
+            <Section className="mb-1">{{ daily: 'Your day', weekly: 'Next week', monthly: 'The month ahead' }[period]}</Section>
             {ed.agenda.length ? <ol className="divide-y divide-line">{ed.agenda.map((x, i) => <li key={i} className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 py-2 text-[13px]"><span className={cx('font-semibold tabular-nums', x.late ? 'text-bad' : 'text-ink')}>{x.when}<span className="block text-[11px] font-normal text-ink3">{x.kind}</span></span><span className="text-ink leading-snug">{x.what}</span></li>)}</ol> : <p className="text-[13px] text-ink3 pt-2">Nothing on your calendar that needs you today.</p>}
           </div>
         </aside>

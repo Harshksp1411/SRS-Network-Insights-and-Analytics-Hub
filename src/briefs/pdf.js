@@ -28,7 +28,7 @@ export function editionPdf(ed) {
   rule(y, 1.2); rule(y + 3, 0.5); y += 6;
   font('normal', 8, INK2);
   doc.text(clean(ed.period === 'daily' ? longDate(ed.at) : ed.range), M, y + 9);
-  doc.text(clean(`Network weather: ${ed.weather.word}`), W / 2, y + 9, { align: 'center' });
+  if (ed.weather) doc.text(clean(`Network weather: ${ed.weather.word}`), W / 2, y + 9, { align: 'center' });
   doc.text(`Printed ${hhmm(ed.at)} CT`, W - M, y + 9, { align: 'right' }); y += 14;
   rule(y, 0.5); rule(y + 3, 1.2); y += 18;
 
@@ -50,7 +50,7 @@ export function editionPdf(ed) {
 
   // your day
   if (ed.agenda.length) {
-    section(ed.period === 'daily' ? 'Your day' : 'Coming up');
+    section({ daily: 'Your day', weekly: 'Next week', monthly: 'The month ahead' }[ed.period]);
     ed.agenda.forEach(a => { need(18); font('bold', 8.5, a.late ? TONE.bad : INK); doc.text(clean(a.when), M, y + 9); font('normal', 7.5, INK3); doc.text(clean(a.kind), M, y + 19); const y0 = y; col(a.what, M + 110, CW - 110, 9.5, 'normal', INK); y = Math.max(y0 + 22, y) + 3; rule(y, 0.3, LINE); y += 5; });
     y += 6;
   }
