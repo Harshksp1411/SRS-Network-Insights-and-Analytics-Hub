@@ -24,7 +24,7 @@ Every demo and runbook runs in one of three modes:
 | Improve | Predictive Watchlist, Knowledge, Mova iO Agents, Automation Library |
 | Govern | SLA & KPI Tracker (Annexure B), Reports |
 
-The **live demos** are a separate page (`demos/`), linked from the console header. Each scripted SRS branch situation plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation. A demo links to the matching console screen, which opens in a new tab.
+The **live demos** are a separate page (`demos/`) with its own link; the console does not show or link to them. Each scripted SRS branch situation plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation. A demo links to the matching console screen, which opens in a new tab.
 
 Filter everything by Region › City › Branch › Brand. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".
 
@@ -39,7 +39,7 @@ npm ci
 npm run build        # writes dist/site/index.html (console) and dist/site/demos/index.html (demos)
 ```
 
-Open either file directly in a browser; the links between them work from disk too. No server and no network calls are needed. Both pages come from the same source: `src/edition.js` holds the name and the flag the build sets for the demos page.
+Open either file directly in a browser; the demos page's links to the console work from disk too. No server and no network calls are needed. Both pages come from the same source: `src/edition.js` holds the name and the flag the build sets for the demos page.
 
 `npm run map` regenerates `src/mapdata.json` (projected US and Canada outlines and branch city points) from `src/cities.mjs`.
 

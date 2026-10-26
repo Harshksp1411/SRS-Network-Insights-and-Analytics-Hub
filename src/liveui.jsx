@@ -21,7 +21,7 @@ export function LiveTicker() {
   const perMin = Math.round(L.series.raw.at(-1));
   return (
     <div className="bg-black text-white px-5 h-8 flex items-center gap-4 text-[12px] overflow-hidden border-b border-white/10">
-      <button onClick={() => setPaused(p => !p)} title={paused ? 'Resume live stream' : 'Pause live stream (for demos)'} className={cx('flex items-center gap-1.5 font-black text-[11px] rounded px-1.5 py-0.5 shrink-0', paused ? 'bg-white/20' : 'bg-[#c8343a]')}>{paused ? <I.Play size={11} /> : <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}{paused ? 'PAUSED' : 'LIVE'}</button>
+      <button onClick={() => setPaused(p => !p)} title={paused ? 'Resume live stream' : 'Pause live stream'} className={cx('flex items-center gap-1.5 font-black text-[11px] rounded px-1.5 py-0.5 shrink-0', paused ? 'bg-white/20' : 'bg-[#c8343a]')}>{paused ? <I.Play size={11} /> : <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}{paused ? 'PAUSED' : 'LIVE'}</button>
       <span className="shrink-0 opacity-80"><b className="opacity-100">{perMin}</b> events/min</span>
       <span className="shrink-0 opacity-80"><b className="opacity-100">{num(L.counters.events)}</b> events today</span>
       <span className="shrink-0 opacity-80"><b className="opacity-100">{num(L.counters.suppressed)}</b> suppressed</span>
