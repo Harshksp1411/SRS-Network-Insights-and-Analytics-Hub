@@ -104,7 +104,7 @@ export function HeartbeatGrid() {
               {p && sc && <Beat key={p} at={p} color={HEALTH_C[h]} />}
             </button>); })}</div>
         </div>))}</div>
-      <div className="text-[11.5px] text-ink3 mt-2 h-4">{hv ? <span><b className="text-ink">{hv.name}</b>, {hv.brand}, {hv.city} {hv.state}. {healthOf(s, hv) === 'up' ? 'Healthy' : healthOf(s, hv) === 'degraded' ? 'Degraded' : 'Down'}. Click for Branch 360.</span> : 'Hover a cell for the branch. Click to open Branch 360.'}</div>
+      <div className="text-[11.5px] text-ink3 mt-2 h-4">{hv ? <span><b className="text-ink">{hv.name}</b>, {hv.brand}. {healthOf(s, hv) === 'up' ? 'Healthy' : healthOf(s, hv) === 'degraded' ? 'Degraded' : 'Down'}. Click for Branch 360.</span> : 'Hover a cell for the branch. Click to open Branch 360.'}</div>
     </Card>
   );
 }
@@ -223,7 +223,7 @@ export function TopBranches() {
     <Card title="Top branches" sub={`By ${cfg[0].toLowerCase()}, worst first`} right={<Tabs size="sm" value={m} onChange={setM} tabs={[{ id: 'wan', label: 'WAN' }, { id: 'lat', label: 'Latency' }, { id: 'loss', label: 'Loss' }, { id: 'cpu', label: 'CPU' }]} />}>
       <div className="space-y-[7px]">{rows.map((r, i) => { const b = D.BR[r.id]; const v = r[m]; const bad = v >= cfg[3]; return (
         <button key={r.id} onClick={() => act.openBranch(r.id)} className="w-full flex items-center gap-2 text-[12.5px] hover:bg-chip/60 rounded px-0.5">
-          <span className="w-4 text-ink3 text-right">{i + 1}</span><span className="w-[120px] truncate text-left text-ink font-semibold">{b.name}</span>
+          <span className="w-4 text-ink3 text-right">{i + 1}</span><span className="w-[225px] shrink-0 truncate text-left text-ink font-semibold">{b.name}</span>
           <span className="flex-1 h-2.5 bg-chip rounded-sm overflow-hidden"><span className="block h-full rounded-sm transition-all duration-700" style={{ width: `${Math.min(100, v / cfg[2] * 100)}%`, background: bad ? C.warn : C.s4 }} /></span>
           <span className="w-16 text-right font-semibold tabular-nums text-ink"><TweenNum value={cfg[1](v)} /></span></button>); })}</div>
     </Card>

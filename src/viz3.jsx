@@ -155,7 +155,7 @@ export function RHBars({ rows, title, max, fmt = v => v, mark, markLabel }) {
   return (
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       {title && <div style={{ fontSize: 12, fontWeight: 700, color: COL.ink, marginBottom: 6 }}>{title}</div>}
-      {rows.map(r => <div key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.3fr) 54px', gap: 8, alignItems: 'center', fontSize: 11.5, marginBottom: 4 }}>
+      {rows.map(r => <div key={r.label} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(0,1fr) 54px', gap: 8, alignItems: 'center', fontSize: 11.5, marginBottom: 4 }}>
         <span style={{ color: COL.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.label}>{r.label}</span>
         <span style={{ position: 'relative', height: 10, background: COL.light, borderRadius: 2 }}><span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.min(100, r.value / m * 100)}%`, background: r.color || COL.blue, borderRadius: 2 }} />{mark != null && <span title={markLabel} style={{ position: 'absolute', top: -2, bottom: -2, width: 2, left: `${Math.min(100, mark / m * 100)}%`, background: COL.ink }} />}</span>
         <b style={{ color: COL.ink, textAlign: 'right' }}>{fmt(r.value)}</b>

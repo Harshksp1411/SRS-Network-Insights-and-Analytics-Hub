@@ -145,7 +145,7 @@ function IncidentDetail({ id }) {
           <div className="flex-1 min-w-[300px]">
             <div className="flex items-center gap-2 flex-wrap"><Pri p={inc.pri} /><span className="font-mono text-[13px] text-ink2">{inc.id}</span>{inc.major && <Badge tone="alert">MAJOR INCIDENT</Badge>}<Badge tone={inc.state === 'New' ? 'red' : inc.state.startsWith('On Hold') ? 'amber' : isRes ? 'green' : 'blue'}>{inc.state}</Badge><Badge>{inc.cat}</Badge><Logo k="servicenow" h={10} /></div>
             <h1 className="text-[20px] font-extrabold text-ink mt-1 leading-snug">{inc.title}</h1>
-            <div className="text-[12.5px] text-ink2 mt-1 flex flex-wrap gap-x-3"><button onClick={() => act.openBranch(b.id)} className="font-semibold text-info hover:underline">{b.name}, {b.brand}</button><span>{b.city}, {b.state}</span><span>CI <span className="font-mono">{inc.ci}</span></span><span>{inc.group}</span><span>Assigned: <b>{inc.assignee || '—'}</b></span><span>Opened {dt(inc.opened)} CT</span></div>
+            <div className="text-[12.5px] text-ink2 mt-1 flex flex-wrap gap-x-3"><button onClick={() => act.openBranch(b.id)} className="font-semibold text-info hover:underline">{b.name}, {b.brand}</button><span>CI <span className="font-mono">{inc.ci}</span></span><span>{inc.group}</span><span>Assigned: <b>{inc.assignee || '—'}</b></span><span>Opened {dt(inc.opened)} CT</span></div>
           </div>
           <div className="flex gap-4">
             <div><div className="text-[11px] text-ink3 font-semibold">Response</div><RespTimer inc={inc} now={now} /></div>

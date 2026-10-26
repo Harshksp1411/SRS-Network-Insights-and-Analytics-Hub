@@ -6,9 +6,9 @@ import { MIN, HR, DAY } from './util.js';
 
 export const AREAS = ['SD-WAN and carriers', 'LAN and Wi-Fi', 'Patching and firmware', 'Config and automation', 'Predict and prevent', 'Branch readiness', 'Branch-in-a-Box'];
 const byName = n => D.BRANCHES.find(b => b.local === n || b.name === n);
-// Stories were written with city-wise names ("Atlanta #3"); show them with the estate-wide number instead.
+// Stories were written with city-wise names ("Atlanta #3"); show the estate-wide name instead.
 const LOCAL = new Map(D.BRANCHES.map(b => [b.local, b]));
-const relabel = s => s.replace(/([A-Z][A-Za-z.']*(?: [A-Z][A-Za-z.']*)*) #(\d+)/g, (m, city, k) => { const b = LOCAL.get(`${city} #${k}`); return b ? `${b.name} (${b.city})` : m; });
+const relabel = s => s.replace(/([A-Z][A-Za-z.']*(?: [A-Z][A-Za-z.']*)*) #(\d+)/g, (m, city, k) => { const b = LOCAL.get(`${city} #${k}`); return b ? b.name : m; });
 const relabelAll = o => { for (const k in o) { if (typeof o[k] === 'string') o[k] = relabel(o[k]); else if (o[k] && typeof o[k] === 'object') relabelAll(o[k]); } return o; };
 const pickB = (city, brand, k = 0) => (D.BRANCHES.filter(b => b.city === city && (!brand || b.brand === brand))[k]) || D.BRANCHES.find(b => b.city === city);
 

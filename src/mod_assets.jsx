@@ -299,7 +299,7 @@ export function Dispatch() {
       {tab === 'orders' && <Card pad={false}><div className="p-3"><Table rows={wos} cols={[
         { key: 'id', label: 'Work order', render: w => <span className="font-mono text-[12px] font-semibold">{w.id}</span> },
         { key: 'priority', label: 'Pri', render: w => <Pri p={w.priority} /> },
-        { key: 'branch', label: 'Branch', get: w => D.BR[w.branchId].name, render: w => { const b = D.BR[w.branchId]; const c = branchClock(b, now); return <div><div className="font-semibold">{b.name}, {b.state}</div><div className="text-[11px] text-ink3 truncate max-w-[150px]" title="">{b.brand}, {c.local}, {c.open ? 'open' : 'closed'}</div></div>; } },
+        { key: 'branch', label: 'Branch', get: w => D.BR[w.branchId].name, render: w => { const b = D.BR[w.branchId]; const c = branchClock(b, now); return <div><div className="font-semibold">{b.name}</div><div className="text-[11px] text-ink3 truncate max-w-[150px]" title="">{b.brand}, {c.local}, {c.open ? 'open' : 'closed'}</div></div>; } },
         { key: 'task', label: 'Task', render: w => <div className="max-w-[340px] text-[12.5px]">{w.task}<div className="flex flex-wrap gap-1 mt-1">{w.skills.map(k => <Badge key={k}>{k}</Badge>)}{w.parts.map(p => <Badge key={p} tone="blue"><I.Package size={10} />{p}</Badge>)}</div></div> },
         { key: 'window', label: 'Window', render: w => <span className="text-[12px] text-ink2">{w.window}</span> },
         { key: 'tech', label: 'Technician', render: w => w.tech ? <span className="font-semibold">{s.techs.find(t => t.id === w.tech).name}</span> : <Btn size="xs" kind="brand" icon={I.Wand2} onClick={() => setMatch(w)}>Match</Btn> },

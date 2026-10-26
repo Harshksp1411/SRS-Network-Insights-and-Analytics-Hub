@@ -35,7 +35,7 @@ export const CANNED = {
 export const TOPICS = ['Stores and regions', 'Incidents and SLAs', 'Lines and carriers', 'Devices, firmware and CVEs', 'Changes, drift and approvals', 'Field visits and spares', 'Predictions and capacity', 'Automation and agents', 'Knowledge and problems', 'Branch-in-a-Box projects'];
 
 const L = (label, module, extra = {}) => ({ label, module, extra });
-const sn = b => `${b.name} · ${b.city}`;
+const sn = b => b.name;
 const sb = b => `${sn(b)}, ${b.brand}`;
 const lt = (t, b) => `${hhmm(t, b.tz)} ${tzAbbr(b.tz)}`;
 const ct = t => `${hhmm(t)} CT`;
@@ -50,11 +50,27 @@ const text = (t, tone) => ({ type: 'text', text: t, tone });
 const list = items => ({ type: 'list', items });
 const bars = (items, opts = {}) => ({ type: 'bars', items, ...opts });
 
+// ── reading a typed question ─────────────────────────────────────────
+// People type fast: a word one or two letters off a known term is read as that term ("brach" → "branch").
+const VOCAB = 'branch branches store stores site sites location down degraded offline outage outages unhealthy impacted affected problems issues broken backup primary secondary failover failed lte isp circuit circuits line lines carrier carriers slow slowness why root cause network application changed change changes configuration bandwidth traffic talkers users netflow flapping flaps breaching breach breached credits remediated remediation automatically fixed healed resolved uptime availability mttr restore capacity limits forecast summarize summary summarise leadership report incidents incident yesterday morning week weekly month monthly target targets approvals approval drift firmware technician technicians spares depot predictions runbook runbooks knowledge devices device switches access points readiness ready open closed opened scheduled overnight acknowledged breaching vulnerabilities vulnerability lifecycle support warranty region regions brand performance happening happened problem record records caused case cases'.split(' ');
+function lev(a, b) { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1), i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1] ? d[i - 2][j - 2] + 1 : 99); return d[a.length][b.length]; }
+export function normalize(q) {
+  return q.toLowerCase().replace(/[’']/g, "'").replace(/[a-z][a-z-]{4,}/g, w => {
+    if (VOCAB.includes(w) || /^(?:what|which|where|when|with|this|that|them|they|have|from|were|will|right|there|last|next|show|tell|give|list|many|much|most|about|after|before|today|hours|days)$/.test(w)) return w;
+    const max = w.length >= 8 ? 2 : 1; let best = null, bd = 9;
+    for (const v of VOCAB) { if (Math.abs(v.length - w.length) > max) continue; const x = lev(w, v); if (x < bd) { bd = x; best = v; } }
+    return best && bd <= max ? best : w;
+  });
+}
+
 // ── finding things in a question ─────────────────────────────────────
 function storeIn(q) {
-  const t = q.toLowerCase();
+  const t = normalize(q);
   let m = t.match(/\b(?:store|branch|site|location|shop)\s*(?:no\.?|number|#)?\s*(\d{1,4})\b/); if (m && D.storeOf(+m[1])) return D.storeOf(+m[1]);
   m = t.match(/br-?(\d{1,4})\b/); if (m && D.storeOf(+m[1])) return D.storeOf(+m[1]);
+  // a bare number with no unit after it is a branch: "why was 214 slow", but not "24 hours" or "P1"
+  m = t.match(/(?:^|[\s(,])(\d{1,3})(?![\d.:%-])(?!\s*(?:hours?|hrs?|h\b|days?|d\b|weeks?|months?|minutes?|mins?|m\b|ms|mb|gb|am|pm|percent|stores|branches|sites|incidents|devices|circuits|of\b))/);
+  if (m && !/\b(?:p|top|last|next|first)\s*$/.test(t.slice(0, m.index + 1).trim().split(/\s+/).slice(-1)[0] + ' ') && !new RegExp(`#\\s?${m[1]}\\b`).test(t) && D.storeOf(+m[1])) return D.storeOf(+m[1]);
   let best = null;
   for (const b of D.BRANCHES) { const n = b.local.toLowerCase(); if (/#/.test(n) && t.includes(n) && (!best || n.length > best.local.length)) best = b; }
   return best;
@@ -200,6 +216,36 @@ function whatChanged(s, b, q, now) {
       ...(linked ? [text(`Waiting on a human: ${s.approvals.filter(a => a.branchId === b.id && a.status === 'Pending').map(a => `${a.id} ${a.title}`).join('; ') || 'none'}.`, 'warn')] : []),
     ],
     src: 'ServiceNow change records, Network-as-Code repo, nightly config backups, drift detection, Aruba Central, Mova iO run log', links: [L('Drift detection', 'changes', { tab: { changes: 'drift' } }), L('Change calendar', 'changes', { tab: { changes: 'calendar' } }), branchLink(b)],
+  };
+}
+
+// what changed across the estate (no branch named)
+function changesEstate(s, now) {
+  const from = now - DAY;
+  const ch = s.changes.filter(c => c.start <= now && c.end >= from && /Implemented|Failed|rolled/i.test(c.state));
+  const dr = s.drift.filter(d => d.since >= from);
+  const auto = s.resolved.filter(i => i.auto && (i.resolved || 0) >= from);
+  return {
+    title: `${ch.length} changes, ${dr.length} unrecorded config edits and ${auto.length} automatic fixes in the last 24 hours`,
+    lead: 'Name a branch for its full timeline, e.g. "What changed at Branch 118 in the last 24 hours?"',
+    blocks: [
+      ...(ch.length ? [tbl(['Change', 'What', 'State'], ch.map(c => ({ cells: [{ text: c.id, bold: true, sub: c.scope }, c.title, { text: c.state, tone: /Failed/.test(c.state) ? 'bad' : 'ok' }] })))] : []),
+      ...(dr.length ? [tbl(['Device', 'Branch', 'Unrecorded change'], dr.map(d => ({ branch: d.branchId, cells: [{ text: d.device, bold: true, sub: d.sev }, sn(brOf(d.branchId)), d.item] })))] : []),
+      ...(auto.length ? [list(auto.slice(0, 6).map(i => ({ k: sn(brOf(i.branchId)), v: i.autoAction, inc: i.id })))] : []),
+    ],
+    src: 'ServiceNow change records, drift detection, Mova iO run log', links: [L('Change calendar', 'changes', { tab: { changes: 'calendar' } }), L('Drift detection', 'changes', { tab: { changes: 'drift' } })],
+  };
+}
+// where things are slow right now (no branch named)
+function slowNow(s, now) {
+  const perf = s.incidents.filter(i => i.state !== 'Resolved' && /slow|jitter|latency|loss|roaming|cpu|timing out/i.test(`${i.title} ${(i.impact || []).join(' ')}`));
+  const today = s.resolved.filter(i => (i.resolved || 0) >= now - DAY && /slow|jitter|latency|timing out/i.test(i.title));
+  return {
+    title: `${perf.length} branches slow right now`,
+    lead: 'Ask about one for the root cause, e.g. "Why was Branch 214 slow this morning?"',
+    blocks: [tbl(['Branch', 'What is slow', 'Top cause', 'Since'], perf.map(i => ({ inc: i.id, cells: [{ text: sn(brOf(i.branchId)), bold: true, sub: brOf(i.branchId).brand }, i.title, i.rca[0] ? `${i.rca[0].cause} (${Math.round(i.rca[0].conf * 100)}%)` : 'diagnosing', ago(i.opened, now)] }))),
+      ...(today.length ? [text(`Earlier, now fixed: ${today.map(i => sn(brOf(i.branchId))).slice(0, 5).join(', ')}.`, 'ok')] : [])],
+    src: 'ServiceNow incidents, Orchestrator, New Relic', links: [L('Live incidents', 'incidents')],
   };
 }
 
@@ -421,7 +467,7 @@ function deviceCard(s, d) {
 
 // ── the router ───────────────────────────────────────────────────────
 export function answer(s, q, now, live) {
-  const t = q.toLowerCase().replace(/[’']/g, "'");
+  const t = normalize(q);
   const open = s.incidents.filter(i => i.state !== 'Resolved');
   const role = s.role;
   const b = /my branch|my store/.test(t) ? brOf(s.bmBranch) : storeIn(q);
@@ -442,23 +488,26 @@ export function answer(s, q, now, live) {
   if ((m = id.match(/HPESBNW\d{5}|EOS-2530|ECOS-9\.3|CVE-\d{4}-\d{4,6}/))) { const a = D.ADVISORIES.find(x => x.id === m[0] || x.cves.includes(m[0])); if (a) { const devs = D.DEVICES.filter(d => a.affects(d)); return { title: `${a.id}: ${a.sev}${a.cvss ? ` (CVSS ${a.cvss})` : ''}`, lead: a.title, blocks: [kpis([{ label: 'Devices affected', value: num(devs.length), tone: 'bad' }, { label: 'Stores', value: new Set(devs.map(d => d.branchId)).size }]), list([{ k: 'Product', v: a.product }, { k: 'Fixed in', v: a.fixed }, { k: 'Mitigation', v: a.mitigation }, ...(a.cves.length ? [{ k: 'CVEs', v: a.cves.join(', ') }] : [])])], src: 'HPE Aruba Networking bulletins', links: [L('Lifecycle & vulnerabilities', 'vuln')] }; } }
   if ((m = t.match(/\b([a-z]{2}\d{4}-(?:ec|sw|ap|wan|lte)\d{1,2})\b/))) { const d = D.DEV[m[1]]; if (d) return deviceCard(s, d); const c = D.CIR[m[1]]; if (c) { const x = circuitOf(s, c.id); return { title: `${c.id}: ${x.carrier} ${x.type} ${x.bw} Mb/s – ${x.status}`, lead: `${x.role} line at ${sb(brOf(c.branchId))}.`, blocks: [list([{ k: 'Quality', v: `${x.lat} ms, loss ${x.loss}%, jitter ${x.jit} ms, use ${x.util}%` }, { k: 'Circuit ID', v: x.cid }, { k: 'This month', v: `${x.flaps30} drops, availability ${P(D.availOf(x), 2)} (SLA ${P(D.LINE_SLA[x.type], 2)})` }, { k: 'Tickets (90 d)', v: `${x.tickets90}, ${x.ntf90} no fault found` }])], src: 'Orchestrator', links: [L('Carrier management', 'carriers')] }; } }
 
-  // the ten
-  if (/auto[- ]?remediat|self[- ]?heal|auto[- ]?fix|fixed (?:it)?sel(?:f|ves)|zero[- ]touch|auto[- ]?resolved|no human touch/.test(t)) return autoFixed(s, now, /month|30 days/.test(t) ? 30 : 7);
-  if (/summar|leadership|executive|exec |weekly report|for my (?:boss|vp|leader)/.test(t)) return leadership(s, now);
-  if (/uptime|availability|mttr|mean time to (?:restore|repair|resolve)/.test(t) && !b) return scorecard(s);
-  if (/capacity|run out of|hit (?:their |the )?(?:bandwidth|wi-?fi)|limits? in the next|next \d+ days/.test(t)) return capacity(s);
-  if (/flap|service credit/.test(t) || (/breach/.test(t) && /circuit|\bisp\b|carrier|\blines?\b/.test(t))) return circuitSla(s, now);
-  if (/(?:top|biggest|heaviest|most) .*(?:bandwidth|talker|user|consumer|traffic)|netflow|bandwidth hog|who (?:is )?using .*bandwidth|busiest/.test(t)) {
+  // the ten, in many phrasings
+  const has = re => re.test(t);
+  if (has(/auto[- ]?(?:matic(?:ally)?[- ])?(?:remediat|fix|resolv|heal)|self[- ]?heal|fixed (?:it ?)?(?:self|selves|automatically|on (?:its|their) own)|(?:fixed|resolved|remediated) (?:automatically|by (?:mova|the system|automation|itself))|zero[- ]touch|no[- ]touch|without (?:a )?(?:human|person|engineer|anyone)|no human|what did mova ?io (?:fix|do)|automation fixed/)) return autoFixed(s, now, has(/month|30 days/) ? 30 : 7);
+  if (has(/summar|recap|leadership|executive|\bexec\b|weekly (?:report|review|update)|report for (?:my |the )?(?:boss|vp|leaders?|management)|what happened last week|last week'?s incidents|week in review|brief (?:me|for)/)) return leadership(s, now);
+  if (!b && has(/uptime|availability|\bmttr\b|mean time|time to (?:restore|repair|resolve|fix)|how (?:fast|quickly) (?:did )?we (?:fix|restore|resolve)|how did we do|scorecard|last month (?:vs|versus|against)|(?:sla|kpis?) last month/)) return scorecard(s);
+  if (has(/capacity|run(?:ning)? out of|outgrow|hit (?:their |the |its )?(?:bandwidth|wi-?fi|wan)|(?:bandwidth|wi-?fi|wan) limits?|limits? in the next|next \d+ days|next (?:quarter|3 months)|need (?:more|an?) (?:bandwidth|upgrade)|bandwidth upgrade|will (?:be )?(?:full|congested|saturated)/)) return capacity(s);
+  if (has(/flap|bouncing (?:lines|circuits)|unstable (?:lines|circuits|isp)|service credits?|carrier credits?|sla credits?/) || (has(/breach|sla|availability/) && has(/circuits?|\bisp\b|carriers?|\blines?\b/))) return circuitSla(s, now);
+  if (has(/(?:top|biggest|heaviest|most|largest|main) .*(?:bandwidth|talkers?|users?|consumers?|traffic|data)|netflow|bandwidth (?:hogs?|usage|use|users?)|(?:using|used|eating|consuming) (?:the )?(?:most )?(?:bandwidth|data|the line)|top talkers?|busiest|traffic (?:at|for|on|by)/)) {
     if (b) return topTalkers(s, b, now);
     // no store named: the busiest stores, so the next question can pick one
     const top = D.BRANCHES.map(x => ({ b: x, nf: D.netflowOf(x) })).sort((x, y) => y.nf.peak - x.nf.peak).slice(0, 8);
-    return { title: 'Busiest stores yesterday (peak line use)', lead: 'Name a store for its top applications and devices, e.g. "Show top bandwidth users at Store 45 yesterday."', blocks: [bars(top.map(x => ({ label: sn(x.b), sub: `${x.nf.line.carrier} ${x.nf.line.bw} Mb/s`, value: x.nf.peak, display: `${x.nf.peak}%`, tone: x.nf.peak >= 90 ? 'bad' : 'warn' })))], src: 'NetFlow, Orchestrator', links: [] };
+    return { title: 'Busiest branches yesterday (peak line use)', lead: 'Name a branch for its top applications and devices, e.g. "Show top bandwidth users at Branch 45 yesterday."', blocks: [bars(top.map(x => ({ label: sn(x.b), sub: `${x.nf.line.carrier} ${x.nf.line.bw} Mb/s`, value: x.nf.peak, display: `${x.nf.peak}%`, tone: x.nf.peak >= 90 ? 'bad' : 'warn' })))], src: 'NetFlow, Orchestrator', links: [] };
   }
-  if (b && /what (?:has )?changed|changes? (?:at|to|on|in the last)|recent changes|anything changed|config change/.test(t)) return whatChanged(s, b, q, now);
-  if (b && /\bslow\b|why|root cause|what happened|network,? isp|isp,? or/.test(t)) return rootCause(s, b, q, now);
-  if (/backup (?:isp|line|path|circuit|link)|on backup|backup only|on (?:lte|their backup)|failover|failed over\b|secondary (?:isp|line)/.test(t) && !/spare|config backup|nightly|overnight/.test(t)) return onBackup(s, now);
-  if (!b && /(?:down|degraded|offline|unreachable|impacted|affected|unhealthy|having (?:problems|issues))/.test(t) && /store|branch|site|location|where|which|any/.test(t) && !/device|switch|\bap\b|access point|edgeconnect|circuit|line|ticket/.test(t)) return downDegraded(s, now);
-
+  const changeQ = has(/what (?:has |was |got )?change|changes? (?:at|to|on|in|for|made)|recent(?:ly)? change|anything (?:been )?change|config(?:uration)? change|who changed|modified|modifications?|what was done (?:at|to)/) && !has(/scheduled|planned|upcoming|next|coming/);
+  if (changeQ) return b ? whatChanged(s, b, q, now) : changesEstate(s, now);
+  const slowQ = has(/\bslow|slowness|sluggish|lag(?:gy|ging)?|latency issue|performance (?:issue|problem)|root cause|\brca\b|what caused|why (?:was|is|did)|what happened (?:at|to|with)|network,? (?:or )?isp|isp,? or|isp or application/);
+  if (b && slowQ) return rootCause(s, b, q, now);
+  if (has(/backup (?:isp|line|path|circuit|link|internet|connection)|on (?:the )?backup|backup only|only on backup|on (?:lte|4g|5g|cellular|their backup|secondary)|failover|failed over\b|fail(?:ed)? over to|secondary (?:isp|line|circuit)|lost (?:their |the )?primary|primary (?:line|circuit|isp|link) (?:is )?down/) && !has(/spare|config backup|nightly|overnight|backups? fail/)) return onBackup(s, now);
+  if (!b && slowQ) return slowNow(s, now);
+  if (!b && has(/(?:down|degraded|offline|unreachable|outages?|impacted|affected|unhealthy|problems?|issues?|broken|not (?:ok|healthy|working|trading)|red\b|in trouble|having trouble)/) && has(/stores?|branch|branches|sites?|locations?|where|which|what|any|show|list|network|right now|currently/) && !has(/device|switch|\bap\b|access point|edgeconnect|circuit|\blines?\b|ticket|incident|approval|project|onboard|firmware|config|backup|drift|cve|record|known error|article|\bkb\b/)) return downDegraded(s, now);
   // how-to questions go to knowledge before any keyword below grabs them
   if (/^how (?:do|can|should) (?:i|we)|how to (?:fix|check|handle)|what should i do/.test(t)) {
     const words = t.split(/\W+/).filter(w => w.length > 2 && !/how|what|should|the|that|fix|check|handle|with|when|from/.test(w));

@@ -194,7 +194,7 @@ export function Branch360() {
         <div className="flex-1 min-w-[300px]">
           <h1 className="text-[24px] font-bold text-ink leading-tight">{b.name}, {b.brand}</h1>
           <div className="text-[13px] text-ink2 mt-0.5 flex items-center gap-2 flex-wrap">
-            <span>{b.id}, {b.city}, {b.state}, {b.region}, {b.segment}</span>
+            <span>{b.id}, {b.region}, {b.segment}</span>
             <span className="font-mono text-ink">{clk.local}</span>
             <Badge tone={clk.open ? 'green' : 'gray'}>{clk.open ? 'Open' : 'Closed'} {b.hours.open}–{b.hours.close}</Badge>
             <Badge tone={healthTone(h)}>{h === 'up' ? 'Healthy' : h === 'degraded' ? 'Degraded' : 'Down'}</Badge>

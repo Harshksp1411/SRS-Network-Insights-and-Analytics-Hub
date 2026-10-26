@@ -35,7 +35,7 @@ export function Overview() {
   // every branch on the map
   const points = useMemo(() => D.BRANCHES.map(b => {
     const h = healthOf(s, b); const sc = ids.has(b.id);
-    return { id: b.id, b, x: b.x, y: b.y, r: list.length === 1 ? 9 : 3.4, color: sevColor(h), pulse: h === 'down' && sc, flash: sc && !!L.flash[b.id], dim: !sc, label: <span><b>{b.name}</b>, {b.brand}<br /><span className="text-ink3">{b.city}, {b.state}. {h === 'up' ? 'Healthy' : h === 'degraded' ? 'Degraded' : 'Down'}. Click for Branch 360</span></span> };
+    return { id: b.id, b, x: b.x, y: b.y, r: list.length === 1 ? 9 : 3.4, color: sevColor(h), pulse: h === 'down' && sc, flash: sc && !!L.flash[b.id], dim: !sc, label: <span><b>{b.name}</b>, {b.brand}<br /><span className="text-ink3">{h === 'up' ? 'Healthy' : h === 'degraded' ? 'Degraded' : 'Down'}. Click for Branch 360</span></span> };
   }).sort((a, b) => (b.dim - a.dim) || ({ up: 0, degraded: 1, down: 2 }[healthOf(s, a.b)] - { up: 0, degraded: 1, down: 2 }[healthOf(s, b.b)])), [list, s.branchHealth, ver]);
   const focusPts = list.length < 900 ? list.map(b => ({ x: b.x, y: b.y })) : null;
   const regionRows = D.REGIONS.map(r => {
@@ -47,7 +47,7 @@ export function Overview() {
 
   return (
     <div>
-      <PageHead icon={I.LayoutDashboard} title={bm ? `My branch – ${list[0].name}` : 'Operations Overview'} sub={bm ? `${list[0].brand}, ${list[0].city}, ${list[0].state}. What the NOC sees for your branch, in plain terms.` : 'Live state of the in-scope SRS branch network. Filter by region, brand or branch from the bar above.'}
+      <PageHead icon={I.LayoutDashboard} title={bm ? `My branch – ${list[0].name}` : 'Operations Overview'} sub={bm ? `${list[0].brand}. What the NOC sees for your branch, in plain terms.` : 'Live state of the in-scope SRS branch network. Filter by region, brand or branch from the bar above.'}
         right={<><LiveBadge /><ExportBtn onClick={() => exportCSV('srs-branch-health.csv', list, [{ label: 'Branch ID', key: 'id' }, { label: 'Branch', key: 'name' }, { label: 'Brand', key: 'brand' }, { label: 'City', key: 'city' }, { label: 'State', key: 'state' }, { label: 'Region', key: 'region' }, { label: 'Health', get: b => healthOf(s, b) }, { label: 'Primary', get: b => { const c = circuitOf(s, b.wan[0]); return `${c.carrier} ${c.type} ${c.status}`; } }, { label: 'Backup', get: b => { const c = circuitOf(s, b.wan[1]); return `${c.carrier} ${c.type} ${c.status}`; } }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
         <Stat label="Branches open now" icon={I.Store} value={num(openNow)} sub={`of ${num(list.length)}, local hours`} />
