@@ -15,9 +15,7 @@ const icon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3
 const PAGES = [
   { out: 'dist/site/index.html', edition: 'console', entry: 'src/main.jsx', title: NAME, desc: 'SRS Distribution managed network operations console – operated by Movate. Sample data; items marked illustrative are not SRS facts.' },
   { out: 'dist/site/demos/index.html', edition: 'demos', entry: 'src/main.jsx', title: `${NAME} – Live demos`, desc: 'Scripted SRS branch situations, each played on one screen with every system involved – operated by Movate. Sample data.' },
-  { out: 'dist/site/briefs/index.html', edition: 'briefs', entry: 'src/briefs/main.jsx', title: `${NAME} – Morning Brief`, desc: 'Role-based morning briefs for the CIO, network, stores, IT service, security and regional leaders, with daily, weekly and monthly PDF reports. Sample data.',
-    // newspaper type: a blackletter nameplate and Playfair headlines; Georgia stands in when offline
-    head: '<link rel="preconnect" href="https://fonts.googleapis.com" />\n<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=UnifrakturMaguntia&display=swap" />\n' },
+  { out: 'dist/site/briefs/index.html', edition: 'briefs', entry: 'src/briefs/main.jsx', title: `${NAME} – Morning Brief`, desc: 'Role-based morning briefs for the CIO, network, stores, IT service, security and regional leaders, with daily, weekly and monthly PDF reports. Sample data.' },
 ];
 // jsPDF can render HTML through optional libraries the briefs never use; leave them out of the page
 const noOptional = { name: 'no-optional', setup(b) { b.onResolve({ filter: /^(html2canvas|dompurify|canvg)$/ }, a => ({ path: a.path, namespace: 'empty' })); b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: 'export default {}', loader: 'js' })); } };
@@ -33,7 +31,7 @@ for (const p of PAGES) {
 <title>${p.title}</title>
 <meta name="description" content="${p.desc}" />
 <link rel="icon" href="${icon}" />
-${p.head || ''}<style>${css}</style>
+<style>${css}</style>
 </head>
 <body>
 <div id="root"></div>
