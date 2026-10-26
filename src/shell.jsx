@@ -5,7 +5,7 @@ import * as D from './data.js';
 import { DemoStage } from './stage.jsx';
 import { useLive } from './live.jsx';
 import { LiveDemos } from './mod_demos.jsx';
-import { DEMOS_ONLY, APP_NAME, CONSOLE_URL } from './edition.js';
+import { DEMOS_ONLY, APP_NAME } from './edition.js';
 import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, answer } from './ask.js';
@@ -77,7 +77,7 @@ function Header() {
       <div className="hidden min-[1800px]:flex items-center gap-3 text-[11.5px] text-ink3 mr-1">
         {[['opsramp', 1], ['central', 2], ['servicenow', 1], ['movaio', 0]].map(([k, sec]) => <span key={k} className="inline-flex items-center gap-1.5"><span className="bg-white rounded-[3px] px-1 py-[2px] inline-flex border border-line"><img src={LOGOS[k]} alt={k} style={{ height: 11 }} /></span><span className="w-1.5 h-1.5 rounded-full bg-ok" />{(Math.floor(now / 1000) + sec) % 7 + 1}s</span>)}
       </div>
-      {DEMOS_ONLY ? <a href={CONSOLE_URL} title="Open the operations console" className={hb + ' px-2.5 text-[13px] font-semibold inline-flex items-center gap-1.5'}><I.LayoutDashboard size={15} />Open the console</a> : <>
+      {!DEMOS_ONLY && <>
       <button onClick={() => act.set({ askOpen: !s.askOpen })} className="h-8 rounded-[4px] px-3 text-[13px] font-semibold inline-flex items-center gap-1.5 bg-brand hover:brightness-110 text-white"><I.Sparkles size={15} />Ask Mova iO</button>
       <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px] max-[1279px]:w-[150px]'}>
         <I.UserRound size={14} className="text-ink3" />

@@ -5,7 +5,7 @@ import { DEMOS, AREAS, MODES } from './demos.js';
 import { Card, Badge, Btn, cx, Logo, SearchBox, Select } from './ui.jsx';
 import { stageSpec } from './stagedata.js';
 import { ExplainBody, ViewToggle, SYS, MODE_RULES } from './stage.jsx';
-import { DEMOS_ONLY, CONSOLE_URL } from './edition.js';
+import { DEMOS_ONLY } from './edition.js';
 
 const PREV = {};
 const previewCtx = d => PREV[d.id] || (PREV[d.id] = (() => { const c = {}; d.setup(c); c.preview = true; return c; })());
@@ -70,7 +70,7 @@ export function LiveDemos() {
           <div className="text-[12px] text-ink3 mt-2">Detect → Correlate → Decide → Act → Verify → Record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.</div>
           <div className="mt-4 mb-2"><ViewToggle view={view} setView={setView} /></div>
           <div className="max-h-[420px] overflow-y-auto pr-1 stage-col"><div className="pb-5"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div><div className="sticky bottom-0 h-7 -mt-7 bg-gradient-to-t from-[rgb(var(--panel))] to-transparent pointer-events-none" /></div>
-          <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn>{DEMOS_ONLY ? <a href={`${CONSOLE_URL}#${MOD_OF[d.area][0]}`} target="_blank" rel="noopener" className="inline-flex items-center justify-center rounded-md border font-semibold whitespace-nowrap bg-panel text-ink border-line hover:bg-chip h-8 px-3 text-[13px] gap-1.5"><I.ArrowUpRight size={15} />{MOD_OF[d.area][1]} in the console</a> : <Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn>}</div>
+          <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn>{!DEMOS_ONLY && <Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn>}</div>
           {!DEMOS_ONLY && <div className="text-[12px] text-ink3 mt-3">{open} incidents open in the console right now. A demo adds to them; it never resets your work.</div>}
         </Card>
       </div>
