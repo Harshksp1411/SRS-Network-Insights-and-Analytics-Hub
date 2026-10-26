@@ -10,7 +10,7 @@ export const PERSONAS = [
     can: ['Executive scorecard', 'Weekly leadership summary', 'Automation value', 'Carrier credits', 'Capacity outlook', 'Lifecycle risk', 'Decisions waiting'],
     daily: [['Business impact', 'Which stores are down or degraded right now?'], ['Failover', 'Which stores are running on backup ISP only?'], ['Overnight', 'What failed overnight?'], ['Decisions', 'Which approvals are waiting on a human?'], ['Changes', 'What changed in the last 24 hours']],
     weekly: [['The week', "Summarize last week's incidents for my leadership report."], ['Self-healing', 'Which incidents were auto-remediated this week, and what was done?'], ['Next week', 'What changes are scheduled next week?'], ['Projects', 'Which onboarding projects are red?']],
-    monthly: [['Scorecard', 'What was network uptime and MTTR last month vs. target?'], ['Service levels', 'Which SLAs are below target?'], ['Carriers', 'Which ISP circuits are flapping or breaching SLA this month?'], ['Looking ahead', 'Which sites will hit bandwidth or Wi-Fi capacity limits in the next 90 days?'], ['Lifecycle', 'When do the 2530 switches reach end of support?']],
+    monthly: [['Scorecard', 'What was network uptime and MTTR last month vs. target?'], ['Service levels', 'Show all SLA metrics'], ['Carriers', 'Which ISP circuits are flapping or breaching SLA this month?'], ['Looking ahead', 'Which sites will hit bandwidth or Wi-Fi capacity limits in the next 90 days?'], ['Lifecycle', 'When do the 2530 switches reach end of support?']],
   },
   {
     id: 'networks', user: 'head.networks', password: 'Brief@NET1', title: 'Head of Networks',
@@ -42,7 +42,7 @@ export const PERSONAS = [
     can: ['Critical CVEs', 'Firmware policy', 'Config drift', 'End of support', 'PCI segment', 'Approvals audit', 'Config backups'],
     daily: [['Unrecorded change', 'What changed at Store 118 in the last 24 hours?'], ['Drift', 'High-severity config drift'], ['Audit', 'Who approved changes today?'], ['Backups', 'Which config backups failed?']],
     weekly: [['Firmware', 'Firmware compliance by model'], ['Next week', 'What changes are scheduled next week?'], ['PCI', 'Is the PCI segment isolated at the cutover site?'], ['All drift', 'Where is config drift?']],
-    monthly: [['Lifecycle', 'When do the 2530 switches reach end of support?'], ['Exposure', 'Which devices have a critical CVE?'], ['Service levels', 'Which SLAs are below target?'], ['Problems', 'What problem records are open?']],
+    monthly: [['Lifecycle', 'When do the 2530 switches reach end of support?'], ['Exposure', 'Which devices have a critical CVE?'], ['Service levels', 'Show all SLA metrics'], ['Problems', 'What problem records are open?']],
   },
   {
     id: 'regional', user: 'regional.se', password: 'Brief@REG1', title: 'Regional Manager, Southeast', region: 'Southeast',

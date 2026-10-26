@@ -125,8 +125,16 @@ function Edition({ p, onOut }) {
           <h2 className="text-[30px] sm:text-[38px] font-bold text-ink leading-tight mt-1" style={DISPLAY}>{ed.headline}</h2>
           <p className="text-[17px] text-ink2 leading-snug mt-2">{ed.deck}</p>
           <div className="mt-5">
-            <Section className="mb-3">What you need to know</Section>
-            <ul className="space-y-2.5">{ed.know.map((t, i) => <li key={i} className="flex gap-3 text-[15.5px] text-ink leading-snug"><span className="mt-[7px] h-2 w-2 shrink-0 bg-brand" />{t}</li>)}</ul>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div>
+                <Section className="mb-3 !border-ok !text-ok">Going well</Section>
+                <ul className="space-y-2.5">{ed.wins.map((t, i) => <li key={i} className="flex gap-2.5 text-[15px] text-ink leading-snug"><I.Check size={16} className="mt-[2px] shrink-0 text-ok" strokeWidth={3} />{t}</li>)}</ul>
+              </div>
+              <div>
+                <Section className="mb-3 !border-warn !text-warn">To fix</Section>
+                <ul className="space-y-2.5">{ed.fixes.map((t, i) => <li key={i} className="flex gap-2.5 text-[15px] text-ink leading-snug"><I.ArrowRight size={16} className="mt-[2px] shrink-0 text-warn" strokeWidth={2.5} />{t}</li>)}</ul>
+              </div>
+            </div>
           </div>
           <div className="mt-5 border-l-4 border-brand pl-4 py-1">
             <Kicker>In focus</Kicker>
