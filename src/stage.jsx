@@ -8,7 +8,7 @@ import { stageSpec } from './stagedata.js';
 import { Logo, cx } from './ui.jsx';
 import { useWidth } from './charts.jsx';
 import { hhmmss } from './util.js';
-import { DEMOS_ONLY, CONSOLE_URL } from './edition.js';
+import { DEMOS_ONLY } from './edition.js';
 
 export const SYS = {
   aruba: { n: 'EdgeConnect Orchestrator', s: 'Orchestrator', logo: 'aruba' }, central: { n: 'Aruba Central', s: 'Central', logo: 'central' }, opsramp: { n: 'HPE OpsRamp', s: 'OpsRamp', logo: 'opsramp' },
@@ -378,9 +378,7 @@ function Stage({ demo }) {
             <span className="whitespace-nowrap text-ink2">Demo run <b className="text-ink">{Math.round(elapsed)} s</b></span>
             <div className="flex-1" />
             {!DEMOS_ONLY && b && b.id && !['cve', 'eol', 'fw', 'cutover', 'storm'].includes(demo.id) && <button onClick={() => act.set({ scenario: null, module: 'b360', b360: b.id })} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.Store size={14} />Branch 360</button>}
-            {DEMOS_ONLY
-              ? <a href={`${CONSOLE_URL}#${(demo.focus && demo.focus(c).module) || 'overview'}`} target="_blank" rel="noopener" className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open the console</a>
-              : <button onClick={openConsole} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open in console</button>}
+            {!DEMOS_ONLY && <button onClick={openConsole} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open in console</button>}
             <button onClick={() => act.set({ scenario: { id: next.id, run: Date.now() } })} className="h-8 px-3 rounded-md bg-brand text-white font-bold whitespace-nowrap inline-flex items-center gap-1.5">Next demo<I.ChevronRight size={14} /></button>
           </> : <>
             <I.Loader2 size={15} className={cx('text-ink3', !waiting && 'animate-spin')} /><span className="text-ink2">{status}</span>
