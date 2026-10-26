@@ -16,8 +16,10 @@ const clone = x => JSON.parse(JSON.stringify(x));
 function init() {
   const theme = (() => { try { return localStorage.getItem('srs-hub-theme') || 'light'; } catch { return 'light'; } })();
   const bmBranch = D.findBranch('Dallas', 'SRS Building Products');
+  // the demos page links into a console screen with #<module>, e.g. index.html#carriers
+  const module = (() => { try { const h = location.hash.slice(1); return /^[a-z0-9]+$/.test(h) ? h : 'overview'; } catch { return 'overview'; } })();
   return {
-    role: 'noc', theme, module: 'overview', tab: {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {},
+    role: 'noc', theme, module, tab: {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {},
     bmBranch: bmBranch.id,
     branchHealth: {}, // id -> 'up' | 'degraded' | 'down'
     circuitState: {}, // id -> {status, jit, loss, lat}
@@ -75,6 +77,7 @@ export function AppProvider({ children }) {
     };
     return A;
   }, []);
+  useEffect(() => { const h = () => { const m = location.hash.slice(1); if (/^[a-z0-9]+$/.test(m)) d({ type: 'set', patch: { module: m } }); }; window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h); }, []);
   useEffect(() => { document.documentElement.classList.toggle('dark', s.theme === 'dark'); try { localStorage.setItem('srs-hub-theme', s.theme); } catch { } }, [s.theme]);
   return <Ctx.Provider value={{ s, act }}>{children}</Ctx.Provider>;
 }

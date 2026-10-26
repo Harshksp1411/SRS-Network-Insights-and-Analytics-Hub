@@ -8,6 +8,7 @@ import { stageSpec } from './stagedata.js';
 import { Logo, cx } from './ui.jsx';
 import { useWidth } from './charts.jsx';
 import { hhmmss } from './util.js';
+import { DEMOS_ONLY, CONSOLE_URL } from './edition.js';
 
 export const SYS = {
   aruba: { n: 'EdgeConnect Orchestrator', s: 'Orchestrator', logo: 'aruba' }, central: { n: 'Aruba Central', s: 'Central', logo: 'central' }, opsramp: { n: 'HPE OpsRamp', s: 'OpsRamp', logo: 'opsramp' },
@@ -358,7 +359,7 @@ function Stage({ demo }) {
           {/* right: decisions + ticket */}
           <div className="flex flex-col gap-3 min-h-0 min-w-0 lg:overflow-y-auto stage-col">
             <Decisions logs={v.logs} start={startWall.current} />
-            <TicketCard no={R.no} kind={(sp.ticket && sp.ticket.kind) || 'Incident'} title={demo.title} pri={pri} group={group} assignee={v.declined ? R.person : 'Mova iO'} ci={sp.host} tkt={v.tkt} start={startWall.current} onOpen={c.id ? openConsole : null} />
+            <TicketCard no={R.no} kind={(sp.ticket && sp.ticket.kind) || 'Incident'} title={demo.title} pri={pri} group={group} assignee={v.declined ? R.person : 'Mova iO'} ci={sp.host} tkt={v.tkt} start={startWall.current} onOpen={c.id && !DEMOS_ONLY ? openConsole : null} />
           </div>
         </div>
         {explain && <div className="force-light absolute right-3 top-3 bottom-3 w-[min(520px,calc(100%-24px))] bg-panel text-ink rounded-lg shadow-2xl border border-line flex flex-col z-10">
@@ -376,8 +377,10 @@ function Stage({ demo }) {
             <span className="whitespace-nowrap text-ink2">People needed <b className="text-ink">{v.declined ? R.person : R.kind === 'approve' ? `1 approval (${R.role})` : 'none'}</b></span>
             <span className="whitespace-nowrap text-ink2">Demo run <b className="text-ink">{Math.round(elapsed)} s</b></span>
             <div className="flex-1" />
-            {b && b.id && !['cve', 'eol', 'fw', 'cutover', 'storm'].includes(demo.id) && <button onClick={() => act.set({ scenario: null, module: 'b360', b360: b.id })} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.Store size={14} />Branch 360</button>}
-            <button onClick={openConsole} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open in console</button>
+            {!DEMOS_ONLY && b && b.id && !['cve', 'eol', 'fw', 'cutover', 'storm'].includes(demo.id) && <button onClick={() => act.set({ scenario: null, module: 'b360', b360: b.id })} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.Store size={14} />Branch 360</button>}
+            {DEMOS_ONLY
+              ? <a href={`${CONSOLE_URL}#${(demo.focus && demo.focus(c).module) || 'overview'}`} target="_blank" rel="noopener" className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open the console</a>
+              : <button onClick={openConsole} className="h-8 px-3 rounded-md border border-line font-bold whitespace-nowrap hover:bg-chip inline-flex items-center gap-1.5"><I.ArrowUpRight size={14} />Open in console</button>}
             <button onClick={() => act.set({ scenario: { id: next.id, run: Date.now() } })} className="h-8 px-3 rounded-md bg-brand text-white font-bold whitespace-nowrap inline-flex items-center gap-1.5">Next demo<I.ChevronRight size={14} /></button>
           </> : <>
             <I.Loader2 size={15} className={cx('text-ink3', !waiting && 'animate-spin')} /><span className="text-ink2">{status}</span>

@@ -5,6 +5,7 @@ import { DEMOS, AREAS, MODES } from './demos.js';
 import { Card, Badge, Btn, cx, Logo, SearchBox, Select } from './ui.jsx';
 import { stageSpec } from './stagedata.js';
 import { ExplainBody, ViewToggle, SYS, MODE_RULES } from './stage.jsx';
+import { DEMOS_ONLY, CONSOLE_URL } from './edition.js';
 
 const PREV = {};
 const previewCtx = d => PREV[d.id] || (PREV[d.id] = (() => { const c = {}; d.setup(c); c.preview = true; return c; })());
@@ -28,7 +29,7 @@ export function LiveDemos() {
   return (
     <div>
       <div className="flex items-end gap-3 mb-4 flex-wrap border-b border-line pb-3">
-        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1><p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch]">{DEMOS.length} SRS branch situations. Each one replays into the live console: incidents, agents, approvals, carrier cases and work orders appear where an engineer would see them.</p></div>
+        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1><p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch]">{DEMOS.length} SRS branch situations. {DEMOS_ONLY ? 'Each one plays on one screen with every system involved: detect, correlate, decide, act, verify and record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.' : 'Each one replays into the live console: incidents, agents, approvals, carrier cases and work orders appear where an engineer would see them.'}</p></div>
         <Btn kind="brand" icon={I.PlayCircle} onClick={playAll}>Start guided demo</Btn>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; const cnt = DEMOS.filter(x => x.who === n).length; const on = who === n; return (
@@ -55,7 +56,7 @@ export function LiveDemos() {
             {!list.length && <div className="p-6 text-[13px] text-ink3">No demos match. Clear the search or pick another area.</div>}
           </div>
         </Card>
-        <Card className="xl:sticky xl:top-[150px]">
+        <Card className={cx('xl:sticky', DEMOS_ONLY ? 'xl:top-[80px]' : 'xl:top-[150px]')}>
           <div className="flex items-center gap-2 text-[12px] text-ink3 mb-1"><span>{d.area}</span><Badge>Demo {DEMOS.indexOf(d) + 1} of {DEMOS.length}</Badge></div>
           <h2 className="text-[20px] font-bold text-ink leading-tight">{d.title}</h2>
           <div className="text-[12.5px] text-ink3 mt-0.5">{sp.sub}</div>
@@ -69,8 +70,8 @@ export function LiveDemos() {
           <div className="text-[12px] text-ink3 mt-2">Detect → Correlate → Decide → Act → Verify → Record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.</div>
           <div className="mt-4 mb-2"><ViewToggle view={view} setView={setView} /></div>
           <div className="max-h-[420px] overflow-y-auto pr-1 stage-col"><div className="pb-5"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div><div className="sticky bottom-0 h-7 -mt-7 bg-gradient-to-t from-[rgb(var(--panel))] to-transparent pointer-events-none" /></div>
-          <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn><Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn></div>
-          <div className="text-[12px] text-ink3 mt-3">{open} incidents open in the console right now. A demo adds to them; it never resets your work.</div>
+          <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn>{DEMOS_ONLY ? <a href={`${CONSOLE_URL}#${MOD_OF[d.area][0]}`} target="_blank" rel="noopener" className="inline-flex items-center justify-center rounded-md border font-semibold whitespace-nowrap bg-panel text-ink border-line hover:bg-chip h-8 px-3 text-[13px] gap-1.5"><I.ArrowUpRight size={15} />{MOD_OF[d.area][1]} in the console</a> : <Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn>}</div>
+          {!DEMOS_ONLY && <div className="text-[12px] text-ink3 mt-3">{open} incidents open in the console right now. A demo adds to them; it never resets your work.</div>}
         </Card>
       </div>
     </div>
