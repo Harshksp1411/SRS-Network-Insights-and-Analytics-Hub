@@ -5,7 +5,7 @@ import fs from 'fs';
 // Two self-contained pages from the same source, laid out as the published site:
 //   dist/site/index.html        the operations console
 //   dist/site/demos/index.html  the live demos
-const NAME = 'SRS Networks Insights and Analytics Hub';
+const NAME = 'SRS Network Insights and Analytics Hub';
 fs.mkdirSync('dist', { recursive: true });
 execSync('npx tailwindcss -i src/index.css -o dist/main.css --minify', { stdio: 'pipe' });
 const css = fs.readFileSync('dist/main.css', 'utf8');

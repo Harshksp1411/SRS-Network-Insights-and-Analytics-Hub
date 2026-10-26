@@ -3,5 +3,5 @@
 // console with this relative path, which works both on GitHub Pages and from disk.
 /* global __DEMOS_ONLY__ */
 export const DEMOS_ONLY = typeof __DEMOS_ONLY__ !== 'undefined' && __DEMOS_ONLY__;
-export const APP_NAME = 'Networks Insights and Analytics Hub';
+export const APP_NAME = 'Network Insights and Analytics Hub';
 export const CONSOLE_URL = '../index.html';

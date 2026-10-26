@@ -1,4 +1,4 @@
-# SRS Networks Insights and Analytics Hub
+# SRS Network Insights and Analytics Hub
 
 Two self-contained, offline web pages: the operations console and the live demos. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
 
