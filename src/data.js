@@ -503,20 +503,20 @@ export const PROBLEMS = [
 const tr = (base, spread) => Array.from({ length: 6 }, (_, i) => +(base - spread + R() * spread * 2 + (i - 3) * spread * 0.1).toFixed(4));
 export const SLA = [
   { n: 1, line: 'Network Operations & Incident Management', name: 'P1 incident response time', def: '≤ 15 min', msl: 0.95, esl: 0.98, act: 0.985, cls: 'Risk Reward SLA', trend: tr(0.982, 0.01), queue: 'P1' },
-  { n: 2, line: 'Network Operations & Incident Management', name: 'P2 incident response time', def: '≤ 15 min', msl: 0.92, esl: 0.98, act: 0.972, cls: 'Risk Reward SLA', trend: tr(0.97, 0.01), queue: 'P2' },
+  { n: 2, line: 'Network Operations & Incident Management', name: 'P2 incident response time', def: '≤ 15 min', msl: 0.92, esl: 0.98, act: 0.983, cls: 'Risk Reward SLA', trend: tr(0.981, 0.008), queue: 'P2' },
   { n: 3, line: 'Network Operations & Incident Management', name: 'P3 incident response time', def: '≤ 30 min', msl: 0.9, esl: 0.95, act: 0.961, cls: 'SLA', trend: tr(0.958, 0.012), queue: 'P3' },
   { n: 4, line: 'Network Operations & Incident Management', name: 'P4 incident response time', def: '≤ 30 min', msl: 0.9, esl: 0.92, act: 0.948, cls: 'SLA', trend: tr(0.945, 0.01), queue: 'P4' },
   { n: 7, line: 'Network Operations & Incident Management', name: 'P1 incident resolution time', def: '≤ 4 h', msl: 0.95, esl: 0.98, act: 0.968, cls: 'Risk Reward SLA', trend: tr(0.97, 0.015), queue: 'P1' },
   { n: 8, line: 'Network Operations & Incident Management', name: 'P2 incident resolution time', def: '≤ 8 h', msl: 0.92, esl: 0.98, act: 0.955, cls: 'Risk Reward SLA', trend: tr(0.957, 0.015), queue: 'P2' },
-  { n: 9, line: 'Network Operations & Incident Management', name: 'P3 incident resolution time', def: '≤ 24 h', msl: 0.9, esl: 0.95, act: 0.932, cls: 'SLA', trend: tr(0.93, 0.015), queue: 'P3' },
+  { n: 9, line: 'Network Operations & Incident Management', name: 'P3 incident resolution time', def: '≤ 24 h', msl: 0.9, esl: 0.95, act: 0.957, cls: 'SLA', trend: tr(0.954, 0.012), queue: 'P3' },
   { n: 10, line: 'Network Operations & Incident Management', name: 'P4 incident resolution time', def: '≤ 96 h', msl: 0.9, esl: 0.92, act: 0.963, cls: 'SLA', trend: tr(0.96, 0.01), queue: 'P4' },
   { n: 15, line: 'Network Operations & Incident Management', name: 'Major incident communication cadence', def: 'Updates every 60 min', msl: 0.95, esl: 0.98, act: 1, cls: 'SLA', trend: tr(0.99, 0.01) },
   { n: 23, line: 'Network Monitoring & Event Management', name: 'Critical alert acknowledgement', def: '≤ 15 min', msl: 0.95, esl: 0.98, act: 0.991, cls: 'SLA', trend: tr(0.99, 0.006) },
   { n: 24, line: 'Network Monitoring & Event Management', name: 'Non-critical alert acknowledgement', def: '≤ 30 min', msl: 0.9, esl: 0.95, act: 0.974, cls: 'SLA', trend: tr(0.97, 0.01) },
-  { n: 25, line: 'Network Monitoring & Event Management', name: 'Correct ticket escalation (first assignment)', def: 'Right resolver queue', msl: 0.92, esl: 0.98, act: 0.962, cls: 'SLA', trend: tr(0.958, 0.01) },
+  { n: 25, line: 'Network Monitoring & Event Management', name: 'Correct ticket escalation (first assignment)', def: 'Right resolver queue', msl: 0.92, esl: 0.98, act: 0.982, cls: 'SLA', trend: tr(0.979, 0.008) },
   { n: 29, line: 'Network Device Management', name: 'Critical network availability', def: 'In-scope critical devices & services', msl: 0.99, esl: 0.9999, act: 0.99962, cls: 'Risk Reward SLA', trend: [0.99951, 0.99958, 0.99944, 0.9996, 0.99966, 0.99962], fmt: 3 },
   { n: 32, line: 'Network Device Management', name: 'Day-0 critical patch / firmware compliance', def: 'Critical N-1, others N-2', msl: 0.92, esl: 0.98, act: 0.944, cls: 'Risk Reward SLA', trend: tr(0.94, 0.01) },
-  { n: 33, line: 'Network Device Management', name: 'Config backup success', def: 'With integrity validation', msl: 0.95, esl: 0.98, act: 0.979, cls: 'Risk Reward SLA', trend: tr(0.976, 0.006) },
+  { n: 33, line: 'Network Device Management', name: 'Config backup success', def: 'With integrity validation', msl: 0.95, esl: 0.98, act: 0.986, cls: 'Risk Reward SLA', trend: tr(0.984, 0.005) },
   { n: 36, line: 'Network AI Triage & Routing', name: 'Ticket classification accuracy', def: 'Category & subcategory', msl: null, esl: 0.85, act: 0.893, cls: 'KPI', trend: tr(0.87, 0.02) },
   { n: 36, line: 'Network AI Triage & Routing', name: 'Incident prioritization accuracy', def: 'AI-assigned priority', msl: null, esl: 0.85, act: 0.912, cls: 'KPI', trend: tr(0.9, 0.015) },
   { n: 36, line: 'Network AI Triage & Routing', name: 'Resolver routing accuracy', def: 'First pass', msl: null, esl: 0.9, act: 0.934, cls: 'KPI', trend: tr(0.92, 0.015) },
@@ -526,7 +526,7 @@ export const SLA = [
   { n: 38, line: 'Network AIOps & Predictive Operations', name: 'Alert noise reduction', def: 'Correlation, suppression, de-dup', msl: null, esl: 0.5, act: 0.71, cls: 'KPI', trend: [0.52, 0.58, 0.63, 0.66, 0.69, 0.71] },
   { n: 38, line: 'Network AIOps & Predictive Operations', name: 'Alert false positive rate', def: 'Lower is better (≤ 20%)', msl: null, esl: 0.2, act: 0.14, cls: 'KPI', lower: true, trend: [0.22, 0.2, 0.18, 0.16, 0.15, 0.14] },
   { n: 39, line: 'Network Knowledge & Self-Service', name: 'Knowledge recommendation accuracy', def: 'Rated relevant', msl: null, esl: 0.8, act: 0.83, cls: 'KPI', trend: tr(0.81, 0.02) },
-  { n: 39, line: 'Network Knowledge & Self-Service', name: 'Knowledge auto-generation', def: 'Resolved → validated KB', msl: null, esl: 0.4, act: 0.36, cls: 'KPI', trend: [0.18, 0.22, 0.27, 0.3, 0.33, 0.36] },
+  { n: 39, line: 'Network Knowledge & Self-Service', name: 'Knowledge auto-generation', def: 'Resolved → validated KB', msl: null, esl: 0.4, act: 0.41, cls: 'KPI', trend: [0.2, 0.25, 0.3, 0.34, 0.38, 0.41] },
   { n: 39, line: 'Network Knowledge & Self-Service', name: 'Self-service adoption', def: 'Eligible requests', msl: null, esl: 0.35, act: 0.29, cls: 'KPI', trend: [0.12, 0.16, 0.2, 0.23, 0.26, 0.29] },
 ];
 

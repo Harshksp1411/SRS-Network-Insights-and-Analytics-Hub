@@ -1,4 +1,4 @@
-// Turns an edition (see compose.js) into a short PDF in the browser: masthead, headline, what you need to know,
+// Turns an edition (see compose.js) into a short PDF in the browser: masthead, headline, going well and to fix,
 // the story in focus, the numbers, your day, the stories and the rest in brief. Text only, in Helvetica: Aptos
 // cannot be embedded, and Helvetica is the closest of the built-in PDF fonts.
 import { jsPDF } from 'jspdf';
@@ -32,11 +32,17 @@ export function editionPdf(ed) {
   doc.text(`Printed ${hhmm(ed.at)} CT`, W - M, y + 9, { align: 'right' }); y += 14;
   rule(y, 0.5); rule(y + 3, 1.2); y += 18;
 
-  // lead: headline, deck, what you need to know, in focus
+  // lead: headline, deck, going well and to fix side by side, in focus
   col(ed.headline, M, CW, 22, 'bold', INK, 1.12); y += 2;
   col(ed.deck, M, CW, 12, 'normal', INK2); y += 10;
-  section('What you need to know');
-  ed.know.forEach(t => { need(16); doc.setFillColor(...BRAND); doc.rect(M, y + 4, 4, 4, 'F'); const x = M + 12; col(t, x, CW - 12, 10.5, 'normal', INK); y += 4; });
+  need(90); const y0 = y, hw = (CW - 20) / 2; let yEnd = y;
+  [['Going well', ed.wins, TONE.ok], ['To fix', ed.fixes, TONE.warn]].forEach(([t, items, c], k) => {
+    const x = M + k * (hw + 20); y = y0;
+    font('bold', 8.5, c); doc.text(t.toUpperCase(), x, y + 8, { charSpace: 0.5 }); y += 12; rule(y, 1.2, c, x, x + hw); y += 8;
+    items.forEach(it => { doc.setFillColor(...c); doc.circle(x + 2.5, y + 6, 2.2, 'F'); col(it, x + 10, hw - 10, 10, 'normal', INK); y += 4; });
+    yEnd = Math.max(yEnd, y);
+  });
+  y = yEnd;
   y += 4; need(40);
   const fy = y; font('bold', 7.5, BRAND); doc.text('IN FOCUS', M + 10, y + 8, { charSpace: 0.5 }); y += 12;
   col(ed.inFocus, M + 10, CW - 10, 10, 'normal', INK);
