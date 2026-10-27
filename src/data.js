@@ -363,7 +363,8 @@ for (let i = 0; i < 168; i++) {
   const ago = R.int(40, 7 * 24 * 60) * MIN;
   const inc = buildIncident(k, b, ago);
   const code = R.weighted(CLOSE_CODES);
-  const ttr = { P1: R.int(40, 260), P2: R.int(30, 520), P3: R.int(25, 1600), P4: R.int(30, 6200) }[inc.pri] * MIN;
+  // a closed incident was closed before now: a long fix on a recent incident is cut to fit the time since it opened
+  const ttr = Math.min({ P1: R.int(40, 260), P2: R.int(30, 520), P3: R.int(25, 1600), P4: R.int(30, 6200) }[inc.pri] * MIN, Math.round((ago - 5 * MIN) * 0.85));
   Object.assign(inc, { state: 'Resolved', resolved: inc.opened + ttr, closeCode: code, acked: inc.opened + R.int(1, 12) * MIN, assignee: R.pick(ENGINEERS), rbState: 'done' });
   RESOLVED.push(inc);
 }

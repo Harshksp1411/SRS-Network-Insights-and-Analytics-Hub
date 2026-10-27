@@ -5,6 +5,7 @@ import { answer } from '../ask.js';
 import { healthOf, circuitOf, onBackupOf, slaClock, branchClock } from '../store.jsx';
 import { branchChecks } from '../readiness.jsx';
 import { dur, hhmm, dateShort, dt, ago, num, sum, DAY, HR, MIN } from '../util.js';
+import { visualsOf, goFor } from './visuals.js';
 
 const P = (x, d = 1) => `${(x * 100).toFixed(d)}%`;
 const ct = t => `${hhmm(t)} CT`;
@@ -80,13 +81,13 @@ function agenda(p, s, now, bs, period) {
   const span = { daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY }[period];
   const out = [];
   const inScope = c => !region || c.scope === region || c.scope === 'All regions';
-  s.changes.filter(c => c.start > now && c.start < now + span && inScope(c) && (p.id !== 'cio' || c.risk !== 'Low') && (period !== 'monthly' || c.risk !== 'Low')).forEach(c => out.push({ t: c.start, label: daily ? c.window : dateShort(c.start), what: `${c.id} ${c.title}`, where: `${c.scope} · ${c.risk} risk · ${c.state}`, kind: 'Change' }));
-  if (daily) s.approvals.filter(a => a.status === 'Pending' && (!a.branchId || ids.has(a.branchId)) && (p.id !== 'security' || a.type === 'Change' || /config|firmware|drift|relay/i.test(a.title))).forEach(a => out.push({ t: null, what: `Decide ${a.id}: ${a.title}`, where: `${Math.round(a.conf * 100)}% confidence · ${a.why[0]}`, kind: 'Decision' }));
-  if (daily && ['stores', 'regional', 'itservice'].includes(p.id)) s.workOrders.filter(w => ids.has(w.branchId) && w.status !== 'Completed').forEach(w => out.push({ t: w.eta || null, what: `${w.status === 'Unassigned' ? 'Unassigned visit' : 'Technician visit'}: ${w.task}`, where: `${D.BR[w.branchId].name} · ${w.window}`, kind: 'Visit' }));
-  if (daily && ['networks', 'itservice', 'regional', 'stores'].includes(p.id)) s.cases.filter(c => !c.closed && c.eta && ids.has(c.branchId) && c.eta < now + DAY).forEach(c => out.push({ t: c.eta, what: `${c.carrier} restore due: ${c.id}`, where: `${D.BR[c.branchId].name}${c.eta < now ? ' · already late' : ''}`, kind: 'Carrier', late: c.eta < now }));
-  if (['cio', 'stores', 'regional'].includes(p.id) || !daily) s.projects.filter(x => x.golive > now && x.golive < now + Math.max(span, 8 * DAY) && (daily ? x.stage === 'Cutover' || x.stage === 'Kit staged' : true) && (!region || x.region === region)).forEach(x => out.push({ t: x.golive, label: dateShort(x.golive), what: `Go-live: ${x.brand} – ${x.site}`, where: `${x.stage}, ${x.rag}`, kind: 'Project' }));
-  if (['cio', 'networks', 'stores', 'security'].includes(p.id) || !daily) s.freezes.filter(f => f.start > now && f.start < now + Math.max(span, 7 * DAY) && inScope(f)).forEach(f => out.push({ t: f.start, label: dateShort(f.start), what: `Change freeze starts: ${f.name}`, where: f.scope, kind: 'Freeze' }));
-  if (daily && ['networks', 'regional'].includes(p.id)) s.predictions.filter(x => x.status === 'New' && x.conf >= 0.8 && (!x.branchId || ids.has(x.branchId))).slice(0, 3).forEach(x => out.push({ t: null, what: `Act on ${x.id}: ${x.suggest}`, where: `${x.branchId ? D.BR[x.branchId].name : x.target} · ${x.horizon}`, kind: 'Prevent' }));
+  s.changes.filter(c => c.start > now && c.start < now + span && inScope(c) && (p.id !== 'cio' || c.risk !== 'Low') && (period !== 'monthly' || c.risk !== 'Low')).forEach(c => out.push({ t: c.start, label: daily ? c.window : dateShort(c.start), what: `${c.id} ${c.title}`, where: `${c.scope} · ${c.risk} risk · ${c.state}`, kind: 'Change', go: { t: 'change', id: c.id } }));
+  if (daily) s.approvals.filter(a => a.status === 'Pending' && (!a.branchId || ids.has(a.branchId)) && (p.id !== 'security' || a.type === 'Change' || /config|firmware|drift|relay/i.test(a.title))).forEach(a => out.push({ t: null, what: `Decide ${a.id}: ${a.title}`, where: `${Math.round(a.conf * 100)}% confidence · ${a.why[0]}`, kind: 'Decision', go: { t: 'approval', id: a.id } }));
+  if (daily && ['stores', 'regional', 'itservice'].includes(p.id)) s.workOrders.filter(w => ids.has(w.branchId) && w.status !== 'Completed').forEach(w => out.push({ t: w.eta || null, what: `${w.status === 'Unassigned' ? 'Unassigned visit' : 'Technician visit'}: ${w.task}`, where: `${D.BR[w.branchId].name} · ${w.window}`, kind: 'Visit', go: w.inc ? { t: 'incident', id: w.inc } : { t: 'branch', id: w.branchId } }));
+  if (daily && ['networks', 'itservice', 'regional', 'stores'].includes(p.id)) s.cases.filter(c => !c.closed && c.eta && ids.has(c.branchId) && c.eta < now + DAY).forEach(c => out.push({ t: c.eta, what: `${c.carrier} restore due: ${c.id}`, where: `${D.BR[c.branchId].name}${c.eta < now ? ' · already late' : ''}`, kind: 'Carrier', late: c.eta < now, go: { t: 'circuit', id: c.circuit } }));
+  if (['cio', 'stores', 'regional'].includes(p.id) || !daily) s.projects.filter(x => x.golive > now && x.golive < now + Math.max(span, 8 * DAY) && (daily ? x.stage === 'Cutover' || x.stage === 'Kit staged' : true) && (!region || x.region === region)).forEach(x => out.push({ t: x.golive, label: dateShort(x.golive), what: `Go-live: ${x.brand} – ${x.site}`, where: `${x.stage}, ${x.rag}`, kind: 'Project', go: { t: 'project', id: x.id } }));
+  if (['cio', 'networks', 'stores', 'security'].includes(p.id) || !daily) s.freezes.filter(f => f.start > now && f.start < now + Math.max(span, 7 * DAY) && inScope(f)).forEach(f => out.push({ t: f.start, label: dateShort(f.start), what: `Change freeze starts: ${f.name}`, where: f.scope, kind: 'Freeze', go: { t: 'changes', k: 'next30', ...(region ? { region } : {}) } }));
+  if (daily && ['networks', 'regional'].includes(p.id)) s.predictions.filter(x => x.status === 'New' && x.conf >= 0.8 && (!x.branchId || ids.has(x.branchId))).slice(0, 3).forEach(x => out.push({ t: null, what: `Act on ${x.id}: ${x.suggest}`, where: `${x.branchId ? D.BR[x.branchId].name : x.target} · ${x.horizon}`, kind: 'Prevent', go: { t: 'prediction', id: x.id } }));
   // the month ahead leads with go-lives and freezes, the bigger items; the day and the week run in time order
   const rank = x => period === 'monthly' ? { Freeze: 0, Project: 1 }[x.kind] ?? 2 : 0;
   return out.sort((a, b) => rank(a) - rank(b) || (a.t == null) - (b.t == null) || (a.t || 0) - (b.t || 0)).slice(0, 9);
@@ -301,7 +302,7 @@ const POSITIVE = {
 
 // A story boiled down for the front page: a plain title, one sentence, up to three numbers or bars and three short
 // points. The full answer stays on the story for "Read the full story".
-const PLAIN = [[/\bMTTR\b/g, 'time to fix'], [/\bcritical CVEs?\b/g, 'critical security flaw'], [/\bCVEs?\b/g, 'security flaw'], [/\bSLA clock\b/g, 'deadline'], [/\bcarrier availability SLA\b/g, 'carrier uptime promise'], [/\bSLAs?\b/g, 'target'], [/\bgolden config\b/g, 'standard setup'], [/\bWAN\b/g, 'bandwidth'], [/\bbackup ISP\b/g, 'backup internet line'], [/\bp95\b/gi, 'peak']];
+const PLAIN = [[/\bMTTR\b/g, 'time to fix'], [/\bcritical CVEs?\b/g, 'critical security flaw'], [/\bCVEs?\b/g, 'security flaw'], [/\bSLA clock\b/g, 'deadline'], [/\bcarrier availability SLA\b/g, 'carrier uptime promise'], [/\bSLAs?\b/g, 'target'], [/\bgolden config\b/g, 'standard setup'], [/(?<!SD-)\bWAN\b/g, 'bandwidth'], [/\bbackup ISP\b/g, 'backup internet line'], [/\bp95\b/gi, 'peak'], [/^Open now, affected$/, 'Affected, open for business']];
 const plain = t => PLAIN.reduce((x, [re, to]) => x.replace(re, to), String(t || ''));
 const txt = c => c == null ? '' : typeof c === 'object' ? String(c.text ?? '') : String(c);
 const clip = (t, n) => t.length > n ? `${t.slice(0, n).replace(/[\s,;:–-]+\S*$/, '')}…` : t;
@@ -361,21 +362,49 @@ function regionStories(p, s, now, L, period) {
   return pick.map(k => st[k]);
 }
 
+// where each story leads in the drill-down, by the question behind it (persona editions) or its kicker (regional)
+const hb = n => ({ t: 'branch', id: D.storeOf(n).id });
+const QGO = {
+  'Which stores are down or degraded right now?': R => ({ t: 'set', k: 'issues', ...R }), 'Which stores are running on backup ISP only?': R => ({ t: 'set', k: 'backup', ...R }),
+  'What failed overnight?': R => ({ t: 'incidents', k: 'overnight', ...R }), 'Which approvals are waiting on a human?': () => ({ t: 'approvals' }), 'What changed in the last 24 hours': R => ({ t: 'changes', k: 'done7', ...R }),
+  "Summarize last week's incidents for my leadership report.": R => ({ t: 'incidents', k: 'resolved7', ...R }), 'Which incidents were auto-remediated this week, and what was done?': R => ({ t: 'incidents', k: 'auto7', ...R }),
+  'What changes are scheduled next week?': R => ({ t: 'changes', k: 'next7', ...R }), 'Which onboarding projects are red?': R => ({ t: 'projects', ...R }), 'What was network uptime and MTTR last month vs. target?': () => ({ t: 'mttr' }),
+  'Show all SLA metrics': () => ({ t: 'sla' }), 'Which ISP circuits are flapping or breaching SLA this month?': R => ({ t: 'lines', k: 'breach', ...R }), 'Which sites will hit bandwidth or Wi-Fi capacity limits in the next 90 days?': R => ({ t: 'set', k: 'capacity', ...R }),
+  'When do the 2530 switches reach end of support?': R => ({ t: 'devices', k: 'eos', ...R }), 'Why was Store 214 slow this morning: network, ISP, or application?': () => hb(D.HERO.config), 'Where is config drift?': R => ({ t: 'drift', ...R }), 'High-severity config drift': R => ({ t: 'drift', ...R }),
+  'What predictions are open?': () => ({ t: 'predictions' }), 'Which circuits are repeat offenders?': R => ({ t: 'lines', k: 'repeat', ...R }), 'Which carrier cases are open?': R => ({ t: 'cases', ...R }), 'Firmware compliance by model': R => ({ t: 'devices', k: 'fw', ...R }),
+  'What problem records are open?': R => ({ t: 'incidents', k: 'opened7', ...R }), 'Which branches are not ready to open?': R => ({ t: 'set', k: 'readiness', ...R }), 'where is it slow right now': R => ({ t: 'set', k: 'latency', ...R }),
+  'What work orders are open?': R => ({ t: 'set', k: 'issues', ...R }), 'What did we tell branches today?': R => ({ t: 'set', k: 'issues', ...R }), 'Are there any freeze windows?': R => ({ t: 'changes', k: 'next30', ...R }),
+  "Status of this weekend's acquisition cutovers": () => ({ t: 'project', id: 'BIB-0141' }), 'Which incidents are close to breaching SLA?': R => ({ t: 'incidents', k: 'risk', ...R }), 'How many incidents are open?': R => ({ t: 'incidents', k: 'open', ...R }),
+  'Which incidents are not acknowledged?': R => ({ t: 'incidents', k: 'unack', ...R }), 'Which runbooks do we have?': R => ({ t: 'incidents', k: 'auto7', ...R }), 'What changed at Store 118 in the last 24 hours?': () => hb(D.HERO.changes),
+  'Who approved changes today?': R => ({ t: 'changes', k: 'done7', ...R }), 'Which config backups failed?': R => ({ t: 'devices', k: 'backup', ...R }), 'Is the PCI segment isolated at the cutover site?': () => ({ t: 'project', id: 'BIB-0141' }),
+  'Which devices have a critical CVE?': R => ({ t: 'devices', k: 'crit', ...R }), 'Show top bandwidth users at Store 45 yesterday.': () => hb(D.HERO.bandwidth),
+};
+const RGO = {
+  'Right now': R => ({ t: 'set', k: 'issues', ...R }), Opening: R => ({ t: 'set', k: 'readiness', ...R }), 'Backup lines': R => ({ t: 'set', k: 'backup', ...R }), Visits: R => ({ t: 'set', k: 'issues', ...R }),
+  Changes: () => hb(D.HERO.changes), Bandwidth: () => hb(D.HERO.bandwidth), Capacity: R => ({ t: 'set', k: 'capacity', ...R }), 'The week': R => ({ t: 'incidents', k: 'resolved7', ...R }),
+  'Next week': R => ({ t: 'changes', k: 'next7', ...R }), 'Repeat offenders': R => ({ t: 'lines', k: 'repeat', ...R }), Carriers: R => ({ t: 'lines', k: 'flap', ...R }), Lifecycle: R => ({ t: 'devices', k: 'eos', ...R }),
+};
+
 export function compose(p, s, now, L, period = 'daily') {
   const bs = p.region ? D.BRANCHES.filter(b => b.region === p.region) : D.BRANCHES;
   const f = facts(s, now, L, bs, p.region);
   const h = H[period][p.id](f, p);
-  const list = p.region ? regionStories(p, s, now, L, period) : p[period].map(([kicker, q]) => { const a = ask(s, q, now, L); return [kicker, a, POSITIVE[q] && POSITIVE[q](f, a, s, now)]; });
+  const R = p.region ? { region: p.region } : {};
+  const list = p.region ? regionStories(p, s, now, L, period) : p[period].map(([kicker, q]) => { const a = ask(s, q, now, L); return [kicker, a, POSITIVE[q] && POSITIVE[q](f, a, s, now), QGO[q] ? QGO[q](R) : goFor(q, period, p.region)]; });
   const label = { daily: 'Morning Brief', weekly: 'Weekly Report', monthly: 'Monthly Report' }[period];
   const range = period === 'daily' ? dateShort(now) : period === 'weekly' ? `Week of ${dateShort(now - 7 * DAY)} – ${dateShort(now)}` : `${f.month} ${new Date(now).getFullYear()} and the 30 days ahead`;
-  const stories = list.map(([kicker, a, title]) => ({ kicker, a, sum: summarize(a, title) }));
+  const stories = list.map(([kicker, a, title, go]) => ({ kicker, a, sum: summarize(a, title), go: go || (RGO[kicker] ? RGO[kicker](R) : goFor(`${kicker} ${a.title}`, period, p.region)) }));
   const top = stories.filter(x => !x.sum.empty).slice(0, 4);
   return {
     persona: p, period, label, range, at: now,
+    // the data the edition was printed from: the drill-down reads the same snapshot, so its numbers match the page
+    snap: s,
     // the weather is today's; the weekly and monthly reports look back instead
     weather: period === 'daily' ? weatherOf(f) : null, headline: h.headline, deck: h.deck, wins: h.wins, fixes: h.fixes,
+    winsGo: h.wins.map(t => goFor(t, period, p.region)), fixesGo: h.fixes.map(t => goFor(t, period, p.region)), focusGo: /\bBranch \d+/.test(h.inFocus) ? { t: 'branch', id: D.storeOf(+h.inFocus.match(/\bBranch (\d+)/)[1]).id } : goFor(h.inFocus, period, p.region),
+    visuals: visualsOf(p, s, now, period, bs),
     inFocus: h.inFocus,
-    numbers: h.numbers.map(([label, value, tone]) => ({ label, value, tone })),
+    numbers: h.numbers.map(([label, value, tone]) => ({ label, value, tone, go: goFor(label, period, p.region) })),
     agenda: agenda(p, s, now, bs, period).slice(0, 5).map(x => ({ ...x, what: x.what.replace(/^CHG\d+\s+/, '').replace(/^Decide (APR-\d+): /, 'Decide: '), when: x.t == null ? 'Today' : x.t < now ? 'Overdue' : x.label || (dateShort(x.t) === dateShort(now) ? ct(x.t) : `${dateShort(x.t)} ${ct(x.t)}`) })),
     stories: top, inBrief: stories.filter(x => !top.includes(x)),
   };

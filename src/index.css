@@ -68,3 +68,7 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
 /* live paths morph to their next reading instead of jumping (browsers without CSS d transitions just snap) */
 .morph { transition: d var(--tickh, 1s) ease-out; }
 @media (prefers-reduced-motion: reduce) { .morph { transition: none; } }
+/* briefs: the drill-down slides in from the right; each level fades in */
+@keyframes drillIn { from { transform: translateX(28px); opacity: .4; } to { transform: none; opacity: 1; } }
+.drill-in { animation: drillIn .22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .drill-in { animation: none; } }

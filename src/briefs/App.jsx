@@ -11,6 +11,8 @@ import { compose } from './compose.js';
 import { downloadEdition } from './pdf.js';
 import { hhmm } from '../util.js';
 import { APP_NAME } from '../edition.js';
+import { DrillPanel } from './Drill.jsx';
+import { Picture } from './Picture.jsx';
 
 const KEY = 'srs-brief-user';
 const load = () => { try { return sessionStorage.getItem(KEY); } catch { return null; } };
@@ -56,7 +58,7 @@ function SignIn({ onIn }) {
 }
 
 // the whole answer behind a story, for readers who want the detail
-function FullStory({ x, onClose }) {
+function FullStory({ x, onClose, go }) {
   useEffect(() => { const k = e => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
   return (
     <div className="fixed inset-0 z-50 bg-black/45 flex items-start justify-center p-3 sm:p-8 overflow-y-auto" onClick={onClose}>
@@ -66,24 +68,26 @@ function FullStory({ x, onClose }) {
           <button onClick={onClose} aria-label="Close" className="h-9 w-9 shrink-0 rounded-md border border-line hover:bg-chip grid place-items-center text-ink"><I.X size={16} /></button>
         </div>
         {x.a.lead && <p className="text-[14.5px] text-ink2 leading-relaxed mt-2">{x.a.lead}</p>}
-        <div className="space-y-2 mt-3 text-[12.5px]">{(x.a.blocks || []).map((k, j) => <AskBlock key={j} k={k} maxRows={12} />)}</div>
+        {x.go && <button onClick={() => go(x.go)} className="mt-3 h-9 px-3 rounded-md bg-brand text-white text-[13px] font-semibold inline-flex items-center gap-1.5 hover:brightness-110"><I.Layers size={15} />Explore the detail<I.ArrowRight size={14} /></button>}
+        <div className="space-y-2 mt-3 text-[12.5px]">{(x.a.blocks || []).map((k, j) => <AskBlock key={j} k={k} maxRows={12} go={r => go(r.inc ? { t: 'incident', id: r.inc } : { t: 'branch', id: r.branch })} />)}</div>
+        <p className="text-[11.5px] text-ink3 mt-2">Click a branch or incident in the tables to open its full picture.</p>
         {x.a.src && <div className="text-[11px] text-ink3 italic mt-3">Source: {x.a.src}</div>}
       </div>
     </div>
   );
 }
 
-function Story({ x, onOpen }) {
+function Story({ x, onOpen, go }) {
   const { sum } = x;
   return (
     <article className="break-inside-avoid mb-7 border-t border-ink/70 pt-2">
       <Kicker>{x.kicker}</Kicker>
       <h3 className="text-[19px] font-bold text-ink leading-snug mt-1" style={DISPLAY}>{sum.title}</h3>
       {sum.line && <p className="text-[14px] text-ink2 leading-relaxed mt-1">{sum.line}</p>}
-      {sum.stats.length > 0 && <div className="flex gap-5 mt-2">{sum.stats.map(s => <div key={s.label} className="min-w-0"><div className={cx('font-bold leading-none tabular-nums whitespace-nowrap', s.value.length > 6 ? 'text-[17px]' : 'text-[21px]', TONE[s.tone] || 'text-ink')} style={DISPLAY}>{s.value}</div><div className="text-[11px] text-ink3 mt-0.5 leading-tight">{s.label}</div></div>)}</div>}
+      {sum.stats.length > 0 && <div className="flex gap-5 mt-2">{sum.stats.map(s => <div key={s.label} role="button" tabIndex={0} onClick={() => go(x.go)} className="min-w-0 cursor-pointer hover:opacity-80"><div className={cx('font-bold leading-none tabular-nums whitespace-nowrap', s.value.length > 6 ? 'text-[17px]' : 'text-[21px]', TONE[s.tone] || 'text-ink')} style={DISPLAY}>{s.value}</div><div className="text-[11px] text-ink3 mt-0.5 leading-tight">{s.label}</div></div>)}</div>}
       {sum.bars && <div className="mt-2 space-y-1.5">{sum.bars.items.map(b => { const mx = sum.bars.max || Math.max(1, ...sum.bars.items.map(v => v.value)); return <div key={b.label} className="text-[11.5px]"><div className="flex justify-between gap-2 text-ink2"><span className="truncate">{b.label}</span><b className="text-ink tabular-nums">{b.display ?? b.value}</b></div><div className="h-1.5 bg-ink/10 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.max(3, b.value / mx * 100)}%`, background: BAR[b.tone] || BAR.info }} /></div></div>; })}</div>}
       {sum.points.length > 0 && <ul className="mt-2 space-y-1 text-[12.5px] text-ink2">{sum.points.map((p, i) => <li key={i} className="flex gap-2"><span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: BAR[p.tone] || '#16191D' }} /><span className="min-w-0">{p.b && <b className="text-ink font-semibold">{p.b}</b>}{p.b && p.t ? ' – ' : ''}{p.t}</span></li>)}</ul>}
-      <button onClick={onOpen} className="mt-2 text-[12.5px] font-semibold text-brand hover:underline inline-flex items-center gap-1">Read the full story<I.ArrowRight size={13} /></button>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1"><button onClick={onOpen} className="text-[12.5px] font-semibold text-brand hover:underline inline-flex items-center gap-1">Read the full story<I.ArrowRight size={13} /></button>{x.go && <button onClick={() => go(x.go)} className="text-[12.5px] font-semibold text-info hover:underline inline-flex items-center gap-1"><I.Layers size={13} />Explore the detail</button>}</div>
     </article>
   );
 }
@@ -94,6 +98,8 @@ function Edition({ p, onOut }) {
   const [ver, setVer] = useState(0);
   const [busy, setBusy] = useState('');
   const [open, setOpen] = useState(null);
+  const [drill, setDrill] = useState([]);
+  const go = node => { if (node) { setOpen(null); setDrill([node]); } };
   // an edition is printed once and stays still while you read it; Refresh prints a new one from live data
   const ed = useMemo(() => compose(p, s, Date.now(), L, period), [p.id, period, ver]);
   const pdf = per => { setBusy(per); setTimeout(() => { try { downloadEdition(per === period ? ed : compose(p, s, Date.now(), L, per)); } finally { setBusy(''); } }, 30); };
@@ -110,6 +116,7 @@ function Edition({ p, onOut }) {
         <div className="mt-2 text-[12.5px] text-ink2 flex flex-wrap justify-center gap-x-4 gap-y-1">
           <span className="font-semibold text-ink">{period === 'daily' ? longDate(ed.at) : ed.range}</span><span>Edition for {p.title}</span>{ed.weather && <span>Network weather: <b className="text-ink">{ed.weather.word}</b></span>}<span>Printed {hhmm(ed.at)} CT</span>
           <button onClick={() => setVer(v => v + 1)} className="text-info hover:underline inline-flex items-center gap-1"><I.RefreshCw size={12} />Refresh</button>
+          <button onClick={() => go({ t: 'set', k: 'all', ...(p.region ? { region: p.region } : {}) })} className="text-info hover:underline inline-flex items-center gap-1"><I.Layers size={12} />Explore {p.region ? `all ${p.region} branches` : 'all 900 branches'}</button>
         </div>
       </header>
       <div className="flex flex-wrap items-center gap-2 py-3 border-b border-line">
@@ -128,34 +135,37 @@ function Edition({ p, onOut }) {
             <div className="grid sm:grid-cols-2 gap-6">
               <div>
                 <Section className="mb-3 !border-ok !text-ok">Going well</Section>
-                <ul className="space-y-2.5">{ed.wins.map((t, i) => <li key={i} className="flex gap-2.5 text-[15px] text-ink leading-snug"><I.Check size={16} className="mt-[2px] shrink-0 text-ok" strokeWidth={3} />{t}</li>)}</ul>
+                <ul className="space-y-1">{ed.wins.map((t, i) => <li key={i}><button onClick={() => go(ed.winsGo[i])} className="w-full text-left flex gap-2.5 text-[15px] text-ink leading-snug py-1 -mx-1 px-1 rounded hover:bg-ink/[0.05] group"><I.Check size={16} className="mt-[2px] shrink-0 text-ok" strokeWidth={3} /><span className="flex-1 group-hover:underline decoration-ink/30 underline-offset-2">{t}</span><I.ChevronRight size={15} className="mt-[3px] shrink-0 text-ink3 opacity-0 group-hover:opacity-100" /></button></li>)}</ul>
               </div>
               <div>
                 <Section className="mb-3 !border-warn !text-warn">To fix</Section>
-                <ul className="space-y-2.5">{ed.fixes.map((t, i) => <li key={i} className="flex gap-2.5 text-[15px] text-ink leading-snug"><I.ArrowRight size={16} className="mt-[2px] shrink-0 text-warn" strokeWidth={2.5} />{t}</li>)}</ul>
+                <ul className="space-y-1">{ed.fixes.map((t, i) => <li key={i}><button onClick={() => go(ed.fixesGo[i])} className="w-full text-left flex gap-2.5 text-[15px] text-ink leading-snug py-1 -mx-1 px-1 rounded hover:bg-ink/[0.05] group"><I.ArrowRight size={16} className="mt-[2px] shrink-0 text-warn" strokeWidth={2.5} /><span className="flex-1 group-hover:underline decoration-ink/30 underline-offset-2">{t}</span><I.ChevronRight size={15} className="mt-[3px] shrink-0 text-ink3 opacity-0 group-hover:opacity-100" /></button></li>)}</ul>
               </div>
             </div>
           </div>
           <div className="mt-5 border-l-4 border-brand pl-4 py-1">
             <Kicker>In focus</Kicker>
             <p className="text-[15px] text-ink leading-relaxed mt-1">{ed.inFocus}</p>
+            <button onClick={() => go(ed.focusGo)} className="mt-1 text-[12.5px] font-semibold text-brand hover:underline inline-flex items-center gap-1">See the detail<I.ArrowRight size={13} /></button>
           </div>
         </section>
         <aside className="space-y-6 min-w-0">
           <div>
             <Section className="mb-3">By the numbers</Section>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">{ed.numbers.map(x => <div key={x.label}><div className={cx('text-[30px] font-bold leading-none tabular-nums', TONE[x.tone] || 'text-ink')} style={DISPLAY}>{x.value}</div><div className="text-[12px] text-ink2 mt-1 leading-tight">{x.label}</div></div>)}</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">{ed.numbers.map(x => <button key={x.label} onClick={() => go(x.go)} className="text-left rounded-md -mx-1.5 px-1.5 py-1.5 hover:bg-ink/[0.05] group"><div className={cx('text-[30px] font-bold leading-none tabular-nums', TONE[x.tone] || 'text-ink')} style={DISPLAY}>{x.value}</div><div className="text-[12px] text-ink2 mt-1 leading-tight flex items-start gap-0.5"><span className="group-hover:underline">{x.label}</span><I.ChevronRight size={13} className="shrink-0 text-ink3 group-hover:text-brand" /></div></button>)}</div>
           </div>
           <div>
             <Section className="mb-1">{{ daily: 'Your day', weekly: 'Next week', monthly: 'The month ahead' }[period]}</Section>
-            {ed.agenda.length ? <ol className="divide-y divide-line">{ed.agenda.map((x, i) => <li key={i} className="grid grid-cols-[92px_minmax(0,1fr)] gap-2 py-2 text-[13px]"><span className={cx('font-semibold tabular-nums', x.late ? 'text-bad' : 'text-ink')}>{x.when}<span className="block text-[11px] font-normal text-ink3">{x.kind}</span></span><span className="text-ink leading-snug">{x.what}</span></li>)}</ol> : <p className="text-[13px] text-ink3 pt-2">Nothing on your calendar that needs you today.</p>}
+            {ed.agenda.length ? <ol className="divide-y divide-line">{ed.agenda.map((x, i) => <li key={i}><button onClick={() => go(x.go)} className="w-full text-left grid grid-cols-[92px_minmax(0,1fr)_14px] gap-2 py-2 text-[13px] hover:bg-ink/[0.04] group"><span className={cx('font-semibold tabular-nums', x.late ? 'text-bad' : 'text-ink')}>{x.when}<span className="block text-[11px] font-normal text-ink3">{x.kind}</span></span><span className="text-ink leading-snug group-hover:underline decoration-ink/30">{x.what}</span><I.ChevronRight size={14} className="mt-[2px] text-ink3 opacity-0 group-hover:opacity-100" /></button></li>)}</ol> : <p className="text-[13px] text-ink3 pt-2">Nothing on your calendar that needs you today.</p>}
           </div>
         </aside>
       </div>
 
-      <div className="mt-8 border-t-[3px] border-double border-ink pt-3">
+      <Picture visuals={ed.visuals} go={go} />
+
+      <div id="inside" className="mt-8 border-t-[3px] border-double border-ink pt-3">
         <Section className="mb-4 border-b-0">Inside this edition</Section>
-        <div className="md:columns-2 xl:columns-4 gap-8">{ed.stories.map((x, i) => <Story key={i} x={x} onOpen={() => setOpen(x)} />)}</div>
+        <div className="md:columns-2 xl:columns-4 gap-8">{ed.stories.map((x, i) => <Story key={i} x={x} go={go} onOpen={() => setOpen(x)} />)}</div>
       </div>
 
       <div className="mt-4 border-t border-ink pt-4 grid md:grid-cols-2 gap-8">
@@ -169,8 +179,9 @@ function Edition({ p, onOut }) {
           <div className="flex flex-wrap gap-1">{p.can.map(c => <span key={c} className="text-[11px] border border-line rounded px-1.5 py-0.5 text-ink2 bg-panel">{c}</span>)}</div>
         </div>
       </div>
-      <footer className="mt-8 pt-3 border-t border-ink text-[11.5px] text-ink3 text-center">Sample data; branch names, figures and incidents are illustrative. Every number comes from the same data as the console.</footer>
-      {open && <FullStory x={open} onClose={() => setOpen(null)} />}
+      <footer className="mt-8 pt-3 border-t border-ink text-[11.5px] text-ink3 text-center">Every number comes from the same live data as the console. Click any number, chart or story to see the detail behind it.</footer>
+      {open && <FullStory x={open} go={go} onClose={() => setOpen(null)} />}
+      {drill.length > 0 && <DrillPanel stack={drill} setStack={setDrill} now={ed.at} scope={p.region} snap={ed.snap} />}
     </div>
   );
 }

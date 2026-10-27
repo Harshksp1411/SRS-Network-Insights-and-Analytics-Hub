@@ -128,10 +128,10 @@ export function Spark({ data, w: w0 = 110, h = 30, color = C.info, fill = true, 
 }
 
 // Time series with optional forecast segment (dashed) and confidence band. One y-axis only.
-export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [], yMin, yMax, band, forecastFrom, nowLabel = 'now' }) {
+export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [], yMin, yMax, band, forecastFrom, nowLabel = 'now', padL = 44 }) {
   const [hover, setHover] = useState(null);
   const [wref, W] = useWidth();
-  const H = h, L = 44, Rr = 12, T = 12, B = 24;
+  const H = h, L = padL, Rr = 12, T = 12, B = 24;
   const all = series.flatMap(s => s.data).concat(refLines.map(r => r.v)).concat(band ? [...band.lo, ...band.hi] : []).filter(v => v != null);
   let lo = yMin ?? Math.min(...all), hi = yMax ?? Math.max(...all);
   if (yMax == null) hi = yMin === 0 ? niceMax(hi) : hi + (hi - lo) * 0.08;
