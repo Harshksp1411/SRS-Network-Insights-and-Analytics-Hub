@@ -1,6 +1,6 @@
 # SRS Network Insights and Analytics Hub
 
-Three self-contained, offline web pages: the operations console, the live demos and the role-based morning briefs. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
+Three self-contained, offline web pages: the operations console, the live demos and the real-time role-based dashboards. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
 
 **Everything runs in the browser with sample data.** Fleet totals match the SRS RFP inventory (900 branches, 933 EdgeConnect EC-XS, 4,075 devices, 1,800 circuits) and the 6-month ticket history. Per-branch placement, firmware, serials, schedules and trend histories are illustrative and are labelled as such on screen.
 
@@ -30,22 +30,33 @@ Filter everything by Region › City › Branch › Brand. Switch role (NOC Engi
 
 Branches are numbered 1 to 900 across the estate, with their location in the name: "Branch 214 – Virginia Beach, VA" is BR-0214.
 
-## Morning briefs (`briefs/`)
+## Role dashboards (`dashboards/`)
 
-A third page, separate from the console and the demos: a two-minute newspaper for six roles, with four charts on every front page, written in plain words from the same live data and set in Aptos (the nearest system sans where Aptos is not installed). Each role signs in and sees only its own edition (role-based access): a headline, three things to know, the story in focus, four numbers, "Your day" (up to five changes, decisions, visits, carrier restore times, go-lives and freezes), four short stories and the rest in brief. "The picture" shows each edition's four charts: today, every branch's status, a map of where the problems are, each region's share trading normally and one chart for the role (automatic fixes, delay to the data centre, opening readiness, the incident queue or device health); this week, problems fixed day by day, what went wrong, how long fixes took and trouble-free branches or changes; this month, six months of uptime and time to fix, service levels and carrier lines below their promise (or capacity, or switches reaching end of support).
+A third page, separate from the console and the demos: real-time dashboards with role-based access (RBAC) for six leaders. Each role signs in and sees only its own dashboard, its own scope and the detail its access allows. The dashboard is worked out again from the same live data as the console every few seconds (every third live tick: about 6 s at 1×, faster at 5× and 10×); **LIVE** in the header shows the time of the last update and pauses or resumes it.
 
-**Peel the onion.** Every number, sentence, calendar entry, chart bar, slice, column, map dot and story opens a drill-down panel that goes as deep as the console: the estate, a region, a state, a city, one branch (lines, the last 24 hours of delay, loss and use, opening checks, incidents, devices, what uses the line, visits, carrier repairs, decisions and changes), one internet line, one device (software, security advisories, lifecycle, warranty, backups), one incident (timeline, likely cause, fix, deadline) and on to the carrier, the change, the decision, the service level, the six-month trend, the project or the prediction behind it. A breadcrumb shows the path; Back or any crumb steps out, Escape closes. The drill-down reads the same data the edition was printed from, so its numbers match the page; a regional edition stays inside its region. Detail stays out of the way: "Read the full story" opens the whole answer. The three editions are different reports, not one page with a new date: Today is what is happening right now (who is down, what is due today, the decisions waiting); This week looks back over the last seven days (problems fixed, how fast, what automation saved, changes made) and ahead to next week; This month is the last full month against target (uptime, service levels, time to fix and its six-month trend, carrier credits, capacity and lifecycle) and the 30 days ahead. Each has its own headline, numbers, calendar and stories, and each leads with the good news: a "Going well" list beside a short "To fix" list, numbers that show what is working first, and story headlines that give the healthy share before what is left to do (for example "864 of 900 branches healthy; 36 being worked on"). "This week" and "This month" switch the edition, and the Daily, Weekly and Monthly buttons download it as a short PDF generated in the browser, with the same four charts drawn in the PDF (in Helvetica, since Aptos cannot be embedded).
+Three views: **Live now** (what is happening right now: who is down, what is due in the next 24 hours, the decisions waiting), **Last 7 days** (problems fixed, how fast, what automation saved, changes made, and the next 7 days) and **Last month** (the last full month against target, the six-month trend and the next 30 days). Each view has:
 
-| Role | Username | Password |
-|---|---|---|
-| Chief Information Officer | `cio` | `Brief@CIO1` |
-| Head of Networks | `head.networks` | `Brief@NET1` |
-| Head of Stores & Branches | `head.stores` | `Brief@STR1` |
-| Head of IT Service & NOC | `head.itservice` | `Brief@ITS1` |
-| Head of Security | `head.security` | `Brief@SEC1` |
-| Regional Manager, Southeast | `regional.se` | `Brief@REG1` |
+- a summary with the network status (healthy, minor issues, degraded or major disruption) and a spotlight on one branch event;
+- four key numbers;
+- **Needs attention**, **Going well** and what is coming up (changes, decisions, technician visits, carrier restore times, go-lives and freezes);
+- four interactive charts chosen for the view and the role: every branch's status with the worst first, a map of the problems, trading normally by region, and one chart for the role (automatic fixes, delay to the data centre, readiness to open, the incident queue or device health); fixes day by day, what went wrong, how long fixes took, trouble-free branches or changes; six months of uptime and time to fix, service levels, and carrier lines below their promise, capacity or switches reaching end of support;
+- four insights (each an Ask Mova iO answer) with **Details** and **Drill down**, and more insights;
+- **Live activity**: the role's own stream of network events, with events per minute.
 
-The accounts are demo accounts shown on the sign-in screen: the page is static with sample data, so the sign-in shows how access is split by role; it is not a security control. Personas and their stories are in `src/briefs/personas.js`; each story is an Ask Mova iO question, so the brief, the PDFs and the console agree.
+**Drill down to any level.** Every number, sentence, calendar entry, chart bar, slice, column, map dot, insight and event opens a panel that goes as deep as the console: the estate, a region, a state, a city, one branch (lines, the last 24 hours of delay, loss and use, opening checks, incidents, devices, what uses the line, visits, carrier repairs, decisions and changes), one internet line, one device (software, security advisories, lifecycle, warranty, backups), one incident (timeline, likely cause, fix, deadline) and on to the carrier, the change, the decision, the service level, the six-month trend, the project or the prediction behind it. A breadcrumb shows the path; Back or any crumb steps out, Escape closes. The regional manager's dashboard stays inside its region.
+
+**Export PDF** saves the current view, with the same four charts drawn in the PDF (in Helvetica, since Aptos cannot be embedded). The page is set in Aptos where it is installed. The old `briefs/` link forwards to `dashboards/`.
+
+| Role | Scope | Username | Password |
+|---|---|---|---|
+| Chief Information Officer | All regions | `cio` | `Dash@CIO1` |
+| Head of Networks | All regions | `head.networks` | `Dash@NET1` |
+| Head of Stores & Branches | All regions | `head.stores` | `Dash@STR1` |
+| Head of IT Service & NOC | All regions | `head.itservice` | `Dash@ITS1` |
+| Head of Security | All regions | `head.security` | `Dash@SEC1` |
+| Regional Manager, Southeast | Southeast | `regional.se` | `Dash@REG1` |
+
+The accounts are demo accounts shown on the sign-in screen: the page is static with sample data, so the sign-in shows how access is split by role; it is not a security control. Roles, their access and their insights are in `src/dash/personas.js`; each insight is an Ask Mova iO question, so the dashboards, the PDF export and the console agree.
 
 ## Ask Mova iO
 
@@ -69,7 +80,7 @@ Requires Node 18 or newer.
 
 ```bash
 npm ci
-npm run build        # writes dist/site/index.html (console), dist/site/demos/index.html (demos) and dist/site/briefs/index.html (briefs)
+npm run build        # writes dist/site/index.html (console), dist/site/demos/index.html (demos) and dist/site/dashboards/index.html (role dashboards)
 ```
 
 Open either file directly in a browser. No server and no network calls are needed. Both pages come from the same source: `src/edition.js` holds the name and the flag the build sets for the demos page.
@@ -78,7 +89,7 @@ Open either file directly in a browser. No server and no network calls are neede
 
 ## Publishing
 
-`.github/workflows/pages.yml` builds on every push to `main` and publishes all three pages to GitHub Pages: the console at the site root, the demos at `demos/` and the briefs at `briefs/`. Turn it on once in **Settings → Pages → Build and deployment → Source: GitHub Actions**. Note: a Pages site is reachable by anyone with the link, even from a private repository (except on GitHub Enterprise with private Pages).
+`.github/workflows/pages.yml` builds on every push to `main` and publishes all three pages to GitHub Pages: the console at the site root, the demos at `demos/` and the role dashboards at `dashboards/` (the old `briefs/` link forwards there). Turn it on once in **Settings → Pages → Build and deployment → Source: GitHub Actions**. Note: a Pages site is reachable by anyone with the link, even from a private repository (except on GitHub Enterprise with private Pages).
 
 ## Source layout
 
@@ -92,4 +103,5 @@ Open either file directly in a browser. No server and no network calls are neede
 | `src/mod_*.jsx` | One file per screen |
 | `src/predict.js`, `src/viz.jsx` | Forecasts and predictive / preventive panels |
 | `src/charts.jsx`, `src/ui.jsx` | Chart and UI components |
+| `src/dash/*` | The role dashboards: roles and access, the view for each role, charts, drill-down and PDF export |
 | `build.mjs` | esbuild + Tailwind, inlined into one HTML file |

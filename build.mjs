@@ -5,7 +5,8 @@ import fs from 'fs';
 // Two self-contained pages from the same source, laid out as the published site:
 //   dist/site/index.html        the operations console
 //   dist/site/demos/index.html  the live demos
-//   dist/site/briefs/index.html the role-based morning briefs and PDF reports
+//   dist/site/dashboards/index.html the real-time role-based (RBAC) dashboards, with PDF export
+//   dist/site/briefs/index.html  forwards the old link to the dashboards
 const NAME = 'SRS Network Insights and Analytics Hub';
 fs.mkdirSync('dist', { recursive: true });
 execSync('npx tailwindcss -i src/index.css -o dist/main.css --minify', { stdio: 'pipe' });
@@ -15,9 +16,9 @@ const icon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3
 const PAGES = [
   { out: 'dist/site/index.html', edition: 'console', entry: 'src/main.jsx', title: NAME, desc: 'SRS Distribution managed network operations console – operated by Movate. Sample data; items marked illustrative are not SRS facts.' },
   { out: 'dist/site/demos/index.html', edition: 'demos', entry: 'src/main.jsx', title: `${NAME} – Live demos`, desc: 'Scripted SRS branch situations, each played on one screen with every system involved – operated by Movate. Sample data.' },
-  { out: 'dist/site/briefs/index.html', edition: 'briefs', entry: 'src/briefs/main.jsx', title: `${NAME} – Morning Brief`, desc: 'Role-based morning briefs for the CIO, network, stores, IT service, security and regional leaders, with daily, weekly and monthly PDF reports. Sample data.' },
+  { out: 'dist/site/dashboards/index.html', edition: 'dashboards', entry: 'src/dash/main.jsx', title: `${NAME} – Role dashboards`, desc: 'Real-time, role-based dashboards for the CIO and the network, stores, IT service, security and regional leaders, with drill-down to every branch, line, device and incident. Sample data.' },
 ];
-// jsPDF can render HTML through optional libraries the briefs never use; leave them out of the page
+// jsPDF can render HTML through optional libraries the dashboards never use; leave them out of the page
 const noOptional = { name: 'no-optional', setup(b) { b.onResolve({ filter: /^(html2canvas|dompurify|canvg)$/ }, a => ({ path: a.path, namespace: 'empty' })); b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: 'export default {}', loader: 'js' })); } };
 
 for (const p of PAGES) {
@@ -42,3 +43,9 @@ for (const p of PAGES) {
   fs.writeFileSync(p.out, html);
   console.log(p.out, 'bytes', html.length);
 }
+
+// the old briefs link forwards to the dashboards
+fs.mkdirSync('dist/site/briefs', { recursive: true });
+fs.writeFileSync('dist/site/briefs/index.html', `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${NAME} – Role dashboards</title><meta http-equiv="refresh" content="0; url=../dashboards/"><link rel="canonical" href="../dashboards/"></head><body><p><a href="../dashboards/">Open the role dashboards</a></p></body></html>`);
+console.log('dist/site/briefs/index.html forwards to dashboards/');
+

@@ -1,6 +1,6 @@
-// The pictures on the front page of each edition, as plain data: the web page draws them as interactive charts
-// and the PDF draws the same numbers. Each picture, and each part of it, says where it leads in the drill-down.
-// Also: where each sentence, number and calendar entry on the front page leads (goFor).
+// The four charts on each role's dashboard, as plain data: the page draws them as interactive charts and the PDF
+// export draws the same numbers. Each picture, and each part of it, says where it leads in the drill-down.
+// Also: where each sentence, number and calendar entry on the dashboard leads (goFor).
 import * as D from '../data.js';
 import { slaClock } from '../store.jsx';
 import { C } from '../charts.jsx';
@@ -17,7 +17,7 @@ const P0 = v => `${Math.round(v * 100)}%`;
 const share = (a, b) => { const v = a / Math.max(1, b); return v >= 0.995 && a < b ? `${(Math.floor(v * 1000) / 10).toFixed(1)}%` : P0(v); };
 
 function geoOf(bs, region) {
-  // the next level down: regions for the estate, states for a regional edition
+  // the next level down: regions for the estate, states for the regional dashboard
   const key = region ? b => b.state : b => b.region;
   const m = {}; bs.forEach(b => { (m[key(b)] = m[key(b)] || []).push(b); });
   const order = region ? Object.keys(m).sort((a, b) => m[b].length - m[a].length) : D.REGIONS.filter(r => m[r]);
@@ -81,7 +81,7 @@ export function visualsOf(p, s, now, period, bs) {
     },
     kinds: () => {
       const m = {}; res7.forEach(i => { m[i.kind] = (m[i.kind] || 0) + 1; });
-      return { kind: 'hbars', title: 'What went wrong this week', go: { t: 'incidents', k: 'resolved7', ...R }, fmt: 'n', caption: 'Problems fixed in the last 7 days, by kind. Click one to see them.',
+      return { kind: 'hbars', title: 'What went wrong, last 7 days', go: { t: 'incidents', k: 'resolved7', ...R }, fmt: 'n', caption: 'Problems fixed in the last 7 days, by kind. Click one to see them.',
         rows: Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => ({ label: KIND_PLAIN[k] || k, value: v, display: num(v), color: C.s1, go: { t: 'incidents', k: 'resolved7', kind: k, ...R } })) };
     },
     ttr: () => ({
@@ -90,7 +90,7 @@ export function visualsOf(p, s, now, period, bs) {
     }),
     clean: () => {
       const w = new Set([...s.resolved.filter(i => (i.resolved || 0) >= now - 7 * DAY), ...s.incidents.filter(i => i.opened >= now - 7 * DAY)].map(i => i.branchId));
-      return { kind: 'hbars', title: `Trouble-free this week, by ${by}`, go: { t: 'set', k: 'clean7', ...R }, max: 1, fmt: 'pct0', caption: `${share(bs.filter(b => !w.has(b.id)).length, bs.length)} of branches had no problem at all in 7 days.`,
+      return { kind: 'hbars', title: `Trouble-free for 7 days, by ${by}`, go: { t: 'set', k: 'clean7', ...R }, max: 1, fmt: 'pct0', caption: `${share(bs.filter(b => !w.has(b.id)).length, bs.length)} of branches had no problem at all in 7 days.`,
         rows: geo.slice(0, region ? 8 : 10).map(g => { const v = g.bs.filter(b => !w.has(b.id)).length / g.bs.length; return { label: g.label, value: v, display: P0(v), sub: `${g.bs.length} branches`, color: v >= 0.9 ? C.ok : C.s1, go: { t: 'set', k: 'clean7', ...g.node } }; }) };
     },
     changes: () => {
@@ -150,8 +150,8 @@ export function goFor(text, period, region) {
     [/offline/i, () => ({ t: 'set', k: 'down', ...R })],
     [/backup line|on (its|their) backup|backup, trading|kept trading on backup|switched to backup|to the backup|on the backup/i, () => ({ t: 'set', k: 'backup', ...R })],
     [/not ready|ready to open|quick check/i, () => ({ t: 'set', k: /not ready/i.test(t) ? 'notReady' : 'readiness', ...R })],
-    [/trouble-free|no problem (at all|all week)/i, () => ({ t: 'set', k: 'clean7', ...R })],
-    [/approved software|software update|security update|updates next week/i, () => /next week|booked|scheduled/i.test(t) ? { t: 'changes', k: 'next7', ...R } : { t: 'devices', k: 'fw', ...R }],
+    [/trouble-free|no problem (at all|all week|in 7 days)/i, () => ({ t: 'set', k: 'clean7', ...R })],
+    [/approved software|software update|security update|updates next week|updates, next/i, () => /next week|next 7 days|booked|scheduled/i.test(t) ? { t: 'changes', k: 'next7', ...R } : { t: 'devices', k: 'fw', ...R }],
     [/change control|clean changes|changes? went in|went in cleanly|recorded and approved/i, () => ({ t: 'changes', k: 'done7', ...R })],
     [/decision|approvals?\b|waiting for a person|actions? waiting/i, () => ({ t: 'approvals' })],
     [/carrier repair|promised time/i, () => ({ t: 'cases', ...R })],
@@ -162,7 +162,7 @@ export function goFor(text, period, region) {
     [/capacity|bandwidth or wi-fi|room to grow|outgrow/i, () => ({ t: 'set', k: 'capacity', ...R })],
     [/switch(es)? to replace|older switches|end of support|replacement/i, () => ({ t: 'devices', k: 'eos', ...R })],
     [/critical (security )?flaw|to patch|clear of/i, () => ({ t: 'devices', k: 'crit', ...R })],
-    [/approved software|software update|security update|updates next week/i, () => /next week|booked|scheduled/i.test(t) ? { t: 'changes', k: 'next7', ...R } : { t: 'devices', k: 'fw', ...R }],
+    [/approved software|software update|security update|updates next week|updates, next/i, () => /next week|next 7 days|booked|scheduled/i.test(t) ? { t: 'changes', k: 'next7', ...R } : { t: 'devices', k: 'fw', ...R }],
     [/standard setup|match the standard|high-risk setting|bring back to the standard/i, () => ({ t: 'drift', ...R })],
     [/backups?/i, () => ({ t: 'devices', k: 'backup', ...R })],
     [/service level/i, () => ({ t: 'sla' })],
@@ -176,7 +176,7 @@ export function goFor(text, period, region) {
     [/most common|led the week/i, () => ({ t: 'incidents', k: 'resolved7', ...R })],
     [/problems? fixed|incidents closed|problems were fixed|half of all/i, () => ({ t: 'incidents', k: 'resolved7', ...R })],
     [/change control|clean changes|changes? went in|recorded and approved/i, () => ({ t: 'changes', k: 'done7', ...R })],
-    [/changes? (next|planned|scheduled)|next week/i, () => ({ t: 'changes', k: 'next7', ...R })],
+    [/changes? (next|planned|scheduled)|changes, next|next week|next 7 days/i, () => ({ t: 'changes', k: 'next7', ...R })],
     [/delay|latency/i, () => ({ t: 'set', k: 'latency', ...R })],
     [/new branch|go(es)? live|go-live/i, () => ({ t: 'projects', ...R })],
     [/kept up to date|branch managers/i, () => ({ t: 'set', k: 'issues', ...R })],

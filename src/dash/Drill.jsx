@@ -1,4 +1,4 @@
-// The drill-down behind every number, chart and story in the briefs: peel the onion from the whole estate to a
+// The drill-down behind every number, chart and insight on the role dashboards: peel the onion from the whole estate to a
 // region, a state, a city, one branch, one internet line, one device and one incident, then on to the carrier, the
 // change or the decision behind it. A breadcrumb shows where you are; any step back is one click.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -30,7 +30,7 @@ const regionOrder = bs => [...new Set(bs.map(b => b.region))].sort((a, b) => D.R
 const Kicker = ({ children }) => <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-brand">{children}</div>;
 function Head({ kicker, title, sub, right, children }) {
   return (
-    <div className="flex flex-wrap items-start gap-3 pb-3 border-b-2 border-ink">
+    <div className="flex flex-wrap items-start gap-3 pb-3 border-b border-line">
       <div className="flex-1 min-w-[260px]">
         <Kicker>{kicker}</Kicker>
         <h2 className="text-[26px] sm:text-[30px] font-bold text-ink leading-tight mt-0.5" style={DISPLAY}>{title}</h2>
@@ -47,7 +47,7 @@ function Kpis({ items, go }) {
       {items.filter(Boolean).map(x => {
         const El = x.go ? 'button' : 'div';
         return (
-          <El key={x.label} onClick={x.go ? () => go(x.go) : undefined} className={cx('bg-panel text-left px-3 py-2.5 min-w-0', x.go && 'hover:bg-[#f3efe6] group')}>
+          <El key={x.label} onClick={x.go ? () => go(x.go) : undefined} className={cx('bg-panel text-left px-3 py-2.5 min-w-0', x.go && 'hover:bg-chip/70 group')}>
             <div className={cx('font-bold leading-none tabular-nums truncate', String(x.value).length > 11 ? 'text-[18px] py-[3px]' : 'text-[24px]', TX[x.tone] || 'text-ink')} style={DISPLAY} title={String(x.value)}>{x.value}</div>
             <div className="text-[11.5px] text-ink2 mt-1 leading-tight flex items-start gap-1">{x.label}{x.go && <I.ChevronRight size={12} className="mt-[1px] shrink-0 text-ink3 group-hover:text-brand" />}</div>
             {x.sub && <div className="text-[10.5px] text-ink3 leading-tight mt-0.5 truncate">{x.sub}</div>}
@@ -60,7 +60,7 @@ function Kpis({ items, go }) {
 function Panel({ title, hint, children, className, right }) {
   return (
     <section className={cx('min-w-0', className)}>
-      <div className="flex items-end gap-2 border-b border-ink pb-1 mb-2.5">
+      <div className="flex items-end gap-2 border-b border-line pb-1 mb-2.5">
         <h3 className="text-[12px] font-bold tracking-[0.1em] uppercase text-ink flex-1">{title}</h3>
         {hint && <span className="text-[11px] text-ink3 hidden sm:inline">{hint}</span>}
         {right}
@@ -85,7 +85,7 @@ function Rows({ cols, rows, onRow, page = 12, empty = 'Nothing to show.' }) {
         <table className="w-full text-[12.5px]">
           <thead><tr className="text-left text-ink3 border-b border-line">{cols.map(c => <th key={c} className="px-2.5 py-1.5 font-semibold whitespace-nowrap">{c}</th>)}{onRow && <th className="w-6" />}</tr></thead>
           <tbody>{rows.slice(0, n).map((r, i) => (
-            <tr key={r.key || i} onClick={onRow && r.go !== false ? () => onRow(r) : undefined} className={cx('border-b border-line/60 last:border-0 align-top', onRow && r.go !== false && 'cursor-pointer hover:bg-[#f3efe6] group')}>
+            <tr key={r.key || i} onClick={onRow && r.go !== false ? () => onRow(r) : undefined} className={cx('border-b border-line/60 last:border-0 align-top', onRow && r.go !== false && 'cursor-pointer hover:bg-chip/70 group')}>
               {r.cells.map((c, j) => <td key={j} className="px-2.5 py-1.5">{c}</td>)}
               {onRow && <td className="pr-2 py-1.5 text-ink3 group-hover:text-brand">{r.go !== false && <I.ChevronRight size={14} />}</td>}
             </tr>))}</tbody>
@@ -113,7 +113,7 @@ function StackBar({ parts: ps, go, unit = 'branches' }) {
 }
 function Clickable({ items, go }) {
   return <ul className="divide-y divide-line/70 border border-line rounded-md bg-panel">{items.map((x, i) => (
-    <li key={i}><button onClick={x.go ? () => go(x.go) : undefined} className={cx('w-full text-left px-3 py-2 flex items-start gap-2 text-[12.5px]', x.go && 'hover:bg-[#f3efe6] group')}>
+    <li key={i}><button onClick={x.go ? () => go(x.go) : undefined} className={cx('w-full text-left px-3 py-2 flex items-start gap-2 text-[12.5px]', x.go && 'hover:bg-chip/70 group')}>
       {x.tone && <span className="mt-[5px] w-2 h-2 rounded-full shrink-0" style={{ background: { ok: C.ok, warn: C.warn, bad: C.bad, info: C.s1 }[x.tone] || C.s3 }} />}
       <span className="flex-1 min-w-0"><span className="font-semibold text-ink">{x.title}</span>{x.sub && <span className="block text-ink2 leading-snug">{x.sub}</span>}</span>
       {x.right && <span className="text-ink3 whitespace-nowrap">{x.right}</span>}
@@ -250,7 +250,7 @@ function BranchView({ n, go, ctx }) {
       <Grid>
         <Panel title="Internet lines" hint="click a line">
           <div className="grid sm:grid-cols-2 gap-3">{lines.map(c => { const ecDown = down && incs.some(i => i.kind === 'edgedown'); const lst = ecDown ? 'Unreachable' : down ? 'Down' : c.status; const tone = lst === 'Up' ? 'ok' : lst === 'Degraded' ? 'warn' : 'bad'; const av = D.availOf(c); return (
-            <button key={c.id} onClick={() => go({ t: 'circuit', id: c.id })} className="text-left border border-line rounded-md bg-panel p-3 hover:bg-[#f3efe6] group">
+            <button key={c.id} onClick={() => go({ t: 'circuit', id: c.id })} className="text-left border border-line rounded-md bg-panel p-3 hover:bg-chip/70 group">
               <div className="flex items-center gap-2"><span className="text-[11px] font-bold uppercase tracking-wider text-ink3 flex-1">{c.role === 'Primary' ? 'Main line' : 'Backup line'}</span><Pill tone={tone}>{lst === 'Up' ? (al.line.id === c.id ? 'In use' : 'Standing by') : lst}</Pill></div>
               <div className="text-[15px] font-bold text-ink mt-1">{c.carrier} {c.type}</div>
               <div className="text-[12px] text-ink2">{c.bw} Mb/s · {ecDown ? 'up at the modem; the SD-WAN appliance is not answering' : lst === 'Down' ? 'no traffic' : `${c.lat} ms, loss ${c.loss}%`}</div>
@@ -564,7 +564,7 @@ function IncidentsView({ n, go, ctx }) {
         {closed.length > 2 && <Panel title="How long fixes took" hint="click a band"><HBars rows={buckets.map(r => ({ ...r, color: C.s4 }))} labelW={120} onRow={r => go({ ...n, ttr: r.label })} /></Panel>}
         {!n.branch && byGeo.length > 1 && <Panel title={`By ${geo}`} hint="click to go in"><HBars rows={byGeo.slice(0, 10).map(([k, v]) => ({ label: geo === 'state' ? stateName(k) : k, key: k, value: v, color: C.s1 }))} labelW={170} onRow={r => go({ ...n, [geo]: r.key })} /></Panel>}
       </Grid>
-      <div className="mt-7"><Panel title="The incidents" hint="click one for the full story">
+      <div className="mt-7"><Panel title="The incidents" hint="click one for its full detail">
         <Rows page={15} cols={['Incident', 'Branch', 'What', 'Outcome']} onRow={r => go({ t: 'incident', id: r.id })} empty="No incident matches."
           rows={list.map(i => ({ key: i.id, id: i.id, cells: [<Name t={i.id} sub={`${i.pri} · ${dt(i.opened)}`} />, <span className="text-ink2">{D.BR[i.branchId].name}</span>, <span className="text-ink2">{i.title}</span>, i.state === 'Resolved' ? <span className="whitespace-nowrap">{isAutoInc(i) ? <b className="text-ok">Automatic</b> : <span className="text-ink2">Engineer</span>}<span className="text-ink3"> · {hrs(i.resolved - i.opened)}</span></span> : <Pill tone={slaClock(i, now).used > 0.5 ? 'warn' : 'info'}>{i.state}</Pill>] }))} />
       </Panel></div>
@@ -666,7 +666,7 @@ function SlaView({ go }) {
       <div className="grid lg:grid-cols-2 gap-x-8 gap-y-7 mt-6">{lines.map(l => (
         <Panel key={l} title={l} hint="click a line">
           <div className="space-y-1">{rows.filter(r => r.m.line === l).map(({ m, i, st }) => { const lo = m.lower ? 0 : Math.min(m.msl ?? m.esl, m.act) - 0.05, hi = m.lower ? 0.4 : 1; const pos = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)); return (
-            <button key={i} onClick={() => go({ t: 'metric', i })} className="w-full text-left grid grid-cols-[minmax(0,1fr)_120px_64px] items-center gap-2 text-[12.5px] px-1 py-1 rounded hover:bg-[#f3efe6]">
+            <button key={i} onClick={() => go({ t: 'metric', i })} className="w-full text-left grid grid-cols-[minmax(0,1fr)_120px_64px] items-center gap-2 text-[12.5px] px-1 py-1 rounded hover:bg-chip/70">
               <span className="truncate text-ink" title={m.name}>{m.name}</span>
               <span className="relative h-2.5 bg-ink/10 rounded-sm"><span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${pos(m.act)}%`, background: st === 'met' ? C.ok : st === 'min' ? C.bad : C.warn }} /><span className="absolute -top-1 -bottom-1 w-[2px] bg-ink" style={{ left: `${pos(m.esl)}%` }} /></span>
               <b className={cx('text-right tabular-nums', st === 'met' ? 'text-ok' : st === 'min' ? 'text-bad' : 'text-warn')}>{fmt(m)(m.act)}</b>
@@ -702,7 +702,7 @@ function MttrView({ go }) {
       <Kpis go={go} items={['P1', 'P2', 'P3'].map(p => ({ label: `${p}, ${M.months[4]}`, value: `${M[p][4]} h`, tone: 'ok', sub: `target ${M.target[p]} h · was ${M[p][0]} h in ${M.months[0]}`, go: { t: 'incidents', k: 'resolved7', pri: p } }))} />
       <Grid>
         {['P1', 'P2', 'P3'].map(p => <Panel key={p} title={`${p} – ${{ P1: 'major outage', P2: 'urgent', P3: 'standard' }[p]}`} hint="hours"><LineChart h={160} labels={MONTHS_SO_FAR} yMin={0} yFmt={v => `${v.toFixed(1)} h`} series={[{ name: p, color: C.s1, area: true, data: M[p] }]} refLines={[{ v: M.target[p], label: `Target ${M.target[p]} h`, color: C.bad }]} /></Panel>)}
-        <Panel title="Fixes this week" hint="click to see them"><Clickable go={go} items={['P1', 'P2', 'P3', 'P4'].map(p => ({ title: `${p} incidents fixed in the last 7 days`, go: { t: 'incidents', k: 'resolved7', pri: p } }))} /></Panel>
+        <Panel title="Fixes in the last 7 days" hint="click to see them"><Clickable go={go} items={['P1', 'P2', 'P3', 'P4'].map(p => ({ title: `${p} incidents fixed in the last 7 days`, go: { t: 'incidents', k: 'resolved7', pri: p } }))} /></Panel>
       </Grid>
     </div>
   );
@@ -774,13 +774,13 @@ function CasesView({ n, go, ctx }) {
 
 const VIEWS = { set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
 
-// The panel: slides in from the right over the brief; Escape closes it, the breadcrumb or Back steps out a level.
+// The panel: slides in from the right over the dashboard; Escape closes it, the breadcrumb or Back steps out a level.
 export function DrillPanel({ stack, setStack, now, scope, snap }) {
   const app = useApp();
   const s = snap || app.s;
   const box = useRef(null);
   const n = stack[stack.length - 1];
-  // a regional edition stays inside its region
+  // the regional dashboard stays inside its region
   const go = node => setStack(st => [...st, scope && !node.region && ['set', 'incidents', 'lines', 'devices', 'changes', 'drift', 'cases', 'projects'].includes(node.t) ? { ...node, region: scope } : node]);
   const back = () => setStack(st => st.slice(0, -1));
   useEffect(() => { const k = e => { if (e.key === 'Escape') setStack([]); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, []);
@@ -790,11 +790,11 @@ export function DrillPanel({ stack, setStack, now, scope, snap }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={labelOf(n)}>
       <div className="absolute inset-0 bg-black/40" onClick={() => setStack([])} />
-      <div ref={box} className="relative h-full w-full max-w-[1180px] overflow-y-auto shadow-2xl drill-in" style={{ background: '#fbfaf6' }}>
-        <div className="sticky top-0 z-10 border-b border-line px-4 sm:px-6 py-2 flex items-center gap-2" style={{ background: '#fbfaf6' }}>
+      <div ref={box} className="relative h-full w-full max-w-[1180px] overflow-y-auto shadow-2xl drill-in bg-canvas" >
+        <div className="sticky top-0 z-10 border-b border-line px-4 sm:px-6 py-2 flex items-center gap-2 bg-panel" >
           <button onClick={back} className="h-8 px-2.5 rounded-md border border-line hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1 shrink-0"><I.ArrowLeft size={14} />{stack.length > 1 ? 'Back' : 'Close'}</button>
           <nav aria-label="Where you are" className="flex-1 min-w-0 flex items-center gap-1 text-[12px] overflow-x-auto whitespace-nowrap py-1">
-            <button onClick={() => setStack([])} className="text-ink3 hover:text-ink hover:underline">Brief</button>
+            <button onClick={() => setStack([])} className="text-ink3 hover:text-ink hover:underline">Dashboard</button>
             {stack.map((x, i) => <React.Fragment key={i}><I.ChevronRight size={12} className="text-ink3 shrink-0" />{i === stack.length - 1 ? <span className="font-bold text-ink">{labelOf(x)}</span> : <button onClick={() => setStack(stack.slice(0, i + 1))} className="text-ink2 hover:text-ink hover:underline">{labelOf(x)}</button>}</React.Fragment>)}
           </nav>
           <span className="text-[11px] text-ink3 hidden md:inline shrink-0">Level {stack.length}</span>

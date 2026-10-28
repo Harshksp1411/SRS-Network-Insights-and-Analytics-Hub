@@ -226,7 +226,7 @@ export function KV({ k, v, className }) { return <div className={cx('flex justif
 export function ExportBtn({ onClick, label = 'Export CSV' }) { return <Btn size="sm" icon={Download} onClick={onClick}>{label}</Btn>; }
 export function Illus({ children = 'Illustrative' }) { return <span className="text-[10.5px] font-bold text-ink3 border border-dashed border-line rounded px-1 py-[1px]">{children}</span>; }
 
-// SRS roof mark, used in the console header and the briefs masthead
+// SRS roof mark, used in the console header and the dashboards header
 export function RoofMark({ size = 40, dark = false }) {
   const ink = dark ? '#ffffff' : 'rgb(var(--ink))';
   return (

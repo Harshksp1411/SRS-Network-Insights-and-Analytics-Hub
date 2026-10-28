@@ -1,6 +1,6 @@
-// Turns an edition (see compose.js) into a short PDF in the browser: masthead, headline, going well and to fix,
-// the story in focus, the numbers, your day, the picture (the same four charts as the page, drawn natively), the
-// stories and the rest in brief. In Helvetica: Aptos cannot be embedded, and Helvetica is the closest built-in font.
+// Exports the current dashboard view (see compose.js) as a short PDF in the browser: the header, the summary,
+// needs attention and going well, the spotlight, the key numbers, what is coming up, the same four charts as the
+// page (drawn natively), the insights and more insights. In Helvetica: Aptos cannot be embedded in a PDF.
 import { jsPDF } from 'jspdf';
 import { dt, hhmm, num } from '../util.js';
 import { FMT } from './visuals.js';
@@ -24,21 +24,21 @@ export function editionPdf(ed) {
   const section = t => { need(30); font('bold', 8.5, INK); doc.text(clean(t).toUpperCase(), M, y + 8, { charSpace: 0.5 }); y += 12; rule(y, 1.2); y += 8; };
 
   // masthead
-  font('bold', 7, INK3); doc.text('SRS NETWORK INSIGHTS AND ANALYTICS HUB', M, y + 7, { charSpace: 0.5 });
-  doc.text(clean(`EDITION FOR ${ed.persona.title.toUpperCase()}`), W - M, y + 7, { align: 'right', charSpace: 0.5 }); y += 14;
-  font('bold', 32, INK); doc.text(clean(`The ${ed.label}`), W / 2, y + 30, { align: 'center' }); y += 42;
-  rule(y, 1.2); rule(y + 3, 0.5); y += 6;
+  font('bold', 7, INK3); doc.text('SRS NETWORK INSIGHTS AND ANALYTICS HUB  ·  ROLE DASHBOARD', M, y + 7, { charSpace: 0.5 });
+  doc.text(clean(`SCOPE: ${(ed.persona.region || 'All regions').toUpperCase()}`), W - M, y + 7, { align: 'right', charSpace: 0.5 }); y += 12;
+  font('bold', 22, INK); doc.text(clean(`${ed.persona.title} – ${ed.label}`), M, y + 22); y += 30;
+  doc.setFillColor(...BRAND); doc.rect(M, y, CW, 2.2, 'F'); y += 6;
   font('normal', 8, INK2);
   doc.text(clean(ed.period === 'daily' ? longDate(ed.at) : ed.range), M, y + 9);
-  if (ed.weather) doc.text(clean(`Network weather: ${ed.weather.word}`), W / 2, y + 9, { align: 'center' });
-  doc.text(`Printed ${hhmm(ed.at)} CT`, W - M, y + 9, { align: 'right' }); y += 14;
-  rule(y, 0.5); rule(y + 3, 1.2); y += 18;
+  if (ed.status) doc.text(clean(`Network status: ${ed.status.word}`), W / 2, y + 9, { align: 'center' });
+  doc.text(`Snapshot ${hhmm(ed.at)} CT`, W - M, y + 9, { align: 'right' }); y += 14;
+  rule(y, 0.5, LINE); y += 14;
 
   // lead: headline, deck, going well and to fix side by side, in focus
   col(ed.headline, M, CW, 22, 'bold', INK, 1.12); y += 2;
   col(ed.deck, M, CW, 12, 'normal', INK2); y += 10;
   need(90); const y0 = y, hw = (CW - 20) / 2; let yEnd = y;
-  [['Going well', ed.wins, TONE.ok], ['To fix', ed.fixes, TONE.warn]].forEach(([t, items, c], k) => {
+  [['Needs attention', ed.fixes, TONE.warn], ['Going well', ed.wins, TONE.ok]].forEach(([t, items, c], k) => {
     const x = M + k * (hw + 20); y = y0;
     font('bold', 8.5, c); doc.text(t.toUpperCase(), x, y + 8, { charSpace: 0.5 }); y += 12; rule(y, 1.2, c, x, x + hw); y += 8;
     items.forEach(it => { doc.setFillColor(...c); doc.circle(x + 2.5, y + 6, 2.2, 'F'); col(it, x + 10, hw - 10, 10, 'normal', INK); y += 4; });
@@ -46,19 +46,19 @@ export function editionPdf(ed) {
   });
   y = yEnd;
   y += 4; need(40);
-  const fy = y; font('bold', 7.5, BRAND); doc.text('IN FOCUS', M + 10, y + 8, { charSpace: 0.5 }); y += 12;
+  const fy = y; font('bold', 7.5, BRAND); doc.text('SPOTLIGHT', M + 10, y + 8, { charSpace: 0.5 }); y += 12;
   col(ed.inFocus, M + 10, CW - 10, 10, 'normal', INK);
   doc.setDrawColor(...BRAND); doc.setLineWidth(2.5); doc.line(M + 1, fy, M + 1, y); y += 14;
 
-  // by the numbers
-  section('By the numbers');
+  // key numbers
+  section('Key numbers');
   const nw = (CW - 3 * 12) / 4;
   ed.numbers.forEach((x, i) => { const bx = M + i * (nw + 12); font('bold', 20, TONE[x.tone] || INK); doc.text(clean(x.value), bx, y + 18); font('normal', 8, INK2); doc.text(doc.splitTextToSize(clean(x.label), nw)[0], bx, y + 30); });
   y += 44;
 
   // your day
   if (ed.agenda.length) {
-    section({ daily: 'Your day', weekly: 'Next week', monthly: 'The month ahead' }[ed.period]);
+    section({ daily: 'Next 24 hours', weekly: 'Next 7 days', monthly: 'Next 30 days' }[ed.period]);
     ed.agenda.forEach(a => { need(18); font('bold', 8.5, a.late ? TONE.bad : INK); doc.text(clean(a.when), M, y + 9); font('normal', 7.5, INK3); doc.text(clean(a.kind), M, y + 19); const y0 = y; col(a.what, M + 110, CW - 110, 9.5, 'normal', INK); y = Math.max(y0 + 22, y) + 3; rule(y, 0.3, LINE); y += 5; });
     y += 6;
   }
@@ -105,7 +105,7 @@ export function editionPdf(ed) {
     return yy;
   };
   if (ed.visuals && ed.visuals.length) {
-    need(250); section('The picture');
+    need(250); section('Charts');
     const cw2 = (CW - 24) / 2;
     for (let i = 0; i < ed.visuals.length; i += 2) {
       need(210); const y0 = y; let yEnd = y;
@@ -115,7 +115,7 @@ export function editionPdf(ed) {
   }
 
   // the stories
-  section('Inside this edition');
+  section('Insights');
   ed.stories.forEach((x, n) => {
     const s = x.sum;
     need(90); if (n) { rule(y, 0.3, LINE); y += 8; }
@@ -128,20 +128,20 @@ export function editionPdf(ed) {
     y += 8;
   });
 
-  // in brief
+  // more insights
   if (ed.inBrief.length) {
-    y += 4; section('In brief');
+    y += 4; section('More insights');
     ed.inBrief.forEach(x => { need(30); font('bold', 7.5, BRAND); doc.text(clean(x.kicker.toUpperCase()), M, y + 8, { charSpace: 0.5 }); y += 11; col(x.sum.title, M, CW, 10.5, 'bold', INK); if (x.sum.line) col(x.sum.line, M, CW, 8.5, 'normal', INK2); y += 4; });
   }
 
   // footer on every page
   const pages = doc.getNumberOfPages();
-  for (let i = 1; i <= pages; i++) { doc.setPage(i); rule(H - 34, 0.4, LINE); font('normal', 7, INK3); doc.text(clean(`The ${ed.label} · ${ed.persona.title} · generated ${dt(ed.at)} CT`), M, H - 24); doc.text(`Page ${i} of ${pages}`, W - M, H - 24, { align: 'right' }); }
+  for (let i = 1; i <= pages; i++) { doc.setPage(i); rule(H - 34, 0.4, LINE); font('normal', 7, INK3); doc.text(clean(`${ed.persona.title} dashboard · ${ed.label} · snapshot ${dt(ed.at)} CT · role-based access`), M, H - 24); doc.text(`Page ${i} of ${pages}`, W - M, H - 24, { align: 'right' }); }
   return doc;
 }
 
 export function downloadEdition(ed) {
   const doc = editionPdf(ed);
   const stamp = new Date(ed.at).toISOString().slice(0, 10);
-  doc.save(`SRS-${ed.persona.id}-${ed.period}-${stamp}.pdf`);
+  doc.save(`SRS-dashboard-${ed.persona.id}-${{ daily: 'live', weekly: '7-days', monthly: 'month' }[ed.period]}-${stamp}.pdf`);
 }

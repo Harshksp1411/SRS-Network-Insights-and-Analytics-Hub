@@ -1,5 +1,5 @@
 // Draws the blocks of an Ask Mova iO answer (kpis, table, bars, layers, timeline, spark, list, heading, text).
-// Shared by the Ask panel and the morning briefs; `go` (optional) makes rows with a branch or incident clickable.
+// Shared by the Ask panel and the role dashboards; `go` (optional) makes rows with a branch or incident clickable.
 import React from 'react';
 import { cx } from './ui.jsx';
 import { C } from './charts.jsx';

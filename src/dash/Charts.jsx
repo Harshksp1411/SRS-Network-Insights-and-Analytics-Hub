@@ -1,5 +1,5 @@
-// "The picture": four charts on the front page of each edition. Every bar, slice, column and dot opens the detail
-// behind it in the drill-down; "Explore" opens the whole picture.
+// The four chart cards on each role's dashboard. Every bar, slice, column and dot opens the detail behind it in the
+// drill-down; the drill-down button on each card opens the whole chart's detail.
 import React, { useState } from 'react';
 import * as I from 'lucide-react';
 import { cx } from '../ui.jsx';
@@ -27,7 +27,7 @@ function Donut({ v, go }) {
   return (
     <div className="flex items-center gap-4 pt-2">
       <svg width={S} height={S} className="shrink-0">
-        <circle cx={S / 2} cy={S / 2} r={r} fill="none" stroke="#ebe7dd" strokeWidth={sw} />
+        <circle cx={S / 2} cy={S / 2} r={r} fill="none" className="stroke-chip" strokeWidth={sw} />
         {v.parts.map((p, i) => { const len = p.value / tot * c; const el = p.value > 0 && <circle key={p.label} cx={S / 2} cy={S / 2} r={r} fill="none" stroke={p.color} strokeWidth={hv === i ? sw + 5 : sw} strokeDasharray={`${Math.max(0, len - (tot > p.value ? 2 : 0))} ${c}`} strokeDashoffset={-acc} transform={`rotate(-90 ${S / 2} ${S / 2})`} className="cursor-pointer transition-all" onMouseEnter={() => setHv(i)} onMouseLeave={() => setHv(null)} onClick={() => go(p.go)}><title>{`${p.label}: ${num(p.value)}`}</title></circle>; acc += len; return el; })}
         <text x="50%" y="50%" textAnchor="middle" fontSize="22" fontWeight="700" className="fill-ink" style={DISPLAY}>{hv != null ? num(v.parts[hv].value) : v.center}</text>
         <text x="50%" y="63%" textAnchor="middle" fontSize="11" className="fill-ink3">{hv != null ? v.parts[hv].label.toLowerCase().slice(0, 18) : v.sub}</text>
@@ -41,30 +41,26 @@ function Chart({ v, go }) {
     case 'stack': return <Stack v={v} go={go} />;
     case 'donut': return <Donut v={v} go={go} />;
     case 'hbars': return <div className="pt-2"><HBars rows={v.rows} max={v.max} fmt={FMT[v.fmt] || FMT.n} labelW={200} onRow={r => go(r.go)} /></div>;
-    case 'cols': return <div className="pt-1"><Bars h={200} data={v.data.map((d, i) => ({ ...d, __i: i }))} keys={v.keys} colors={v.colors} onBar={d => go(v.goes[d.__i])} /><Legend className="mt-1" items={v.keys.map((k, i) => [k, v.colors[i]])} /></div>;
+    case 'cols': return <div className="pt-1"><Bars h={240} data={v.data.map((d, i) => ({ ...d, __i: i }))} keys={v.keys} colors={v.colors} onBar={d => go(v.goes[d.__i])} /><Legend className="mt-1" items={v.keys.map((k, i) => [k, v.colors[i]])} /></div>;
     case 'line': return <div className="pt-1 cursor-pointer" onClick={() => go(v.go)}><LineChart h={210} padL={v.padL || 44} labels={v.labels} yMin={v.yMin} yFmt={FMT[v.fmt] || FMT.n} series={v.series} refLines={v.refLines} />{v.series.length > 1 && <Legend className="mt-1" items={v.series.map(x => [x.name, x.color])} />}</div>;
     case 'map': return <div className="pt-1"><NAMap h={290} focus={v.focus ? v.points : null} onPoint={p => go({ t: 'branch', id: p.id })} points={v.points.map(p => ({ ...p, r: p.st === 'up' ? 2.4 : 6, dim: p.st === 'up', pulse: p.st === 'down' }))} /></div>;
     default: return null;
   }
 }
 
-export function Picture({ visuals, go }) {
+export function ChartCards({ visuals, go }) {
   return (
-    <div id="the-picture" className="mt-8 border-t-[3px] border-double border-ink pt-3">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-1 mb-4">
-        <div className="text-[12px] font-bold tracking-[0.12em] uppercase text-ink">The picture</div>
-        <div className="text-[12px] text-ink3 flex items-center gap-1"><I.MousePointerClick size={13} />Click any bar, slice, column or dot to see the detail behind it, down to a single branch, line or device.</div>
-      </div>
-      <div className="grid lg:grid-cols-2 gap-x-10 gap-y-9">
-        {visuals.map(v => (
-          <figure key={v.id} className="min-w-0 border-t border-ink/70 pt-2 flex flex-col">
-            <figcaption className="flex items-start gap-2"><h3 className="flex-1 text-[16px] font-bold text-ink leading-snug" style={DISPLAY}>{v.title}</h3></figcaption>
-            <div className="flex-1"><Chart v={v} go={go} />{v.top && v.top.length > 0 && <div className="mt-4"><div className="text-[11px] font-bold tracking-[0.1em] uppercase text-ink3 mb-1">{v.topTitle || 'Worst first'}</div><ul className="divide-y divide-line/70 border-y border-line/70">{v.top.map(t => <li key={t.label}><button onClick={() => go(t.go)} className="w-full text-left flex items-start gap-2 py-1.5 text-[12.5px] hover:bg-ink/[0.04] group"><span className="mt-[5px] w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} /><span className="min-w-0 flex-1"><b className="text-ink group-hover:underline">{t.label}</b><span className="text-ink2"> – {t.why}</span></span><I.ChevronRight size={14} className="mt-[2px] text-ink3 shrink-0" /></button></li>)}</ul></div>}</div>
-            <p className="text-[12.5px] text-ink2 leading-snug mt-2">{v.caption}</p>
-            <button onClick={() => go(v.go)} className="mt-1.5 self-start text-[12.5px] font-semibold text-brand hover:underline inline-flex items-center gap-1">Explore<I.ArrowRight size={13} /></button>
-          </figure>
-        ))}
-      </div>
+    <div id="charts" className="grid lg:grid-cols-2 gap-4">
+      {visuals.map(v => (
+        <figure key={v.id} className="min-w-0 bg-panel border border-line rounded-md p-4 flex flex-col">
+          <figcaption className="flex items-start gap-2 mb-1">
+            <h3 className="flex-1 text-[15px] font-bold text-ink leading-snug" style={DISPLAY}>{v.title}</h3>
+            <button onClick={() => go(v.go)} title="Drill down" className="h-7 px-2 rounded border border-line text-[12px] font-semibold text-ink2 hover:bg-chip hover:text-ink inline-flex items-center gap-1 shrink-0"><I.Layers size={13} />Drill down</button>
+          </figcaption>
+          <div className="flex-1"><Chart v={v} go={go} />{v.top && v.top.length > 0 && <div className="mt-3"><div className="text-[11px] font-bold tracking-[0.08em] uppercase text-ink3 mb-1">{v.topTitle || 'Worst first'}</div><ul className="divide-y divide-line border-y border-line">{v.top.map(t => <li key={t.label}><button onClick={() => go(t.go)} className="w-full text-left flex items-start gap-2 py-1.5 text-[12.5px] hover:bg-chip/60 group"><span className="mt-[5px] w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} /><span className="min-w-0 flex-1"><b className="text-ink group-hover:underline">{t.label}</b><span className="text-ink2"> – {t.why}</span></span><I.ChevronRight size={14} className="mt-[2px] text-ink3 shrink-0" /></button></li>)}</ul></div>}</div>
+          <p className="text-[12px] text-ink3 leading-snug mt-2 pt-2 border-t border-line">{v.caption}</p>
+        </figure>
+      ))}
     </div>
   );
 }

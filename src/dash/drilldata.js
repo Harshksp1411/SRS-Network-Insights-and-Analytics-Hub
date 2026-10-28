@@ -1,4 +1,4 @@
-// The data behind the briefs' drill-down. A "node" is one place a reader can stand: the estate, a region, a state,
+// The data behind the dashboards' drill-down. A "node" is one place a reader can stand: the estate, a region, a state,
 // a branch, one internet line, one device, one incident, and the lists in between. Every number here comes from
 // the same data and helpers as the console, so a figure on the front page, in the PDF and at the bottom of the
 // drill-down always agrees.
@@ -55,8 +55,8 @@ export const SETS = {
   notReady: { label: 'Not ready to open', test: (s, b) => readyOf(s, b).result === 'Not ready', plain: 'Branches where at least one opening check failed.' },
   attention: { label: 'Can open, one check to watch', test: (s, b) => readyOf(s, b).result === 'Needs attention', plain: 'Branches that can open but have a warning on one check.' },
   capacity: { label: 'Need more capacity within 90 days', test: (s, b) => capDays(capOf(s, b)) <= 90, plain: 'Branches whose internet line or Wi-Fi will reach its limit within 90 days at the current growth.' },
-  trouble7: { label: 'Had a problem this week', test: (s, b, x) => x.w7.has(b.id), plain: 'Branches with at least one incident opened or fixed in the last 7 days.' },
-  clean7: { label: 'Trouble-free this week', test: (s, b, x) => !x.w7.has(b.id), plain: 'Branches with no incident at all in the last 7 days.' },
+  trouble7: { label: 'Had a problem in 7 days', test: (s, b, x) => x.w7.has(b.id), plain: 'Branches with at least one incident opened or fixed in the last 7 days.' },
+  clean7: { label: 'Trouble-free for 7 days', test: (s, b, x) => !x.w7.has(b.id), plain: 'Branches with no incident at all in the last 7 days.' },
   latency: { label: 'Delay to the data centre', test: () => true, plain: 'Round-trip time from each branch to the McKinney data centre on the line it is using. Under 60 ms keeps card payments and the ordering system quick.' },
   eos: { label: 'Have switches reaching end of support', test: (s, b) => D.devicesOf(b.id).some(d => /2530/.test(d.model)), plain: 'Branches with Aruba 2530 switches, which reach end of support in early 2027.' },
 };
@@ -113,7 +113,7 @@ export const LINE_SETS = {
   flap: { label: 'Unstable lines (3 or more drops in 30 days)', plain: 'Lines that dropped 3 or more times in the last 30 days. Each drop moves the branch to its backup for a few seconds.' },
   repeat: { label: 'Repeat-offender lines (3 or more tickets in 90 days)', plain: 'Lines with 3 or more fault tickets in 90 days. These go to the carrier for a formal review.' },
 };
-// the same estimate as the console and the monthly report; round only when showing a total
+// the same estimate as the console and the monthly view; round only when showing a total
 export const creditOf = c => D.availOf(c) < D.LINE_SLA[c.type] ? D.lineMRC(c) * (D.LINE_SLA[c.type] - D.availOf(c) > 0.005 ? 0.25 : 0.1) : 0;
 export function linesOf(s, node) {
   const all = D.CIRCUITS.map(c => circuitOf(s, c.id)).filter(c => { const b = D.BR[c.branchId]; return (!node.region || b.region === node.region) && (!node.state || b.state === node.state) && (!node.carrier || (node.carrier === 'Canadian carriers' ? ['Bell', 'Rogers', 'Telus'].includes(c.carrier) : c.carrier === node.carrier)) && (!node.type || c.type === node.type); });

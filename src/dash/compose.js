@@ -1,4 +1,4 @@
-// Builds one persona's edition (daily brief, weekly or monthly report) from live console data. Stories are Ask
+// Builds one role's dashboard (live now, last 7 days or last month) from live console data. Insights are Ask
 // Mova iO answers, so every number matches the console; the headline, deck, numbers and agenda are written here.
 import * as D from '../data.js';
 import { answer } from '../ask.js';
@@ -74,8 +74,8 @@ function facts(s, now, L, bs = D.BRANCHES, region) {
   };
 }
 
-// what is on this person's calendar: today for the daily brief; the next 7 or 30 days, without the day's
-// decisions and visits, for the weekly and monthly reports
+// what is coming up for this role: the next 24 hours for the live view; the next 7 or 30 days, without the day's
+// decisions and visits, for the 7-day and monthly views
 function agenda(p, s, now, bs, period) {
   const ids = new Set(bs.map(b => b.id)), region = p.region, daily = period === 'daily';
   const span = { daily: DAY, weekly: 7 * DAY, monthly: 30 * DAY }[period];
@@ -94,13 +94,13 @@ function agenda(p, s, now, bs, period) {
 }
 
 // The front page leads with what is going well, then a short list of what to fix: a headline, one-line deck, up to
-// three things going well, up to three to fix, four numbers (good news first) and the story in focus.
+// three things going well, up to three to fix, four numbers (good news first) and the event in focus.
 const hero = n => D.storeOf(n);
 // a share in whole percent; near the top it keeps one decimal, so 7 drifted devices never read as 100%
 const pct = (a, b) => { const v = a / Math.max(1, b) * 100; return v >= 99 && a < b ? `${Math.min(99.9, Math.floor(v * 10) / 10)}%` : `${Math.round(v)}%`; };
 const pl = (n, one, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
 const cap1 = t => t.charAt(0).toUpperCase() + t.slice(1);
-// the branch stories the reports put in focus
+// the branch events the dashboards put in focus
 const FOCUS = {
   rollback: () => `${hero(D.HERO.config).name}: a policy change slowed the ordering system at opening. Mova iO spotted it, rolled it back and the branch was back to normal in 15 minutes.`,
   wifi: () => `${hero(D.HERO.autoAP).name}: a warehouse Wi-Fi point went dark. Mova iO restarted it from the switch and the handhelds were back in under 3 minutes, with no ticket worked by hand.`,
@@ -112,7 +112,7 @@ const FOCUS = {
 const are = (n, one = 'is', many = 'are') => n === 1 ? one : many;
 const DAILY = {
   cio: (f) => ({
-    headline: `${pct(f.up, f.n)} of branches open and trading normally this morning`,
+    headline: `${pct(f.up, f.n)} of branches open and trading normally right now`,
     deck: `Automation fixed ${pl(f.auto24.length, 'problem')} in the last 24 hours with no one called out. ${pl(f.pend.length, 'decision')} ${are(f.pend.length)} ready for your team.`,
     wins: [`${num(f.up)} of ${num(f.n)} branches are trading normally.`, `${pl(f.onB.length, 'branch', 'branches')} lost ${are(f.onB.length, 'its', 'their')} main internet line and kept trading on the backup; customers did not notice.`, `${num(f.open.length - f.risk.length)} of ${num(f.open.length)} open incidents are comfortably inside their deadline.`],
     fixes: [`${pl(f.down, 'branch', 'branches')} offline; engineers and carriers are on it.`, `${pl(f.notReady, 'branch', 'branches')} not ready to open yet.`],
@@ -128,7 +128,7 @@ const DAILY = {
     inFocus: FOCUS.rollback(),
   }),
   stores: (f) => ({
-    headline: `${num(f.n - f.notReady)} of ${num(f.n)} branches ready to open this morning`,
+    headline: `${num(f.n - f.notReady)} of ${num(f.n)} branches ready to open`,
     deck: `${pl(f.onB.length, 'branch', 'branches')} ${are(f.onB.length)} taking card payments on a backup line as normal.`,
     wins: [`${num(f.up)} branches are trading normally.`, `${pl(f.onB.length, 'branch', 'branches')} switched to a backup line on ${are(f.onB.length, 'its', 'their')} own and kept taking payments.`, 'Branch managers are kept up to date automatically.'],
     fixes: [`${pl(f.notReady, 'branch', 'branches')} not ready to open; technicians and carriers are on it.`, `${pl(f.attention, 'more branch', 'more branches')} need a quick check before opening.`],
@@ -161,59 +161,59 @@ const DAILY = {
   }),
 };
 
-// The weekly report looks back over the last seven days and ahead to next week.
+// The 7-day view looks back over the last seven days and ahead to the next seven.
 const WEEKLY = {
   cio: ({ week: w, open, n }) => ({
-    headline: `${num(w.res)} problems fixed this week, ${pct(w.auto, w.res)} with no engineer`,
+    headline: `${num(w.res)} problems fixed in the last 7 days, ${pct(w.auto, w.res)} with no engineer`,
     deck: `Automation saved about ${w.hours} engineer hours, and ${pct(n - w.branches, n)} of branches had a trouble-free week.`,
     wins: [`${num(n - w.branches)} of ${num(n)} branches had no problem at all.`, `${num(w.auto)} problems were fixed automatically, saving about ${w.hours} engineer hours.`, w.failed ? `${num(w.done - w.failed)} of ${num(w.done)} changes went in cleanly; the other was rolled back automatically in minutes.` : `All ${num(w.done)} changes went in cleanly.`],
-    fixes: [`${cap1(w.top[0])} were the most common problem (${w.top[1]}).`, `${pl(open.length, 'incident')} still open going into next week.`],
+    fixes: [`${cap1(w.top[0])} were the most common problem (${w.top[1]}).`, `${pl(open.length, 'incident')} still open now.`],
     numbers: [['Problems fixed', num(w.res), 'ok'], ['Fixed automatically', pct(w.auto, w.res), 'ok'], ['Trouble-free branches', pct(n - w.branches, n), 'ok'], ['Still open', num(open.length), 'warn']],
     inFocus: FOCUS.wifi(),
   }),
   networks: ({ week: w }) => ({
-    headline: `${num(w.res)} network problems fixed this week, ${pct(w.auto, w.res)} automatically`,
-    deck: `${pl(w.done, 'change')} went in this week and ${pl(w.next, 'change')} ${are(w.next)} planned for next week.`,
+    headline: `${num(w.res)} network problems fixed in the last 7 days, ${pct(w.auto, w.res)} automatically`,
+    deck: `${pl(w.done, 'change')} went in during the last 7 days and ${pl(w.next, 'change')} ${are(w.next)} planned for the next 7 days.`,
     wins: [`${num(w.auto)} problems fixed with no engineer.`, `Half of all problems were fixed within ${hrs(w.med)}.`, w.failed ? `${num(w.done - w.failed)} of ${num(w.done)} changes went in cleanly; the other was rolled back automatically.` : `All ${num(w.done)} changes went in cleanly.`],
-    fixes: [`${cap1(w.top[0])} led the week (${w.top[1]} of ${num(w.res)}).`, `${pl(w.carrier, 'problem')} needed a carrier; ${pl(w.unrecorded, 'setting')} ${are(w.unrecorded, 'was', 'were')} changed without a record.`],
+    fixes: [`${cap1(w.top[0])} were the most common problem (${w.top[1]} of ${num(w.res)}).`, `${pl(w.carrier, 'problem')} needed a carrier; ${pl(w.unrecorded, 'setting')} ${are(w.unrecorded, 'was', 'were')} changed without a record.`],
     numbers: [['Problems fixed', num(w.res), 'ok'], ['Fixed automatically', pct(w.auto, w.res), 'ok'], ['Clean changes', `${num(w.done - w.failed)} of ${num(w.done)}`, 'ok'], ['Needed a carrier', num(w.carrier), 'warn']],
     inFocus: FOCUS.rollback(),
   }),
   stores: ({ week: w, n }) => ({
     headline: `${num(n - w.branches)} of ${num(n)} branches had a trouble-free week`,
     deck: `Of the problems that did happen, ${pct(w.auto, w.res)} were fixed automatically and half within ${hrs(w.med)}.`,
-    wins: [`${num(n - w.branches)} branches had no problem all week.`, `${num(w.auto)} problems were fixed before anyone had to call.`, w.golives ? `${pl(w.golives, 'new branch', 'new branches')} ${are(w.golives, 'goes', 'go')} live next week.` : `Half of all problems were fixed within ${hrs(w.med)}.`],
-    fixes: [`${cap1(w.top[0])} were the most common problem.`, `${pl(w.next, 'change')} next week${w.freezes ? ` and ${pl(w.freezes, 'change freeze')}` : ''}; branches will be told in advance.`],
-    numbers: [['Trouble-free branches', num(n - w.branches), 'ok'], ['Problems fixed', num(w.res), 'ok'], ['Fixed automatically', pct(w.auto, w.res), 'ok'], ['Changes next week', num(w.next), 'info']],
+    wins: [`${num(n - w.branches)} branches had no problem in 7 days.`, `${num(w.auto)} problems were fixed before anyone had to call.`, w.golives ? `${pl(w.golives, 'new branch', 'new branches')} ${are(w.golives, 'goes', 'go')} live in the next 7 days.` : `Half of all problems were fixed within ${hrs(w.med)}.`],
+    fixes: [`${cap1(w.top[0])} were the most common problem.`, `${pl(w.next, 'change')} in the next 7 days${w.freezes ? ` and ${pl(w.freezes, 'change freeze')}` : ''}; branches will be told in advance.`],
+    numbers: [['Trouble-free branches', num(n - w.branches), 'ok'], ['Problems fixed', num(w.res), 'ok'], ['Fixed automatically', pct(w.auto, w.res), 'ok'], ['Changes, next 7 days', num(w.next), 'info']],
     inFocus: FOCUS.wifi(),
   }),
   itservice: ({ week: w, open }) => ({
-    headline: `${num(w.res)} incidents closed this week, ${pct(w.auto, w.res)} automatically`,
+    headline: `${num(w.res)} incidents closed in the last 7 days, ${pct(w.auto, w.res)} automatically`,
     deck: `That saved about ${w.hours} engineer hours; half of all incidents were closed within ${hrs(w.med)}.`,
-    wins: [w.p1 ? `${pl(w.p1, 'major outage')} (P1), each fixed inside target.` : 'No major outage (P1) all week.', `${num(w.auto)} incidents closed themselves.`, `Half of all incidents were closed within ${hrs(w.med)}.`],
-    fixes: [`${pl(w.carrier, 'incident')} depended on a carrier.`, `${pl(open.length, 'incident')} still open going into next week.`],
+    wins: [w.p1 ? `${pl(w.p1, 'major outage')} (P1), each fixed inside target.` : 'No major outage (P1) in 7 days.', `${num(w.auto)} incidents closed themselves.`, `Half of all incidents were closed within ${hrs(w.med)}.`],
+    fixes: [`${pl(w.carrier, 'incident')} depended on a carrier.`, `${pl(open.length, 'incident')} still open now.`],
     numbers: [['Incidents closed', num(w.res), 'ok'], ['Closed automatically', pct(w.auto, w.res), 'ok'], ['Major outages (P1)', num(w.p1), w.p1 ? 'warn' : 'ok'], ['Still open', num(open.length), 'warn']],
     inFocus: FOCUS.rollback(),
   }),
   security: ({ week: w, crit, devices }) => ({
-    headline: `${pl(w.done, 'change')} went through change control this week`,
-    deck: `${pl(w.nextFw, 'software update')} that close known security flaws ${are(w.nextFw)} booked for next week.`,
-    wins: [`${num(w.done)} recorded and approved changes.`, `${pct(devices - crit.length, devices)} of devices clear of critical flaws.`, `${pl(w.nextFw, 'security update')} scheduled for next week.`],
+    headline: `${pl(w.done, 'change')} went through change control in the last 7 days`,
+    deck: `${pl(w.nextFw, 'software update')} that close known security flaws ${are(w.nextFw)} booked for the next 7 days.`,
+    wins: [`${num(w.done)} recorded and approved changes.`, `${pct(devices - crit.length, devices)} of devices clear of critical flaws.`, `${pl(w.nextFw, 'security update')} scheduled in the next 7 days.`],
     fixes: [`${pl(w.unrecorded, 'setting')} ${are(w.unrecorded, 'was', 'were')} changed without a change record; each is being traced.`, `${pl(crit.length, 'device')} still to patch.`],
-    numbers: [['Through change control', num(w.done), 'ok'], ['Clear of critical flaws', pct(devices - crit.length, devices), 'ok'], ['Updates next week', num(w.nextFw), 'info'], ['Changed without record', num(w.unrecorded), w.unrecorded ? 'warn' : 'ok']],
+    numbers: [['Through change control', num(w.done), 'ok'], ['Clear of critical flaws', pct(devices - crit.length, devices), 'ok'], ['Updates, next 7 days', num(w.nextFw), 'info'], ['Changed without record', num(w.unrecorded), w.unrecorded ? 'warn' : 'ok']],
     inFocus: FOCUS.unrecorded(),
   }),
   regional: ({ week: w, n, cap }, p) => ({
     headline: `${p.region}: ${num(n - w.branches)} of ${num(n)} branches had a trouble-free week`,
     deck: `${num(w.res)} problems fixed, ${num(w.auto)} of them automatically.`,
-    wins: [`${num(n - w.branches)} branches had no problem all week.`, `${num(w.auto)} problems fixed with no engineer.`, `Half of all problems were fixed within ${hrs(w.med)}.`],
+    wins: [`${num(n - w.branches)} branches had no problem in 7 days.`, `${num(w.auto)} problems fixed with no engineer.`, `Half of all problems were fixed within ${hrs(w.med)}.`],
     fixes: [`${cap1(w.top[0])} were the most common problem.`, `${pl(cap.length, 'branch', 'branches')} will need more bandwidth or Wi-Fi within 90 days.`],
     numbers: [['Trouble-free branches', num(n - w.branches), 'ok'], ['Problems fixed', num(w.res), 'ok'], ['Fixed automatically', num(w.auto), 'ok'], ['Need more capacity', num(cap.length), 'warn']],
     inFocus: FOCUS.bandwidth(),
   }),
 };
 
-// The monthly report: the last full month against target, the six-month trend and the next 30 days.
+// The monthly view: the last full month against target, the six-month trend and the next 30 days.
 const MONTHLY = {
   cio: ({ mon: m, ...f }) => ({
     headline: `${f.month}: ${m.slaMet} of ${m.slaN} service levels met, ${m.slaLow ? `${m.slaLow} below the minimum` : 'none below the minimum'}`,
@@ -266,14 +266,14 @@ const MONTHLY = {
 };
 const H = { daily: DAILY, weekly: WEEKLY, monthly: MONTHLY };
 
-// today's "network weather" from the share of branches with a problem
-function weatherOf(f) {
+// the network's overall status right now, from the share of branches with a problem
+function statusWord(f) {
   const share = (f.down + f.degraded) / Math.max(1, f.n);
-  const kind = share < 0.02 && !f.down ? 'sun' : share < 0.06 ? 'partly' : share < 0.12 ? 'cloud' : 'storm';
-  return { kind, word: { sun: 'Clear skies', partly: 'Mostly sunny', cloud: 'Cloudy', storm: 'Stormy' }[kind], line: `${pct(f.up, f.n)} of branches trading normally` };
+  const kind = share < 0.02 && !f.down ? 'ok' : share < 0.06 ? 'minor' : share < 0.12 ? 'warn' : 'bad';
+  return { kind, word: { ok: 'Healthy', minor: 'Minor issues', warn: 'Degraded', bad: 'Major disruption' }[kind], line: `${pct(f.up, f.n)} of branches trading normally` };
 }
 
-// Story titles as the briefs print them: the good news first, then what is left to fix. Keyed by the question;
+// Insight titles as the dashboards show them: the good news first, then what is left to fix. Keyed by the question;
 // `lead` is the first number in the answer's own title.
 const lead = a => +((a.title || '').replace(/,/g, '').match(/\d+/) || [0])[0];
 const POSITIVE = {
@@ -300,8 +300,8 @@ const POSITIVE = {
   'Show all SLA metrics': (f) => `${f.mon.slaMet} of ${f.mon.slaN} service levels met; ${f.mon.slaLow ? `${f.mon.slaLow} below the minimum` : 'none below the minimum'}`,
 };
 
-// A story boiled down for the front page: a plain title, one sentence, up to three numbers or bars and three short
-// points. The full answer stays on the story for "Read the full story".
+// An insight boiled down for its card: a plain title, one sentence, up to three numbers or bars and three short
+// points. The full answer stays on the insight for "Details".
 const PLAIN = [[/\bMTTR\b/g, 'time to fix'], [/\bcritical CVEs?\b/g, 'critical security flaw'], [/\bCVEs?\b/g, 'security flaw'], [/\bSLA clock\b/g, 'deadline'], [/\bcarrier availability SLA\b/g, 'carrier uptime promise'], [/\bSLAs?\b/g, 'target'], [/\bgolden config\b/g, 'standard setup'], [/(?<!SD-)\bWAN\b/g, 'bandwidth'], [/\bbackup ISP\b/g, 'backup internet line'], [/\bp95\b/gi, 'peak'], [/^Open now, affected$/, 'Affected, open for business']];
 const plain = t => PLAIN.reduce((x, [re, to]) => x.replace(re, to), String(t || ''));
 const txt = c => c == null ? '' : typeof c === 'object' ? String(c.text ?? '') : String(c);
@@ -352,8 +352,8 @@ function regionStories(p, s, now, L, period) {
     changes: ['Changes', ask(s, 'What changed at Store 118 in the last 24 hours?', now, L), POSITIVE['What changed at Store 118 in the last 24 hours?']()],
     bandwidth: ['Bandwidth', ask(s, 'Show top bandwidth users at Store 45 yesterday.', now, L)],
     capacity: ['Capacity', { title: `${bs.length - cap.length} of ${bs.length} branches have room to grow; ${cap.length} need more capacity within 90 days`, blocks: [T(['Branch', 'WAN p95', 'Wi-Fi peak', 'Days to limit'], cap.map(x => ({ cells: [{ text: x.b.name, bold: true }, `${x.wanP95}%`, `${x.wifiPeak}%`, { text: String(Math.min(x.wanDays, x.wifiDays)), tone: Math.min(x.wanDays, x.wifiDays) <= 30 ? 'bad' : 'warn' }] })))], src: 'Orchestrator, Aruba Central, Prediction agent' }],
-    week: ['The week', { title: `${res7.length} incidents resolved in ${p.region} this week, ${res7.filter(i => i.auto).length} with no human touch`, blocks: [T(['Branch', 'Incident', 'Closed'], res7.slice(0, 12).map(i => ({ cells: [{ text: D.BR[i.branchId].name, bold: true }, i.title, i.auto ? { text: 'Auto-fixed', tone: 'ok' } : i.closeCode] })))], src: 'ServiceNow' }],
-    next: ['Next week', { title: `${next7.length} changes touching ${p.region} in the next 7 days`, blocks: [T(['When', 'Change', 'Risk'], next7.map(c => ({ cells: [{ text: dateShort(c.start), bold: true, sub: c.window }, c.title, { text: c.risk, tone: c.risk === 'High' ? 'bad' : c.risk === 'Medium' ? 'warn' : undefined }] })))], src: 'ServiceNow change calendar' }],
+    week: ['Last 7 days', { title: `${res7.length} incidents resolved in ${p.region} in the last 7 days, ${res7.filter(i => i.auto).length} with no human touch`, blocks: [T(['Branch', 'Incident', 'Closed'], res7.slice(0, 12).map(i => ({ cells: [{ text: D.BR[i.branchId].name, bold: true }, i.title, i.auto ? { text: 'Auto-fixed', tone: 'ok' } : i.closeCode] })))], src: 'ServiceNow' }],
+    next: ['Next 7 days', { title: `${next7.length} changes touching ${p.region} in the next 7 days`, blocks: [T(['When', 'Change', 'Risk'], next7.map(c => ({ cells: [{ text: dateShort(c.start), bold: true, sub: c.window }, c.title, { text: c.risk, tone: c.risk === 'High' ? 'bad' : c.risk === 'Medium' ? 'warn' : undefined }] })))], src: 'ServiceNow change calendar' }],
     repeat: ['Repeat offenders', { title: `${lines.length - repeat.length} of ${lines.length} ${p.region} lines trouble-free; ${repeat.length} under carrier review`, blocks: [T(['Line', 'Branch', 'Tickets'], repeat.slice(0, 10).map(c => ({ cells: [{ text: `${c.carrier} ${c.type}`, bold: true, sub: c.id }, D.BR[c.branchId].name, { text: String(c.tickets90), tone: 'warn' }] })))], src: 'ServiceNow, carrier cases' }],
     carriers: ['Carriers', { title: `${lines.length - flap.length} of ${lines.length} ${p.region} lines stable all month; ${flap.length} dropped 3 or more times`, blocks: [T(['Line', 'Branch', 'Drops', 'Availability'], flap.slice(0, 10).map(c => ({ cells: [{ text: `${c.carrier} ${c.type}`, bold: true, sub: c.id }, D.BR[c.branchId].name, { text: String(c.flaps30), tone: 'warn' }, { text: `${(D.availOf(c) * 100).toFixed(2)}%`, tone: D.availOf(c) < D.LINE_SLA[c.type] ? 'bad' : 'ok' }] })))], src: 'Orchestrator, carrier SLAs' }],
     eos: ['Lifecycle', { title: `Replacement planned for all ${eos.length} ${p.region} switches losing support in 2027`, lead: 'Aruba 2530 switches reach end of support on 31 Jan 2027 (48-port) and 31 Mar 2027 (24-port); each is planned for replacement before then.', blocks: [T(['Branch', 'Switches'], Object.entries(eosBy).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id, n]) => ({ cells: [{ text: D.BR[id].name, bold: true }, String(n)] })))], src: 'Device inventory, HPE lifecycle notices' }],
@@ -362,7 +362,7 @@ function regionStories(p, s, now, L, period) {
   return pick.map(k => st[k]);
 }
 
-// where each story leads in the drill-down, by the question behind it (persona editions) or its kicker (regional)
+// where each insight leads in the drill-down, by the question behind it, or its kicker for the regional dashboard
 const hb = n => ({ t: 'branch', id: D.storeOf(n).id });
 const QGO = {
   'Which stores are down or degraded right now?': R => ({ t: 'set', k: 'issues', ...R }), 'Which stores are running on backup ISP only?': R => ({ t: 'set', k: 'backup', ...R }),
@@ -381,8 +381,8 @@ const QGO = {
 };
 const RGO = {
   'Right now': R => ({ t: 'set', k: 'issues', ...R }), Opening: R => ({ t: 'set', k: 'readiness', ...R }), 'Backup lines': R => ({ t: 'set', k: 'backup', ...R }), Visits: R => ({ t: 'set', k: 'issues', ...R }),
-  Changes: () => hb(D.HERO.changes), Bandwidth: () => hb(D.HERO.bandwidth), Capacity: R => ({ t: 'set', k: 'capacity', ...R }), 'The week': R => ({ t: 'incidents', k: 'resolved7', ...R }),
-  'Next week': R => ({ t: 'changes', k: 'next7', ...R }), 'Repeat offenders': R => ({ t: 'lines', k: 'repeat', ...R }), Carriers: R => ({ t: 'lines', k: 'flap', ...R }), Lifecycle: R => ({ t: 'devices', k: 'eos', ...R }),
+  Changes: () => hb(D.HERO.changes), Bandwidth: () => hb(D.HERO.bandwidth), Capacity: R => ({ t: 'set', k: 'capacity', ...R }), 'Last 7 days': R => ({ t: 'incidents', k: 'resolved7', ...R }),
+  'Next 7 days': R => ({ t: 'changes', k: 'next7', ...R }), 'Repeat offenders': R => ({ t: 'lines', k: 'repeat', ...R }), Carriers: R => ({ t: 'lines', k: 'flap', ...R }), Lifecycle: R => ({ t: 'devices', k: 'eos', ...R }),
 };
 
 export function compose(p, s, now, L, period = 'daily') {
@@ -391,16 +391,16 @@ export function compose(p, s, now, L, period = 'daily') {
   const h = H[period][p.id](f, p);
   const R = p.region ? { region: p.region } : {};
   const list = p.region ? regionStories(p, s, now, L, period) : p[period].map(([kicker, q]) => { const a = ask(s, q, now, L); return [kicker, a, POSITIVE[q] && POSITIVE[q](f, a, s, now), QGO[q] ? QGO[q](R) : goFor(q, period, p.region)]; });
-  const label = { daily: 'Morning Brief', weekly: 'Weekly Report', monthly: 'Monthly Report' }[period];
-  const range = period === 'daily' ? dateShort(now) : period === 'weekly' ? `Week of ${dateShort(now - 7 * DAY)} – ${dateShort(now)}` : `${f.month} ${new Date(now).getFullYear()} and the 30 days ahead`;
+  const label = { daily: 'Live now', weekly: 'Last 7 days', monthly: 'Last month' }[period];
+  const range = period === 'daily' ? dateShort(now) : period === 'weekly' ? `${dateShort(now - 7 * DAY)} – ${dateShort(now)}` : `${f.month} ${new Date(now).getFullYear()} against target, and the next 30 days`;
   const stories = list.map(([kicker, a, title, go]) => ({ kicker, a, sum: summarize(a, title), go: go || (RGO[kicker] ? RGO[kicker](R) : goFor(`${kicker} ${a.title}`, period, p.region)) }));
   const top = stories.filter(x => !x.sum.empty).slice(0, 4);
   return {
     persona: p, period, label, range, at: now,
-    // the data the edition was printed from: the drill-down reads the same snapshot, so its numbers match the page
+    // the data this view was worked out from: the drill-down reads the same snapshot, so its numbers match the screen
     snap: s,
-    // the weather is today's; the weekly and monthly reports look back instead
-    weather: period === 'daily' ? weatherOf(f) : null, headline: h.headline, deck: h.deck, wins: h.wins, fixes: h.fixes,
+    // the overall status is for right now; the 7-day and monthly views look back instead
+    status: period === 'daily' ? statusWord(f) : null, headline: h.headline, deck: h.deck, wins: h.wins, fixes: h.fixes,
     winsGo: h.wins.map(t => goFor(t, period, p.region)), fixesGo: h.fixes.map(t => goFor(t, period, p.region)), focusGo: /\bBranch \d+/.test(h.inFocus) ? { t: 'branch', id: D.storeOf(+h.inFocus.match(/\bBranch (\d+)/)[1]).id } : goFor(h.inFocus, period, p.region),
     visuals: visualsOf(p, s, now, period, bs),
     inFocus: h.inFocus,
