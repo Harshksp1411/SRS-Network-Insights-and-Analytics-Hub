@@ -15,6 +15,9 @@ import {
   rootOf, faultPath, incOf, LAYER_PLAIN, causeIncOf, rootGroups, changeIn,
 } from './drilldata.js';
 import { MONTHS_SO_FAR } from './visuals.js';
+import { DrillLinks } from './links.js';
+import { TakeAction } from './TakeAction.jsx';
+import { fixPlan } from './fix.js';
 
 const DISPLAY = { fontFamily: '"Aptos Display", Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif' };
 const TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', info: 'text-info', muted: 'text-ink3' };
@@ -30,7 +33,7 @@ const regionOrder = bs => [...new Set(bs.map(b => b.region))].sort((a, b) => D.R
 // ---------- building blocks ----------
 // In the console, the drill-down can hand over to the console's own screens (Branch 360, the incident record, a
 // screen); on the dashboards page there is no console, so these buttons do not show.
-export const DrillLinks = React.createContext(null);
+export { DrillLinks };
 const OPEN_LABEL = { branch: 'Open Branch 360', incident: 'Open the incident record', incidents: 'Open Live Incidents', carriers: 'Open Carrier Management', vuln: 'Open Lifecycle & Vulnerabilities', inventory: 'Open Device & Circuit Inventory', changes: 'Open Approvals & Changes', sla: 'Open SLA & KPI Tracker', biab: 'Open Branch-in-a-Box', predict: 'Open Predictive Watchlist', readiness: 'Open Branch Readiness', dispatch: 'Open Field Dispatch' };
 function OpenIn({ what, id }) {
   const L = useContext(DrillLinks);
@@ -618,6 +621,7 @@ function RcaView({ n, go, ctx }) {
       <div className="mt-6"><Panel title="Where the fault is" hint="from what the branch feels to the data centre · click a part">
         <FaultPath nodes={path} go={go} />
       </Panel></div>
+      <TakeAction inc={inc} s={s} now={now} go={go} focus={n.focus === 'act'} />
       <Grid>
         <Panel title="Network, ISP or application" hint="each layer checked">
           <ul className="space-y-2">{layers.map(l => (
@@ -635,7 +639,7 @@ function RcaView({ n, go, ctx }) {
         </Panel>
         <Panel title="Fix and prevention">
           <Clickable go={go} items={[
-            { title: done ? (inc.autoAction || `Fixed: ${inc.closeCode}`) : `Fix under way: ${D.RB[inc.runbook] ? `${D.RB[inc.runbook].id} ${D.RB[inc.runbook].name}` : inc.state}`, sub: (inc.verify || []).length ? `Checks before closing: ${inc.verify.map(v => v.v).join(' · ')}` : null, tone: done ? 'ok' : 'warn', go: { t: 'incident', id: inc.id } },
+            { title: done ? (inc.autoAction || `Fixed: ${inc.closeCode}`) : `Next: ${fixPlan(s, inc, now).head}`, sub: (inc.verify || []).length ? `Checks before closing: ${inc.verify.map(v => v.v).join(' · ')}` : null, tone: done ? 'ok' : 'warn', go: { t: 'incident', id: inc.id } },
             chg && { title: `The change behind it: ${chg}`, sub: `${(s.changes.find(c => c.id === chg) || {}).title || ''} · ${(s.changes.find(c => c.id === chg) || {}).state || ''}`, tone: 'bad', go: { t: 'change', id: chg } },
             inc.carrierCase && { title: `Carrier case ${inc.carrierCase} with ${line.carrier}`, sub: 'evidence pack sent: an hour of loss and delay readings, path tests, timestamps', tone: 'warn', go: { t: 'circuit', id: inc.ci } },
             sameCarrier.length > 0 && { title: `${sameCarrier.length} more ${line.carrier} line fault${sameCarrier.length > 1 ? 's' : ''} open in ${b.region}`, sub: 'the same carrier in the same region: a wider carrier problem is likely', tone: 'bad', go: { t: 'lines', k: 'problem', carrier: line.carrier, region: b.region } },

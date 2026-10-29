@@ -153,9 +153,9 @@ export function LiveProvider({ children }) {
         act.toast(`New ${inc.pri} ${inc.id} – ${b.name}: ${inc.title.slice(0, 60)}`, inc.pri <= 'P2' ? 'bad' : 'warn');
       } else if (r < 0.05) { // another engineer acknowledges an unowned incident
         const c = open.find(i => !i.acked && now - i.opened > 50e3 && i.id !== st.selInc && i.kind !== 'scenario');
-        if (c) { const who = pick(D.ENGINEERS.filter(e => e !== 'Priya S.')); act.upd('incidents', c.id, x => ({ acked: now, state: 'In Progress', assignee: who, notes: [...x.notes, { t: now, who, text: 'Acknowledged from the NOC queue.' }] })); Lc.counters.acked++; }
+        if (c) { const who = pick(((D.teamOf(c.group) || D.TEAM.l2).people || D.TEAM.l2.people).filter(e => e !== 'Priya S.')); act.upd('incidents', c.id, x => ({ acked: now, state: 'In Progress', assignee: who, notes: [...x.notes, { t: now, who, text: 'Acknowledged from the NOC queue.' }] })); Lc.counters.acked++; }
       } else if (r < 0.07) { // zero-touch auto-resolution of a low-risk incident
-        const c = open.find(i => ['backup', 'apdown', 'crc'].includes(i.kind) && i.id !== st.selInc && now - i.opened > 60e3);
+        const c = open.find(i => ['backup', 'apdown', 'crc'].includes(i.kind) && i.id !== st.selInc && !i.workOrder && !(i.trail || []).length && !(st.drill || []).some(n => n.id === i.id) && now - i.opened > 60e3); // never under someone's hands: a work order, a hand-off or open on screen
         if (c) {
           const rb = c.kind === 'backup' ? 'RB-109' : c.kind === 'apdown' ? 'RB-103' : 'RB-103';
           act.del('incidents', c.id);

@@ -1,3 +1,4 @@
+import { rankTechs } from './dash/fix.js';
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
@@ -260,19 +261,7 @@ export function Dispatch() {
   const [tab, setTab] = useState(s.tab.dispatch || 'orders');
   const [match, setMatch] = useState(null);
   const wos = s.workOrders.filter(w => inScope(s, w.branchId));
-  const rank = w => {
-    const b = D.BR[w.branchId];
-    const depots = D.DEPOT_REGION[b.region] || [];
-    return s.techs.map(t => {
-      const skill = w.skills.filter(k => t.skills.includes(k)).length / Math.max(1, w.skills.length);
-      const region = t.region === b.region ? 1 : 0.35;
-      const avail = t.status === 'Available' ? 1 : t.status === 'On site' ? 0.5 : 0.1;
-      const depot = s.depots.find(d => depots.includes(d.id) && w.parts.every(p => (d.spares[p] ?? 1) > 0));
-      const home = D.BRANCHES.find(x => x.city === t.base) || b; const miles = Math.hypot(home.cx - b.cx, home.cy - b.cy) * 2.9; const eta = Math.round(20 + miles / 50 * 60 + (avail < 1 ? 60 : 0));
-      const score = skill * 0.5 + Math.max(0, 1 - miles / 600) * 0.3 + avail * 0.2;
-      return { t, score, skill, region, avail, eta, depot };
-    }).sort((a, b) => b.score - a.score).slice(0, 6);
-  };
+  const rank = w => rankTechs(s, w); // the same matching the root-cause view uses to send a technician
   const assign = (w, r) => {
     act.upd('workOrders', w.id, { tech: r.t.id, status: 'Assigned', eta: Date.now() + r.eta * MIN, depot: r.depot && r.depot.id });
     if (r.depot) w.parts.forEach(p => act.upd('depots', r.depot.id, x => ({ spares: { ...x.spares, [p]: Math.max(0, (x.spares[p] || 0) - 1) } })));

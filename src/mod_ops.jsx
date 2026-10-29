@@ -3,6 +3,7 @@ import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, filteredBranches, inScope, slaClock, lineOf, onBackupOf } from './store.jsx';
 import { Card, Badge, Btn, Stat, Table, Dot, Pri, PageHead, Section, Progress, cx, healthTone, Modal, Illus, ExportBtn, Tabs, Hit } from './ui.jsx';
+import { fixPlan, ROUTES } from './dash/fix.js';
 import { clockState, rootOf } from './dash/drilldata.js';
 import { NAMap, Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from './util.js';
@@ -79,6 +80,7 @@ export function Overview() {
                   <div className="text-[12.5px] text-ink font-semibold mt-0.5 line-clamp-1">{i.title}</div>
                   <div className="text-[11.5px] text-ink3">{b.name}, {b.brand}, {i.state}</div>
                   {i.rca && i.rca[0] && <Hit title="Open the root cause" onClick={() => dr({ t: 'rca', id: i.id })} className="block text-left text-[11.5px] text-ink2 mt-0.5 hover:text-bad"><b className="text-bad">Root cause, {rootOf(i).top.layer}:</b> {rootOf(i).top.text} ({Math.round(rootOf(i).top.conf * 100)}%)</Hit>}
+                  {i.rca && i.rca[0] && (() => { const p = fixPlan(s, i, now); return <Hit title="Who fixes it: take action" onClick={() => dr({ t: 'rca', id: i.id, focus: 'act' })} className="block text-left text-[11.5px] text-ink2 hover:text-brand line-clamp-1"><b className="text-brand">Next, {ROUTES[p.rec].label.toLowerCase()}:</b> {p.head}</Hit>; })()}
                 </div>
               );
             })}

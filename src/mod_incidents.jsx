@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { rootOf } from './dash/drilldata.js';
+import { fixPlan, ROUTES, STATE } from './dash/fix.js';
 import { useApp, useNow, slaClock, gate, branchClock, circuitOf, inScope, healthOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Progress, Conf, GateBox, cx, Logo, SRC_LOGO, KV, SearchBox, Select, Empty, ExportBtn, Modal } from './ui.jsx';
 import { dur, ago, hhmmss, hhmm, dt, MIN, exportCSV } from './util.js';
@@ -92,7 +93,8 @@ function IncidentDetail({ id }) {
   const { s, act } = useApp();
   const now = useNow();
   const inc = s.incidents.find(i => i.id === id) || s.resolved.find(i => i.id === id);
-  const [tab, setTab] = useState('timeline');
+  const [tab, setTab] = useState(s.incTab || 'timeline');
+  useEffect(() => { if (s.incTab) { setTab(s.incTab); act.set({ incTab: null }); } }, [s.incTab]); // opened on a tab from the root-cause view
   const [note, setNote] = useState('');
   const [running, setRunning] = useState(-1);
   const [resolveOpen, setResolveOpen] = useState(false);
@@ -158,7 +160,7 @@ function IncidentDetail({ id }) {
           {!inc.acked && <Btn kind="brand" icon={I.Hand} onClick={() => { upd({ acked: Date.now(), state: 'In Progress', assignee: ROLES.find(r => r.id === s.role).who }); act.audit(`Acknowledged ${inc.id}`, inc.id); }}>Acknowledge & take</Btn>}
           <Select label="Priority" value={inc.pri} onChange={v => { upd({ pri: v, group: v === 'P1' ? 'Movate NOC – Major Incident' : inc.group }); act.audit(`Priority ${inc.pri} → ${v} on ${inc.id}`, inc.id); }} options={['P1', 'P2', 'P3', 'P4']} />
           <Select label="State" value={inc.state} onChange={v => { upd({ state: v }); act.audit(`State → ${v} on ${inc.id}`, inc.id); }} options={['New', 'In Progress', 'On Hold – Carrier', 'On Hold – Branch', 'On Hold – Vendor']} />
-          <Select label="Assign" value={inc.assignee || ''} onChange={v => { upd({ assignee: v }); act.audit(`Assigned ${inc.id} to ${v}`, inc.id); }} options={[{ value: '', label: '—' }, ...D.ENGINEERS.map(e => ({ value: e, label: e }))]} />
+          <Select label="Assign" value={inc.assignee || ''} onChange={v => { const t = D.TEAMS.find(x => (x.people || []).includes(v)); upd({ assignee: v, ...(t ? { group: t.group } : {}) }); act.audit(`Assigned ${inc.id} to ${v}${t ? ` (${t.name})` : ''}`, inc.id); }} options={[{ value: '', label: '—' }, ...(inc.assignee && !D.TEAMS.some(t => (t.people || []).includes(inc.assignee)) ? [{ value: inc.assignee, label: inc.assignee }] : []), ...D.TEAMS.filter(t => t.people && ['l1', 'l2', 'mim', 'sme'].includes(t.id)).flatMap(t => t.people.map(p => ({ value: p, label: `${p} · ${t.name}` })))]} />
           {!inc.major && <Btn icon={I.Megaphone} onClick={() => { upd({ major: true, pri: 'P1', group: 'Movate NOC – Major Incident' }); act.audit(`Declared major incident ${inc.id}`, inc.id); act.toast('Major incident declared – leadership updates every 60 min', 'warn'); }}>Declare major</Btn>}
           {inc.cat === 'Carrier / LEC' && !inc.carrierCase && <Btn icon={I.RadioTower} onClick={raiseCase}>Raise carrier case</Btn>}
           {!inc.workOrder && <Btn icon={I.Truck} onClick={makeWO}>Create work order</Btn>}
@@ -227,6 +229,7 @@ function IncidentDetail({ id }) {
           </Card>}
         </div>
         <div className="space-y-3">
+          {!isRes && <NextStep inc={inc} now={now} />}
           {!isRes && <PreventRecurrence inc={inc} />}
           <Card title="Business impact" icon={I.Store}>
             {inc.impact.map((x, k) => <div key={k} className="text-[12.5px] text-ink flex gap-1.5 py-0.5"><I.Dot size={16} className="text-ink3 shrink-0" />{x}</div>)}
@@ -254,5 +257,21 @@ function IncidentDetail({ id }) {
         <div className="mt-3 text-[12.5px] text-ink2">Verification: {inc.verify.filter(v => v.st === 'pass').length}/{inc.verify.length} passed. {inc.verify.some(v => v.st !== 'pass') && <span className="text-warn font-semibold">Some checks have not passed – resolving anyway will be noted.</span>}</div>
       </Modal>
     </div>
+  );
+}
+
+// the step after the root cause, in short: who should fix it, and the way into the full plan with its actions
+function NextStep({ inc, now }) {
+  const { s, act } = useApp();
+  const p = fixPlan(s, inc, now);
+  const r = ROUTES[p.rec];
+  const can = { yes: ['Yes', 'text-ok'], partly: ['Partly', 'text-warn'], maybe: ['Maybe', 'text-warn'], no: ['No', 'text-bad'] }[p.remote.can];
+  return (
+    <Card title="Who fixes it" icon={I.Route} right={<Badge tone="blue">{r.label}</Badge>}>
+      <div className="text-[13.5px] font-bold text-ink leading-snug">{p.head}</div>
+      <div className="text-[12px] text-ink2 mt-1">Can it be fixed remotely? <b className={can[1]}>{can[0]}</b></div>
+      <div className="mt-2 space-y-1">{p.routes.filter(x => ['rec', 'first', 'also', 'on', 'tried'].includes(x.st)).map(x => <div key={x.id} className="flex items-center gap-2 text-[12px]"><span className="text-ink flex-1 min-w-0 truncate">{x.label}</span><span className="text-[11px] font-semibold text-ink3">{STATE[x.st].label}</span></div>)}</div>
+      <Btn size="sm" kind="brand" className="mt-3 w-full" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id, focus: 'act' })}>Take action: hand over, dispatch, escalate</Btn>
+    </Card>
   );
 }

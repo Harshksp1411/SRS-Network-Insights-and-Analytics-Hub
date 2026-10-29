@@ -266,9 +266,9 @@ const TEMPLATES = {
   jitter: b => { const c = CIR[b.wan[0]]; return { pri: 'P3', cat: 'Carrier / LEC', title: `${c.type} jitter 38 ms / loss 2.4% – ${c.carrier}`, ci: c.id,
     signals: [[0, 'Orchestrator', `${c.id} jitter 38 ms (threshold 30)`, 'Major'], [60, 'New Relic', 'ERP path latency from branch 160 ms', 'Minor'], [90, 'Synthetic', 'POS path RTT 610 ms', 'Major']],
     corr: 24, rca: [['Carrier congestion on access link', 0.83, 'Loss/jitter rises with carrier-side queueing; local util only 31%'], ['Local saturation', 0.09, 'Util 31%'], ['EC CPU', 0.03, 'CPU 12%']], runbook: 'RB-101', impact: ['POS slower at counter', 'ERP slower'], verify: ['Payment path < 400 ms', 'Jitter < 10 ms on active path'] }; },
-  apdown: b => { const ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Outdoor yard') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP'); return { pri: 'P4', cat: 'Wireless', title: `${ap.role === 'Outdoor yard' ? 'Yard' : 'Warehouse'} AP offline – ${ap.model}`, ci: ap.id,
+  apdown: b => { const ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Outdoor yard') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Warehouse') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP'); return { pri: 'P4', cat: 'Wireless', title: `${{ 'Outdoor yard': 'Yard', 'Back office': 'Back-office', Counter: 'Counter', 'Loading docks': 'Loading-dock' }[ap.role] || 'Warehouse'} AP offline – ${ap.model}`, ci: ap.id,
     signals: [[0, 'Aruba Central', `${ap.id} down`, 'Major'], [15, 'Aruba Central', `PoE port ${b.code}-sw01 1/1/${R.int(10, 44)} drawing 0 W`, 'Minor']],
-    corr: 3, rca: [['PoE / cable to outdoor AP', 0.64, 'PoE 0 W; port up/down flaps last night'], ['AP hardware', 0.22, '3 reboots in 7 days'], ['Switch PoE budget', 0.1, 'Budget 62% used']], runbook: 'RB-103', impact: ['Yard Wi-Fi coverage reduced'], verify: ['AP up in Central', 'Clients re-associated'] }; },
+    corr: 3, rca: [[`PoE / cable to ${ap.role === 'Outdoor yard' ? 'outdoor ' : ''}AP`, 0.64, 'PoE 0 W; port up/down flaps last night'], ['AP hardware', 0.22, '3 reboots in 7 days'], ['Switch PoE budget', 0.1, 'Budget 62% used']], runbook: 'RB-103', impact: ['Yard Wi-Fi coverage reduced'], verify: ['AP up in Central', 'Clients re-associated'] }; },
   crc: b => ({ pri: 'P4', cat: 'Switching', title: 'CRC errors rising on uplink 1/1/49', ci: `${b.code}-sw01`,
     signals: [[0, 'OpsRamp', 'Input CRC errors 1,240/5 min on 1/1/49', 'Minor'], [300, 'OpsRamp', 'Errors persisting', 'Minor']],
     corr: 2, rca: [['SFP or patch cable', 0.72, 'Errors one direction only; light levels -9.8 dBm'], ['Port hardware', 0.15, 'No other ports affected']], runbook: 'RB-103', impact: ['None yet'], verify: ['CRC rate 0 for 15 min'] }),
@@ -297,6 +297,22 @@ const TEMPLATES = {
 export const TEMPLATE_W = [['circuit', 6], ['jitter', 3], ['apdown', 5], ['crc', 3], ['lte', 3], ['scanner', 3], ['pos', 1], ['dhcp', 1], ['backup', 4], ['cpu', 1]];
 const GROUPS = { P1: 'Movate NOC – Major Incident', P2: 'Movate NOC – L2 Network', P3: 'Movate NOC – L2 Network', P4: 'Movate NOC – L1' };
 export const ENGINEERS = ['Priya S.', 'Arjun M.', 'Kevin T.', 'Neha R.', 'Marcus L.', 'Sanjay K.', 'Dana W.', 'Ravi P.', 'Elena G.', 'Tom B.'];
+// The teams a ticket can go to once the root cause is known. NOC L1 and L2 fix remotely; the SME team takes design-level
+// fixes; field services go on site when the fix needs hands; the carrier and SRS application support own their parts.
+export const TEAMS = [
+  { id: 'l1', name: 'NOC L1', group: 'Movate NOC – L1', does: 'L1 and L1.5 analysts, 24x7: acknowledge, run approved runbooks, call the branch and the carrier', people: ['Neha R.', 'Ravi P.', 'Tom B.'] },
+  { id: 'l2', name: 'NOC L2 Network', group: 'Movate NOC – L2 Network', does: 'L2 network engineers, 24x7: find and fix faults remotely on lines, SD-WAN, switches and Wi-Fi; own carrier cases', people: ['Priya S.', 'Kevin T.', 'Sanjay K.', 'Elena G.'] },
+  { id: 'mim', name: 'Major incident', group: 'Movate NOC – Major Incident', does: 'Runs the bridge for P1s and outages across branches; updates leadership every hour', people: ['Arjun M.'] },
+  { id: 'sme', name: 'Network SME team', group: 'Movate Network SME – L3', does: 'US-based L3 engineers in SRS business hours: SD-WAN policy and routing, Wi-Fi radio plans, config rollbacks and risky changes', people: ['Marcus L.', 'Lina K.', 'Dana W.'], skill: { 'Marcus L.': 'SD-WAN and routing', 'Lina K.': 'Wi-Fi and radio', 'Dana W.': 'Change and config' } },
+  { id: 'field', name: 'SRS field services', group: 'SRS Field Technical Services', does: 'SRS branch technicians, booked and directed by the Movate NOC: hardware swaps, optics, cabling, work at height in the yard' },
+  { id: 'oem', name: 'HPE Aruba TAC', group: 'HPE Aruba TAC', does: 'Replacement hardware under the support contract (RMA) and software faults' },
+  { id: 'carrier', name: 'Carrier', group: 'Movate Carrier Management', does: 'Carrier cases with evidence, escalations and chronic-line reviews' },
+  { id: 'app', name: 'SRS application support', group: 'SRS Application Support', does: 'ERP, the card payment processor, voice and cloud apps', people: ['ERP on-call', 'Payments on-call'] },
+  { id: 'sec', name: 'Security', group: 'SRS Security Operations', does: 'Unrecorded changes, local accounts and access reviews', people: ['Omar N.'] },
+];
+export const TEAM = Object.fromEntries(TEAMS.map(t => [t.id, t]));
+export const teamOf = group => TEAMS.find(t => t.group === group) || null;
+const NOC_PEOPLE = { [GROUPS.P1]: TEAM.mim.people, [GROUPS.P2]: TEAM.l2.people, [GROUPS.P4]: TEAM.l1.people };
 let incN = 384512;
 export const nextInc = () => `INC${String(++incN).padStart(7, '0')}`;
 
@@ -321,14 +337,14 @@ export function buildIncident(kind, b, openedAgo, extra = {}) {
     id: nextInc(), kind, pri, title: t.title, cat: t.cat, branchId: b.id, ci: t.ci, opened,
     acked: openedAgo > 6 * MIN ? opened + R.int(2, 9) * MIN : null,
     state: openedAgo > 6 * MIN ? (t.cat === 'Carrier / LEC' ? 'On Hold – Carrier' : 'In Progress') : 'New',
-    group: GROUPS[pri], assignee: openedAgo > 6 * MIN ? R.pick(ENGINEERS) : null,
+    group: GROUPS[pri], assignee: openedAgo > 6 * MIN ? R.pick(NOC_PEOPLE[GROUPS[pri]]) : null,
     signals: t.signals.map(([o, src, msg, sev]) => ({ t: opened + o * 1000, src, msg, sev })),
     corr: t.corr, suppressed: Math.round(t.corr * 0.8),
     rca: t.rca.map(([cause, c, ev]) => ({ cause, conf: c, ev })), conf,
     agentSteps: agentStepsFor(t, b, conf).map(([a, text], i) => ({ agent: a, text, t: opened + (i + 1) * 25e3, st: 'done' })),
     runbook: t.runbook, rbState: openedAgo > 20 * MIN && conf >= 0.8 && RB[t.runbook].kind === 'readonly' ? 'done' : 'proposed',
     impact: t.impact, verify: t.verify.map(v => ({ v, st: 'pending' })),
-    notes: openedAgo > 6 * MIN ? [{ t: opened + 8 * MIN, who: 'Mova iO', text: `Auto-triaged to ${GROUPS[pri]}; priority ${pri} based on branch hours and business impact.` }] : [],
+    notes: openedAgo > 6 * MIN ? [{ t: opened + 40e3, who: 'Mova iO', text: `Auto-triaged to ${GROUPS[pri]}; priority ${pri} based on branch hours and business impact.` }] : [],
     carrierCase: null, workOrder: null, major: false, ...extra,
   };
 }
@@ -434,11 +450,30 @@ export const TECHS = TECH_NAMES.map((n, i) => {
   if (i % 3 === 0 && !s.includes('EdgeConnect swap')) s.push('EdgeConnect swap');
   return { id: `TECH-${101 + i}`, name: n, region, base: (BRANCHES.filter(b => b.region === region)[i * 3] || BRANCHES[i]).city, skills: s, status: R.weighted([['Available', 55], ['On site', 30], ['Off shift', 15]]), rating: (4.3 + R() * 0.6).toFixed(1), jobs30: R.int(6, 28) };
 });
+// The site visit a fault needs, if it needs one: the task, the technician skills and the spare to take.
+export function fieldJob(inc) {
+  const b = BR[inc.branchId], d = DEV[inc.ci];
+  const apPart = x => x && x.role === 'Outdoor yard' ? x.model : 'AP-635';
+  switch (inc.kind) {
+    case 'edgedown': return { task: `Swap the SD-WAN appliance ${inc.ci} for a spare EC-XS (its zero-touch profile is already bound to the site) and return the faulty unit to HPE`, skills: ['EdgeConnect swap'], parts: ['EC-XS'] };
+    case 'crc': return { task: `Replace the optic and patch lead on uplink 1/1/49 of ${inc.ci}; take light readings before and after`, skills: ['Aruba switching'], parts: ['SFP+ optic'] };
+    case 'apdown': { const out = d && d.role === 'Outdoor yard'; return { task: out ? `Test the power (PoE) cable to ${inc.ci} on the yard pole and re-terminate it; swap the AP if it does not power up` : `Test and re-terminate the power (PoE) cable to ${inc.ci}; swap the AP if it does not power up`, skills: out ? ['Outdoor AP / lift', 'Low-voltage cabling'] : ['Aruba wireless', 'Low-voltage cabling'], parts: [apPart(d)] }; }
+    case 'scanner': return { task: 'Survey Wi-Fi in the warehouse aisles; move or add an access point if the survey shows a gap', skills: ['Aruba wireless'], parts: [] };
+    case 'lte': return { task: 'Swap the LTE router, check the antenna, then re-run the failover test', skills: ['LTE / cellular'], parts: ['LTE router'] };
+    case 'cpu': return { task: 'Remove the unmanaged desk switch at back office desk 4 and re-patch the two wall ports', skills: ['Low-voltage cabling'], parts: [] };
+    case 'circuit': case 'jitter': case 'pos': return { task: `Meet the ${CIR[b.wan[0]].carrier} technician at the demarc; check the NTE and the inside wiring to the SD-WAN appliance`, skills: ['Low-voltage cabling'], parts: [] };
+    default:
+      if (!d) return null;
+      return { task: `Check ${inc.ci} on site and swap it if it is faulty`, skills: [d.type === 'AP' ? 'Aruba wireless' : d.type === 'SD-WAN' ? 'EdgeConnect swap' : 'Aruba switching'], parts: [d.type === 'SD-WAN' ? 'EC-XS' : d.type === 'AP' ? apPart(d) : d.model === '2530' ? '2530 24G' : '6100 48G'] };
+  }
+}
+const woFor = inc => { const j = fieldJob(inc); return { branchId: inc.branchId, inc: inc.id, task: j.task, skills: j.skills, parts: j.parts, created: Math.min(inc.opened + 14 * MIN, T0 - 2 * MIN) }; };
 export const WORK_ORDERS = [
-  { id: 'WO0041872', branchId: INCIDENTS[4].branchId, inc: INCIDENTS[4].id, task: 'Replace PoE injector / re-terminate yard AP cable', skills: ['Outdoor AP / lift', 'Low-voltage cabling'], parts: ['AP-585'], tech: null, status: 'Unassigned', created: T0 - 3 * HR, window: 'Before 15:00 local', priority: 'P4' },
-  { id: 'WO0041866', branchId: INCIDENTS[7].branchId, inc: INCIDENTS[7].id, task: 'Swap SFP and patch on uplink 1/1/49', skills: ['Aruba switching'], parts: ['SFP 10G-SR'], tech: TECHS[3].id, status: 'En route', created: T0 - 5 * HR, eta: T0 + 40 * MIN, window: 'Any time', priority: 'P4' },
+  { id: 'WO0041872', ...woFor(INCIDENTS[4]), tech: null, status: 'Unassigned', window: 'Before 15:00 local', priority: 'P4' },
+  { id: 'WO0041866', ...woFor(INCIDENTS[7]), tech: TECHS[3].id, status: 'En route', eta: T0 + 40 * MIN, window: 'Any time', priority: 'P4' },
   { id: 'WO0041851', branchId: BRANCHES[220].id, inc: null, task: 'Install out-of-band console server (IT closet)', skills: ['Rack and closet'], parts: ['OOB console server'], tech: TECHS[8].id, status: 'Scheduled', created: T0 - 26 * HR, eta: T0 + 20 * HR, window: 'After 17:00 local', priority: 'P4' },
 ];
+WORK_ORDERS.forEach(w => { const i = w.inc && INCIDENTS.find(x => x.id === w.inc); if (i) i.workOrder = w.id; });
 
 // ---------- approvals, changes, drift ----------
 export const APPROVALS = [
@@ -772,11 +807,12 @@ export const HERO_STORY = {};
   DRIFT.push({ device: sw, branchId: b.id, item: 'DHCP relay on VLAN 30 points to 10.20.5.12 (golden 10.20.5.11)', sev: 'High', since: cliAt, source: 'Manual CLI change (no CHG) – local account "branchtech"' });
   const inc = buildIncident('dhcp', b, T0 - incAt, { pri: 'P3' });
   Object.assign(inc, {
-    title: 'Handhelds failing to get an IP on warehouse Wi-Fi (VLAN 30)', cat: 'Config management', ci: sw, state: 'In Progress', assignee: 'Dana W.',
+    title: 'Handhelds failing to get an IP on warehouse Wi-Fi (VLAN 30)', cat: 'Config management', ci: sw, state: 'In Progress', assignee: 'Dana W.', group: TEAM.sme.group,
     signals: [{ t: incAt - 6 * MIN, src: 'Aruba Central', msg: 'Clients failing DHCP on SRS-SCAN (17 in 10 min)', sev: 'Major' }, { t: incAt - 2 * MIN, src: 'OpsRamp', msg: `${sw} DHCP relay: no offers from 10.20.5.12`, sev: 'Major' }, { t: incAt, src: 'OpsRamp', msg: 'Readiness probe: DHCP test on VLAN 30 failed', sev: 'Major' }],
     rca: [{ cause: `Unrecorded DHCP relay change on ${sw} (config drift)`, conf: 0.88, ev: 'Relay target changed overnight by a local account with no CHG; wired scanners on VLAN 30 fail too, so Wi-Fi is not the cause' }, { cause: 'AP firmware 10.7.1.0 upgrade last night', conf: 0.07, ev: 'Same firmware runs clean at 95 other Georgia APs; wired clients also affected' }, { cause: 'DHCP scope exhaustion', conf: 0.03, ev: 'Scope 41% used' }],
     conf: 0.88, runbook: 'RB-105', rbState: 'proposed', impact: ['Receiving slower; handhelds cannot connect'], verify: [{ v: 'DHCP offers on VLAN 30', st: 'pending' }, { v: 'Handhelds back on SRS-SCAN', st: 'pending' }],
   });
+  inc.acked = incAt + 3 * MIN; inc.trail = [{ t: incAt + 6 * MIN, who: 'Kevin T. (NOC Engineer)', text: 'Handed from Kevin T. to Dana W. (Network SME team): unrecorded config change', route: 'sme' }];
   inc.agentSteps = [['correlation', 'Grouped 23 events (Central, OpsRamp, branch call) into one incident'], ['diagnosis', `Top cause: unrecorded DHCP relay change on ${sw} (88%); firmware upgrade ruled out`], ['change', 'No approved change covers the relay edit; drift flagged against golden config'], ['runbook', 'Recommends RB-105 roll back to golden; branch open – waiting for approval'], ['comms', 'StoreOps told: receiving handhelds affected, picking OK']].map(([agent, text], i) => ({ agent, text, t: incAt + (i + 1) * 25e3, st: 'done' }));
   INCIDENTS.push(inc); b.health = 'degraded';
   APPROVALS.push({ id: 'APR-2213', type: 'Runbook', title: `RB-105 roll back DHCP relay on ${sw} to golden`, inc: inc.id, branchId: b.id, agent: 'runbook', conf: 0.88, risk: 'Low', created: incAt + 3 * MIN, status: 'Pending', why: ['Branch is open – config change needs a human'], evidence: ['Relay changed at night with no CHG', 'Wired and wireless clients on VLAN 30 both fail', 'Golden config verified on 211 other Southeast switches'], rollback: 'Re-apply the current running config from the 02:00 backup', verify: ['DHCP offers on VLAN 30', 'Handhelds back on SRS-SCAN'] });
@@ -785,12 +821,14 @@ export const HERO_STORY = {};
 
 // Store 309: warehouse AP stopped answering yesterday; a port bounce fixed it with no human touch.
 {
-  const b = HB.ap, ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP');
+  const b = HB.ap, ap = DEVICES.find(d => d.branchId === b.id && d.type === 'AP' && d.role === 'Warehouse') || DEVICES.find(d => d.branchId === b.id && d.type === 'AP');
   const t0 = wall(b, 14, 12, 1);
   const inc = buildIncident('apdown', b, T0 - t0, { pri: 'P4' });
   Object.assign(inc, { title: `Warehouse AP offline – ${ap.model}`, ci: ap.id, state: 'Resolved', resolved: t0 + 9 * MIN, acked: t0 + 1 * MIN, assignee: 'Mova iO', closeCode: 'Auto-resolved (zero touch)', rbState: 'done', auto: true, runbook: 'RB-103',
     autoAction: `RB-103 bounced PoE port 1/1/14 on ${b.code}-sw01; ${ap.id} back in 2 m 41 s, 23 handhelds re-associated`, why: 'The AP was already down, so a port bounce could not make it worse – allowed to run on its own',
     signals: [{ t: t0, src: 'Aruba Central', msg: `${ap.id} down`, sev: 'Major' }, { t: t0 + 15e3, src: 'Aruba Central', msg: `PoE port ${b.code}-sw01 1/1/14 drawing 0 W`, sev: 'Minor' }] });
+  inc.rca = [{ cause: 'PoE port hung on the switch (port up, drawing 0 W)', conf: 0.84, ev: 'Port 1/1/14 up but drawing 0 W after a PoE fault; no CRC errors on the cable before the drop' }, { cause: 'AP hardware', conf: 0.1, ev: 'No reboots or errors in the last 30 days' }, { cause: 'Cable damage', conf: 0.04, ev: 'Clean cable counters before the drop' }];
+  inc.conf = 0.84;
   inc.verify = inc.verify.map(v => ({ ...v, st: 'pass' }));
   RESOLVED.push(inc);
   HERO_STORY[HERO.autoAP] = { inc: inc.id, ap: ap.id, t0 };

@@ -319,8 +319,9 @@ function ConsoleDrill() {
   const now = useNow();
   const links = useMemo(() => ({
     branch: id => { act.setDrill([]); act.openBranch(id); },
-    incident: id => { act.setDrill([]); act.openInc(id); },
+    incident: (id, tab) => { act.setDrill([]); act.set({ module: 'incidents', selInc: id, incTab: tab || null }); },
     module: m => { act.setDrill([]); act.go(m); },
+    act, role: () => act.get().role, // acting on the ticket from the root cause: hand over, dispatch, carrier case
   }), []);
   if (!s.drill || !s.drill.length) return null;
   const M = MODULES.find(m => m.id === s.module);
