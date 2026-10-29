@@ -18,6 +18,7 @@ import { MONTHS_SO_FAR } from './visuals.js';
 import { DrillLinks } from './links.js';
 import { TakeAction } from './TakeAction.jsx';
 import { fixPlan } from './fix.js';
+import { MovaChip } from './Mova.jsx';
 
 const DISPLAY = { fontFamily: '"Aptos Display", Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif' };
 const TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', info: 'text-info', muted: 'text-ink3' };
@@ -149,7 +150,7 @@ function RootCausesPanel({ incs, go, base }) {
   const g = rootGroups(incs);
   if (!g.length) return null;
   return (
-    <Panel title="Root causes" hint="grouped by where the fault is · click to go to the cause">
+    <Panel title="Root causes" hint="grouped by Mova iO by where the fault is · click to go to the cause">
       <HBars rows={g.map((x, i) => ({ label: `${x.layer}: ${KIND_PLAIN[x.kind] || x.kind}`, key: i, value: x.incs.length, sub: x.incs.length === 1 ? rootOf(x.incs[0]).top.text : `${x.incs.length} incidents`, color: LAYER_COL[x.layer] || C.s3 }))} labelW={230}
         onRow={r => { const x = g[r.key]; go(x.incs.length === 1 ? { t: 'rca', id: x.incs[0].id } : { ...base, t: 'incidents', k: base.k || 'open', kind: x.kind }); }} />
       <Legend className="mt-2" items={[['Network: inside SRS', LAYER_COL.Network], ['ISP: the carrier', LAYER_COL.ISP], ['Application', LAYER_COL.Application]]} />
@@ -273,7 +274,7 @@ function BranchView({ n, go, ctx }) {
       <Head kicker={<span className="inline-flex flex-wrap gap-x-1.5"><button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region })}>{b.region}</button>›<button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region, state: b.state })}>{stateName(b.state)}</button>›<button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region, state: b.state, city: b.city })}>{b.city}</button></span>}
         title={b.name} sub={`${b.brand} · ${{ S: 'small', M: 'medium', L: 'large' }[b.size]} branch · local time ${clk.local} · ${clk.closedToday ? 'closed today' : `open ${clk.opens}–${clk.closes}`}${clk.open ? ' (open now)' : ''}`}
         right={<div className="pt-5 flex items-center gap-2"><OpenIn what="branch" id={b.id} /><Pill tone={stTone(st)}>{STATUS[st].label}</Pill></div>}>
-        {causeIncOf(s, b) && (() => { const top = causeIncOf(s, b), r = rootOf(top).top, fixed = top.state === 'Resolved'; return <button onClick={() => go({ t: 'rca', id: top.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-wider text-bad">{fixed ? 'Root cause, fixed, being watched' : 'Root cause'} · {r.layer} · {P(r.conf, 0)} confidence</span><span className="block text-[14px] font-semibold text-ink leading-snug">{r.text}</span><span className="block text-[12px] text-ink2">{top.id} · {top.title}{incs.length > 1 ? ` · and ${incs.length - 1} more open incident${incs.length > 2 ? 's' : ''}` : ''}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">See the root cause →</span></button>; })()}
+        {causeIncOf(s, b) && (() => { const top = causeIncOf(s, b), r = rootOf(top).top, fixed = top.state === 'Resolved'; return <button onClick={() => go({ t: 'rca', id: top.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-wider text-bad">{fixed ? 'Mova iO root cause, fixed, being watched' : 'Mova iO root cause'} · {r.layer} · {P(r.conf, 0)} confidence</span><span className="block text-[14px] font-semibold text-ink leading-snug">{r.text}</span><span className="block text-[12px] text-ink2">{top.id} · {top.title}{incs.length > 1 ? ` · and ${incs.length - 1} more open incident${incs.length > 2 ? 's' : ''}` : ''}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">See the root cause →</span></button>; })()}
         {st !== 'up' && !causeIncOf(s, b) && b.why && <p className="mt-2 text-[13px] text-warn font-semibold flex items-center gap-1.5"><I.Eye size={14} />Being watched: {b.why}</p>}
       </Head>
       <Kpis go={go} items={[
@@ -517,7 +518,7 @@ function IncidentView({ n, go, ctx }) {
   const ci = D.CIR[inc.ci] ? { t: 'circuit', id: inc.ci } : D.DEV[inc.ci] ? { t: 'device', id: inc.ci } : null;
   const events = [
     ...inc.signals.map(x => ({ t: x.t, text: x.msg, src: x.src, tone: x.sev === 'Critical' ? 'bad' : x.sev === 'Major' ? 'warn' : 'info' })),
-    ...(inc.agentSteps || []).map(x => ({ t: x.t, text: x.text, src: `Mova iO ${x.agent} agent`, tone: 'ai' })),
+    ...(inc.agentSteps || []).map(x => ({ t: x.t, text: x.text, src: `Mova iO ${(D.AGENTS[x.agent] || {}).name || `${x.agent} agent`}`, tone: 'ai' })),
     ...(inc.notes || []).map(x => ({ t: x.t, text: x.text, src: x.who, tone: 'muted' })),
     ...(inc.acked ? [{ t: inc.acked, text: `Picked up by ${inc.assignee || 'the NOC'}`, src: 'ServiceNow', tone: 'info' }] : []),
     ...(done ? [{ t: inc.resolved, text: inc.autoAction || `Fixed and closed: ${inc.closeCode}`, src: isAutoInc(inc) ? 'Mova iO (automatic)' : inc.assignee, tone: 'ok' }] : []),
@@ -604,40 +605,42 @@ function RcaView({ n, go, ctx }) {
   const before = all.filter(i => i.id !== inc.id && i.branchId === b.id && i.kind === inc.kind && i.opened >= now - 7 * DAY);
   const sameCarrier = top.layer === 'ISP' ? s.incidents.filter(i => i.id !== inc.id && i.state !== 'Resolved' && ['circuit', 'jitter', 'pos'].includes(i.kind) && circuitOf(s, D.BR[i.branchId].wan[0]).carrier === line.carrier && D.BR[i.branchId].region === b.region) : [];
   const prob = s.problems.find(p => (top.layer === 'ISP' && p.title.includes(line.carrier)) || (inc.kind === 'backup' && /backup|TACACS/i.test(p.title)) || (inc.kind === 'apdown' && /AP/.test(p.title)));
-  const found = [...inc.signals.slice(0, 3).map(x => ({ t: x.t, text: x.msg, src: x.src })), ...(inc.agentSteps || []).filter(a => ['correlation', 'diagnosis'].includes(a.agent)).map(a => ({ t: a.t, text: a.text, src: `Mova iO ${a.agent} agent` }))].sort((a, c) => a.t - c.t);
+  const found = [...inc.signals.slice(0, 3).map(x => ({ t: x.t, text: x.msg, src: x.src })), ...(inc.agentSteps || []).filter(a => ['correlation', 'diagnosis'].includes(a.agent)).map(a => ({ t: a.t, text: a.text, src: `Mova iO ${(D.AGENTS[a.agent] || {}).name || `${a.agent} agent`}` }))].sort((a, c) => a.t - c.t);
   return (
     <div>
       <Head kicker={<button className="hover:underline" onClick={() => go({ t: 'branch', id: b.id })}>{b.name}</button>} title={`Root cause: ${top.text}`}
         sub={`${inc.id} · ${inc.title}. ${LAYER_PLAIN[top.layer]}.`}
-        right={<div className="pt-5 flex items-center gap-1.5"><OpenIn what="incident" id={inc.id} /><Pill tone="bad">{top.layer}</Pill>{done && <Pill tone="ok">Fixed</Pill>}</div>} />
+        right={<div className="pt-5 flex items-center gap-1.5"><OpenIn what="incident" id={inc.id} /><Pill tone="bad">{top.layer}</Pill>{done && <Pill tone="ok">Fixed</Pill>}</div>}>
+        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12.5px] text-ink2"><span>Found by</span><MovaChip agent="diagnosis" /><span>after the</span><MovaChip agent="correlation" /><span>grouped {num((inc.corr || 0) + inc.signals.length)} alerts into this incident. Mova iO then works out who fixes it, below.</span></div>
+      </Head>
       <Kpis go={go} items={[
         { label: 'Where the fault is', value: top.layer, tone: 'bad', sub: { Network: 'inside SRS', ISP: 'the carrier', Application: 'the application' }[top.layer] },
-        { label: 'Confidence', value: P(top.conf, 0), tone: top.conf >= 0.8 ? 'ok' : 'warn', sub: top.conf >= 0.8 ? 'high enough to act on its own' : 'below 80%: a person decides' },
+        { label: 'Mova iO confidence', value: P(top.conf, 0), tone: top.conf >= 0.8 ? 'ok' : 'warn', sub: top.conf >= 0.8 ? 'high enough to act on its own' : 'below 80%: a person decides' },
         { label: 'Alerts grouped into it', value: num((inc.corr || 0) + inc.signals.length), sub: `${num(inc.suppressed || 0)} kept quiet as noise` },
         { label: done ? 'Took' : 'Open for', value: hrs((inc.resolved || now) - inc.opened), tone: done ? 'ok' : 'warn' },
         { label: 'Other times here, 7 days', value: num(before.length), tone: before.length ? 'warn' : 'ok', sub: before.length ? 'a repeat' : 'first time', go: before.length ? { t: 'incidents', k: 'opened7', kind: inc.kind, branch: b.id } : null },
         chg ? { label: 'The change that caused it', value: chg, tone: 'bad', go: { t: 'change', id: chg } } : ci && { label: D.CIR[inc.ci] ? 'The line' : 'The device', value: D.CIR[inc.ci] ? D.CIR[inc.ci].carrier : inc.ci.split('-').pop(), go: ci },
       ]} />
-      <div className="mt-6"><Panel title="Where the fault is" hint="from what the branch feels to the data centre · click a part">
+      <div className="mt-6"><Panel title="Where the fault is" hint="traced by the Mova iO Diagnosis Agent on the network graph, from the tills to the data centre · click a part">
         <FaultPath nodes={path} go={go} />
       </Panel></div>
       <TakeAction inc={inc} s={s} now={now} go={go} focus={n.focus === 'act'} />
       <Grid>
-        <Panel title="Network, ISP or application" hint="each layer checked">
+        <Panel title="Network, ISP or application" hint="each layer checked by the Diagnosis Agent">
           <ul className="space-y-2">{layers.map(l => (
             <li key={l.layer} className={cx('border rounded-md px-3 py-2 bg-panel border-l-4', l.cause ? 'border-l-bad border-line' : 'border-l-ok border-line')}>
               <div className="flex items-center gap-2"><b className="text-[13px] text-ink">{l.layer}</b><span className={cx('text-[11.5px] font-bold', l.cause ? 'text-bad' : 'text-ok')}>{l.cause ? 'Cause' : 'Ruled out'}</span><span className="text-[11px] text-ink3 ml-auto">{l.plain}</span></div>
               <div className="text-[12.5px] text-ink2 leading-snug mt-0.5">{l.r ? <>{l.cause && <b className="text-ink">{l.r.text} ({P(l.r.conf, 0)}). </b>}{l.r.ev}</> : 'No sign of a problem at this layer at the same time.'}</div>
             </li>))}</ul>
         </Panel>
-        <Panel title="Ranked causes" hint="with the evidence for each">
+        <Panel title="Ranked causes" hint="by the Diagnosis Agent, with the evidence for each">
           <HBars rows={causes.map((r, i) => ({ label: r.text, value: r.conf, sub: r.ev, color: i ? C.s3 : C.bad }))} max={1} fmt={v => P(v, 0)} labelW={230} />
         </Panel>
         <Panel title="How it was found" hint="Central time">
           <ol className="border border-line rounded-md bg-panel px-3 py-2">{found.map((e, i) => (
             <li key={i} className="grid grid-cols-[46px_minmax(0,1fr)] gap-2 py-1 text-[12.5px]"><span className="font-mono text-ink3 tabular-nums">{hhmm(e.t)}</span><span className="min-w-0"><span className="text-ink">{e.text}</span><span className="block text-[11px] text-ink3">{e.src}</span></span></li>))}</ol>
         </Panel>
-        <Panel title="Fix and prevention">
+        <Panel title="Fix and prevention" hint="Runbook, Carrier and Knowledge agents">
           <Clickable go={go} items={[
             { title: done ? (inc.autoAction || `Fixed: ${inc.closeCode}`) : `Next: ${fixPlan(s, inc, now).head}`, sub: (inc.verify || []).length ? `Checks before closing: ${inc.verify.map(v => v.v).join(' · ')}` : null, tone: done ? 'ok' : 'warn', go: { t: 'incident', id: inc.id } },
             chg && { title: `The change behind it: ${chg}`, sub: `${(s.changes.find(c => c.id === chg) || {}).title || ''} · ${(s.changes.find(c => c.id === chg) || {}).state || ''}`, tone: 'bad', go: { t: 'change', id: chg } },

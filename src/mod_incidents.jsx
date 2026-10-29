@@ -3,6 +3,7 @@ import * as I from 'lucide-react';
 import * as D from './data.js';
 import { rootOf } from './dash/drilldata.js';
 import { fixPlan, ROUTES, STATE } from './dash/fix.js';
+import { MovaChip } from './dash/Mova.jsx';
 import { useApp, useNow, slaClock, gate, branchClock, circuitOf, inScope, healthOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Progress, Conf, GateBox, cx, Logo, SRC_LOGO, KV, SearchBox, Select, Empty, ExportBtn, Modal } from './ui.jsx';
 import { dur, ago, hhmmss, hhmm, dt, MIN, exportCSV } from './util.js';
@@ -155,7 +156,7 @@ function IncidentDetail({ id }) {
             <div><div className="text-[11px] text-ink3 font-semibold">Resolution ({inc.pri})</div><SlaTimer inc={inc} now={now} /></div>
           </div>
         </div>
-        <button onClick={() => act.drill({ t: 'rca', id: inc.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-wider text-bad">Root cause · {rootOf(inc).top.layer} · {Math.round(rootOf(inc).top.conf * 100)}% confidence</span><span className="block text-[13.5px] font-semibold text-ink leading-snug">{rootOf(inc).top.text}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">Where the fault is →</span></button>
+        <button onClick={() => act.drill({ t: 'rca', id: inc.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-bad"><MovaChip agent="diagnosis" h={8} className="normal-case tracking-normal" />Root cause · {rootOf(inc).top.layer} · {Math.round(rootOf(inc).top.conf * 100)}% confidence</span><span className="block text-[13.5px] font-semibold text-ink leading-snug">{rootOf(inc).top.text}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">Where the fault is →</span></button>
         {!isRes && <div className="flex flex-wrap gap-2 mt-3">
           {!inc.acked && <Btn kind="brand" icon={I.Hand} onClick={() => { upd({ acked: Date.now(), state: 'In Progress', assignee: ROLES.find(r => r.id === s.role).who }); act.audit(`Acknowledged ${inc.id}`, inc.id); }}>Acknowledge & take</Btn>}
           <Select label="Priority" value={inc.pri} onChange={v => { upd({ pri: v, group: v === 'P1' ? 'Movate NOC – Major Incident' : inc.group }); act.audit(`Priority ${inc.pri} → ${v} on ${inc.id}`, inc.id); }} options={['P1', 'P2', 'P3', 'P4']} />
@@ -268,10 +269,11 @@ function NextStep({ inc, now }) {
   const can = { yes: ['Yes', 'text-ok'], partly: ['Partly', 'text-warn'], maybe: ['Maybe', 'text-warn'], no: ['No', 'text-bad'] }[p.remote.can];
   return (
     <Card title="Who fixes it" icon={I.Route} right={<Badge tone="blue">{r.label}</Badge>}>
+      <div className="flex items-center gap-1.5 text-[11.5px] text-ink3 mb-1"><MovaChip agent="triage" h={8} /><span>recommends</span></div>
       <div className="text-[13.5px] font-bold text-ink leading-snug">{p.head}</div>
-      <div className="text-[12px] text-ink2 mt-1">Can it be fixed remotely? <b className={can[1]}>{can[0]}</b></div>
-      <div className="mt-2 space-y-1">{p.routes.filter(x => ['rec', 'first', 'also', 'on', 'tried'].includes(x.st)).map(x => <div key={x.id} className="flex items-center gap-2 text-[12px]"><span className="text-ink flex-1 min-w-0 truncate">{x.label}</span><span className="text-[11px] font-semibold text-ink3">{STATE[x.st].label}</span></div>)}</div>
-      <Btn size="sm" kind="brand" className="mt-3 w-full" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id, focus: 'act' })}>Take action: hand over, dispatch, escalate</Btn>
+      <div className="text-[12px] text-ink2 mt-1">Can Mova iO fix it remotely? <b className={can[1]}>{can[0]}</b></div>
+      <div className="mt-2 space-y-1">{p.routes.filter(x => ['rec', 'first', 'also', 'on', 'tried'].includes(x.st)).map(x => <div key={x.id} className="flex items-center gap-2 text-[12px]"><span className="text-ink flex-1 min-w-0 truncate">{x.label}</span><span className="text-[11px] text-ink3 truncate hidden 2xl:inline">{D.AGENTS[x.agent].name}</span><span className="text-[11px] font-semibold text-ink3">{STATE[x.st].label}</span></div>)}</div>
+      <Btn size="sm" kind="brand" className="mt-3 w-full" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id, focus: 'act' })}>Review what Mova iO has prepared</Btn>
     </Card>
   );
 }
