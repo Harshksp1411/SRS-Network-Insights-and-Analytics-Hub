@@ -8,7 +8,7 @@ import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo, SRC_LOGO, Dot } from './ui.jsx';
 import { Spark, Legend, C, useWidth, SEQ, TweenNum, FitText, useScale, useSlide } from './charts.jsx';
 import { AREAS, TL_LANES, AGENT_DEF, AGENT_GROUPS, TOOLS, outcomeOf, MONITOR_SRC, BEAT } from './liveext.js';
-import { hhmm, hhmmss, num, rng, MIN, HR, ago } from './util.js';
+import { hhmm, hhmmss, num, rng, MIN, HR, ago, parts } from './util.js';
 
 const LiveTag = () => <span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok"><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />Live</span>;
 const HEALTH_C = { up: C.ok, degraded: C.warn, down: C.bad };
@@ -16,12 +16,12 @@ const fmtN = (v, dec = 0) => Number(v).toLocaleString('en-US', { minimumFraction
 
 // ── KPI tiles with live sparklines ───────────────────────────────────
 export function LiveKpis({ items, cols = 3 }) {
-  const { L } = useLive();
+  const { L } = useLive(); const { act } = useApp();
   return (
     <div className={cx('grid gap-3', cols === 3 ? 'md:grid-cols-3' : cols === 4 ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3 xl:grid-cols-5')}>
       {items.map(it => { const Ic = it.icon || I.Activity; return (
-        <div key={it.label} className="card bg-panel border border-line rounded-lg px-4 py-3 min-w-0">
-          <div className="flex items-center gap-1.5 text-[12.5px] text-ink2"><Ic size={14} className="text-ink3" /><span className="truncate flex-1">{it.label}</span><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" /></div>
+        <div key={it.label} onClick={it.go ? () => act.drill(it.go) : undefined} role={it.go ? 'button' : undefined} title={it.go ? 'Click for the detail' : undefined} className={cx('card bg-panel border border-line rounded-lg px-4 py-3 min-w-0 group/stat', it.go && 'cursor-pointer hover:bg-chip/50 hover:border-ink3/40')}>
+          <div className="flex items-center gap-1.5 text-[12.5px] text-ink2"><Ic size={14} className="text-ink3" /><span className="truncate flex-1">{it.label}</span><span className="w-1.5 h-1.5 rounded-full bg-ok animate-pulse" />{it.go && <I.ChevronRight size={14} className="text-ink3 group-hover/stat:text-brand" />}</div>
           <div className="flex items-end justify-between gap-3 mt-1">
             <div className="min-w-0 flex-1"><FitText className={cx('text-[28px] font-bold leading-none tabular-nums', it.tone === 'warn' ? 'text-warn' : it.tone === 'bad' ? 'text-bad' : 'text-ink')}><TweenNum value={it.value} />{it.unit && <span className="text-[14px] font-semibold text-ink3 ml-0.5">{it.unit}</span>}</FitText></div>
             {it.series && <Spark data={it.series.slice(-50)} color={it.color || C.s1} w={110} h={32} />}
@@ -258,8 +258,8 @@ function todayCounts(L, s) {
   // then alerts auto-cleared, rolled to the digest or correlated into incidents.
   const events = L.counters.events, suppressed = Math.min(events, L.counters.suppressed);
   const raw = Math.max(0, events - suppressed), auto = Math.round(raw * 0.70), digest = Math.round(raw * 0.17), corr = Math.max(0, raw - auto - digest);
-  const sod = new Date(); sod.setHours(0, 0, 0, 0);
-  const inc = [...s.incidents, ...s.resolved].filter(i => i.opened >= sod.getTime()).length || s.incidents.length;
+  // incidents opened since midnight Central Time, the console's clock (the same list the drill-down shows)
+  const q = parts(Date.now()); const inc = [...s.incidents, ...s.resolved].filter(i => { const p = parts(i.opened); return p.y === q.y && p.mo === q.mo && p.d === q.d; }).length;
   return { events, suppressed, noise: suppressed / Math.max(1, events), raw, auto, digest, corr, inc, autoRes: L.counters.autoRes };
 }
 export { todayCounts };

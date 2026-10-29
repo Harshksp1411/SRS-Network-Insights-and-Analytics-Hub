@@ -33,6 +33,7 @@ function init() {
       { t: Date.now() - 140 * MIN, who: 'Runbook Agent', what: 'RB-109 re-ran 6 failed config backups after TACACS+ timeout – all OK', ref: 'RB-109' },
       { t: Date.now() - 200 * MIN, who: 'Kevin T. (NOC Engineer)', what: `Approved RB-102 return to primary at ${(D.findBranch('Mobile') || D.BRANCHES[0]).name} (after 30 clean minutes)`, ref: '' },
     ],
+    drill: [], // the drill-down panel: a stack of levels, from a tile or chart down to one branch, line, device or incident
     toasts: [], selInc: null, selBranch: null, askOpen: false, askLog: [], scenario: null, scenarioLog: [], notif: 3, wizard: false, guide: false,
   };
 }
@@ -69,6 +70,9 @@ export function AppProvider({ children }) {
       dismissToast: id => d({ type: 'del', key: 'toasts', id }),
       go: (module, extra = {}) => d({ type: 'set', patch: { module, selInc: null, ...extra } }),
       openInc: id => d({ type: 'set', patch: { module: 'incidents', selInc: id } }),
+      // open the drill-down at a level; the console's filters (region, city, brand, one branch) carry into it
+      drill: node => d({ type: 'set', patch: st => ({ drill: node ? [withFilters(st, node)] : [] }) }),
+      setDrill: f => d({ type: 'set', patch: st => ({ drill: typeof f === 'function' ? f(st.drill) : f }) }),
       openBranch: id => d({ type: 'set', patch: { module: 'b360', b360: id, selInc: null, selBranch: null } }),
       setTab: (mod, tab) => d({ type: 'set', patch: st => ({ tab: { ...st.tab, [mod]: tab } }) }),
       note: (incId, text, who) => d({ type: 'upd', key: 'incidents', id: incId, patch: x => ({ notes: [...x.notes, { t: Date.now(), who: who || A.me(), text }] }) }),
@@ -88,6 +92,16 @@ export function NowProvider({ children }) {
 export const useNow = () => useContext(NowCtx);
 
 // ---------- derived helpers ----------
+// the filter bar as drill-down scope: region, state and city, brand, or one branch
+export function withFilters(s, node) {
+  const f = s.filters || {}, out = { ...node };
+  if (['branch', 'circuit', 'device', 'incident', 'change', 'approval', 'metric', 'mttr', 'sla', 'project', 'prediction', 'carrier'].includes(node.t)) return out;
+  if (f.branchId && !out.branch) out.branch = f.branchId;
+  if (f.region && f.region !== 'All' && !out.region) out.region = f.region;
+  if (f.city && f.city !== 'All' && !out.city) { const i = f.city.lastIndexOf(', '); out.city = f.city.slice(0, i); out.state = f.city.slice(i + 2); }
+  if (f.brand && f.brand !== 'All' && !out.brand) out.brand = f.brand;
+  return out;
+}
 export const healthOf = (s, b) => s.branchHealth[b.id] || b.health;
 export const circuitOf = (s, id) => ({ ...D.CIR[id], ...(s.circuitState[id] || {}) });
 // A line as the business sees it: both lines count as down when the branch is unreachable

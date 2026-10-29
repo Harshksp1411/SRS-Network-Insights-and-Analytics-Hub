@@ -1,7 +1,7 @@
 // The drill-down behind every number, chart and insight on the role dashboards: peel the onion from the whole estate to a
 // region, a state, a city, one branch, one internet line, one device and one incident, then on to the carrier, the
 // change or the decision behind it. A breadcrumb shows where you are; any step back is one click.
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import * as I from 'lucide-react';
 import * as D from '../data.js';
 import { useApp, healthOf, circuitOf, slaClock, branchClock } from '../store.jsx';
@@ -12,6 +12,7 @@ import {
   SETS, INC_SETS, LINE_SETS, DEV_SETS, CHG_SETS, STATUS, KIND_PLAIN, CHECK_NAME, TTR_BUCKETS,
   statusOf, activeLine, openIncs, readyOf, capOf, capDays, branchesOf, incidentsOf, linesOf, devicesOf, changesOf,
   lineDay, fwLevel, fwBehind, creditOf, labelOf, scopeOf, stateName, isAutoInc, dayIdx, dayLabel, modelName,
+  rootOf, faultPath, incOf, LAYER_PLAIN, causeIncOf, rootGroups, changeIn,
 } from './drilldata.js';
 import { MONTHS_SO_FAR } from './visuals.js';
 
@@ -27,6 +28,16 @@ const fwText = d => { const l = fwLevel(d); return l <= 0 ? 'Latest approved' : 
 const regionOrder = bs => [...new Set(bs.map(b => b.region))].sort((a, b) => D.REGIONS.indexOf(a) - D.REGIONS.indexOf(b));
 
 // ---------- building blocks ----------
+// In the console, the drill-down can hand over to the console's own screens (Branch 360, the incident record, a
+// screen); on the dashboards page there is no console, so these buttons do not show.
+export const DrillLinks = React.createContext(null);
+const OPEN_LABEL = { branch: 'Open Branch 360', incident: 'Open the incident record', incidents: 'Open Live Incidents', carriers: 'Open Carrier Management', vuln: 'Open Lifecycle & Vulnerabilities', inventory: 'Open Device & Circuit Inventory', changes: 'Open Approvals & Changes', sla: 'Open SLA & KPI Tracker', biab: 'Open Branch-in-a-Box', predict: 'Open Predictive Watchlist', readiness: 'Open Branch Readiness', dispatch: 'Open Field Dispatch' };
+function OpenIn({ what, id }) {
+  const L = useContext(DrillLinks);
+  if (!L) return null;
+  const run = () => what === 'branch' ? L.branch(id) : what === 'incident' ? L.incident(id) : L.module(what);
+  return <button onClick={run} className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12px] font-semibold text-ink inline-flex items-center gap-1.5 whitespace-nowrap"><I.ExternalLink size={13} />{OPEN_LABEL[what === 'branch' || what === 'incident' ? what : what] || 'Open'}</button>;
+}
 const Kicker = ({ children }) => <div className="text-[11px] font-bold tracking-[0.12em] uppercase text-brand">{children}</div>;
 function Head({ kicker, title, sub, right, children }) {
   return (
@@ -122,6 +133,27 @@ function Clickable({ items, go }) {
 }
 const Note = ({ children }) => <p className="text-[12px] text-ink3 mt-2 leading-snug">{children}</p>;
 
+// the root cause of an incident in one line, with a link straight to the root-cause view
+function CauseCell({ inc, go }) {
+  if (!inc) return null;
+  const { top } = rootOf(inc);
+  return <span className="block text-[11.5px] leading-snug mt-0.5"><button onClick={e => { e.stopPropagation(); go({ t: 'rca', id: inc.id }); }} className="text-left text-ink3 hover:text-bad group/rc"><b className="text-bad">{top.layer}:</b> <span className="group-hover/rc:underline">{top.text}</span> <span className="whitespace-nowrap">({P(top.conf, 0)}) <I.ArrowRight size={11} className="inline -mt-0.5" /></span></button></span>;
+}
+
+// incidents grouped by root cause; one group with one incident goes straight to its root cause
+const LAYER_COL = { Network: C.brand, ISP: C.s5, Application: C.s1 };
+function RootCausesPanel({ incs, go, base }) {
+  const g = rootGroups(incs);
+  if (!g.length) return null;
+  return (
+    <Panel title="Root causes" hint="grouped by where the fault is · click to go to the cause">
+      <HBars rows={g.map((x, i) => ({ label: `${x.layer}: ${KIND_PLAIN[x.kind] || x.kind}`, key: i, value: x.incs.length, sub: x.incs.length === 1 ? rootOf(x.incs[0]).top.text : `${x.incs.length} incidents`, color: LAYER_COL[x.layer] || C.s3 }))} labelW={230}
+        onRow={r => { const x = g[r.key]; go(x.incs.length === 1 ? { t: 'rca', id: x.incs[0].id } : { ...base, t: 'incidents', k: base.k || 'open', kind: x.kind }); }} />
+      <Legend className="mt-2" items={[['Network: inside SRS', LAYER_COL.Network], ['ISP: the carrier', LAYER_COL.ISP], ['Application', LAYER_COL.Application]]} />
+    </Panel>
+  );
+}
+
 // ---------- geography: estate → region → state → city → branch ----------
 function nextGeo(n) { return !n.region ? 'region' : !n.state ? 'state' : !n.city ? 'city' : null; }
 function groupBy(bs, level) {
@@ -186,10 +218,11 @@ function SetView({ n, go, ctx }) {
     : [...parts.map(p => ({ label: p.label, value: num(p.value), tone: p.label === STATUS.down.label ? (p.value ? 'bad' : 'ok') : p.label === STATUS.degraded.label || p.label === 'Had a problem' ? (p.value ? 'warn' : 'ok') : p.label === STATUS.backup.label ? 'info' : 'ok', go: p.go })), { label: 'Open incidents', value: num(incidentsOf(s, { k: 'open', region: n.region, state: n.state }, now).filter(i => !n.city || D.BR[i.branchId].city === n.city).length), go: { t: 'incidents', k: 'open', region: n.region, state: n.state } }];
   return (
     <div>
-      <Head kicker={n.city ? 'City' : n.state ? 'State' : n.region ? 'Region' : 'All branches'} title={n.k === 'all' ? scopeOf(n) : `${set.label}${n.region || n.state ? ` – ${scopeOf(n)}` : ''}`} sub={n.k === 'all' ? `${num(scopeAll.length)} branches. ${set.plain}` : set.plain} />
+      <Head kicker={n.branch ? 'Branch' : n.city ? 'City' : n.state ? 'State' : n.region ? 'Region' : 'All branches'} right={['readiness', 'notReady', 'attention'].includes(n.k) ? <div className="pt-5"><OpenIn what="readiness" /></div> : n.branch ? <div className="pt-5"><OpenIn what="branch" id={n.branch} /></div> : null} title={n.k === 'all' ? scopeOf(n) : `${set.label}${n.region || n.state ? ` – ${scopeOf(n)}` : ''}`} sub={n.k === 'all' ? `${num(scopeAll.length)} branches. ${set.plain}` : set.plain} />
       <Kpis items={kpis} go={go} />
       {!['capacity', 'latency', 'eos'].includes(n.k) && <div className="mt-5"><StackBar parts={parts} go={go} /></div>}
       <Grid>
+        {['issues', 'down', 'degraded', 'backup', 'notReady', 'attention'].includes(n.k) && <RootCausesPanel incs={bs.map(b => causeIncOf(s, b)).filter(Boolean)} go={go} base={{ region: n.region, state: n.state, city: n.city, brand: n.brand, branch: n.branch }} />}
         {level && geoRows.length > 0 && <Panel title={`By ${level}`} hint={`${metric.what} · click to go in`}>
           <HBars rows={geoRows.slice(0, 14).map(r => ({ ...r, color: geoColor(r) }))} max={metric.max} fmt={metric.fmt} labelW={170} onRow={r => go(narrow(n, level, r.key, r.g))} />
           {geoRows.length > 14 && <Note>{geoRows.length - 14} more {level === 'city' ? 'cities' : `${level}s`} in the table below.</Note>}
@@ -201,8 +234,8 @@ function SetView({ n, go, ctx }) {
       </Grid>
       <div className="mt-7">
         <Panel title={n.k === 'all' ? 'Branches, problems first' : `${set.label} (${num(bs.length)})`} hint="click a branch for its full picture">
-          <Rows cols={['Branch', 'Now', n.k === 'latency' ? 'Delay to data centre' : 'Line in use', n.k === 'capacity' ? 'When it fills' : 'Why']} page={15}
-            rows={list.map(b => { const al = activeLine(s, b); return { key: b.id, id: b.id, cells: [<Name t={b.name} sub={b.brand} />, <Pill tone={stTone(st[b.id])}>{STATUS[st[b.id]].label}</Pill>, st[b.id] === 'down' ? <span className="text-bad font-semibold">No line reachable</span> : <span className="tabular-nums"><b className={TX[latTone(al.lat)]}>{al.lat} ms</b><span className="text-ink3"> · {al.line.carrier} {al.line.type}</span></span>, <span className="text-ink2">{why(b)}</span>] }; })}
+          <Rows cols={['Branch', 'Now', n.k === 'latency' ? 'Delay to data centre' : 'Line in use', n.k === 'capacity' ? 'When it fills' : 'Why, and the root cause']} page={15}
+            rows={list.map(b => { const al = activeLine(s, b); return { key: b.id, id: b.id, cells: [<Name t={b.name} sub={b.brand} />, <Pill tone={stTone(st[b.id])}>{STATUS[st[b.id]].label}</Pill>, st[b.id] === 'down' ? <span className="text-bad font-semibold">No line reachable</span> : <span className="tabular-nums"><b className={TX[latTone(al.lat)]}>{al.lat} ms</b><span className="text-ink3"> · {al.line.carrier} {al.line.type}</span></span>, <span className="text-ink2">{why(b)}<CauseCell inc={causeIncOf(s, b)} go={go} /></span>] }; })}
             onRow={r => go({ t: 'branch', id: r.id })} empty="No branch in this group right now." />
         </Panel>
       </div>
@@ -236,8 +269,9 @@ function BranchView({ n, go, ctx }) {
     <div>
       <Head kicker={<span className="inline-flex flex-wrap gap-x-1.5"><button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region })}>{b.region}</button>›<button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region, state: b.state })}>{stateName(b.state)}</button>›<button className="hover:underline" onClick={() => go({ t: 'set', k: 'all', region: b.region, state: b.state, city: b.city })}>{b.city}</button></span>}
         title={b.name} sub={`${b.brand} · ${{ S: 'small', M: 'medium', L: 'large' }[b.size]} branch · local time ${clk.local} · ${clk.closedToday ? 'closed today' : `open ${clk.opens}–${clk.closes}`}${clk.open ? ' (open now)' : ''}`}
-        right={<div className="pt-5"><Pill tone={stTone(st)}>{STATUS[st].label}</Pill></div>}>
-        {st !== 'up' && !incs.length && b.why && <p className="mt-2 text-[13px] text-warn font-semibold flex items-center gap-1.5"><I.Eye size={14} />Being watched: {b.why}</p>}
+        right={<div className="pt-5 flex items-center gap-2"><OpenIn what="branch" id={b.id} /><Pill tone={stTone(st)}>{STATUS[st].label}</Pill></div>}>
+        {causeIncOf(s, b) && (() => { const top = causeIncOf(s, b), r = rootOf(top).top, fixed = top.state === 'Resolved'; return <button onClick={() => go({ t: 'rca', id: top.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-wider text-bad">{fixed ? 'Root cause, fixed, being watched' : 'Root cause'} · {r.layer} · {P(r.conf, 0)} confidence</span><span className="block text-[14px] font-semibold text-ink leading-snug">{r.text}</span><span className="block text-[12px] text-ink2">{top.id} · {top.title}{incs.length > 1 ? ` · and ${incs.length - 1} more open incident${incs.length > 2 ? 's' : ''}` : ''}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">See the root cause →</span></button>; })()}
+        {st !== 'up' && !causeIncOf(s, b) && b.why && <p className="mt-2 text-[13px] text-warn font-semibold flex items-center gap-1.5"><I.Eye size={14} />Being watched: {b.why}</p>}
       </Head>
       <Kpis go={go} items={[
         { label: 'Delay to data centre', value: down ? '—' : ms(al.lat), tone: latTone(down ? null : al.lat), sub: down ? 'unreachable' : `on the ${al.line.role === 'Primary' ? 'main' : 'backup'} line` },
@@ -271,7 +305,7 @@ function BranchView({ n, go, ctx }) {
         </Panel>
         <Panel title="Incidents" hint="open first, then the last 30 days">
           <Rows page={8} cols={['Incident', 'What', 'State']} onRow={r => go({ t: 'incident', id: r.id })} empty="No incident at this branch in the last 30 days."
-            rows={[...incs, ...fixed].map(i => ({ key: i.id, id: i.id, cells: [<Name t={i.id} sub={i.pri} />, <span className="text-ink2">{i.title}</span>, i.state === 'Resolved' ? <span className="text-ink3 whitespace-nowrap">{isAutoInc(i) ? <b className="text-ok">Fixed automatically</b> : 'Fixed'} · {dateShort(i.resolved)}</span> : <Pill tone={slaClock(i, now).used > 0.5 ? 'warn' : 'info'}>{i.state}</Pill>] }))} />
+            rows={[...incs, ...fixed].map(i => ({ key: i.id, id: i.id, cells: [<Name t={i.id} sub={i.pri} />, <span className="text-ink2">{i.title}<CauseCell inc={i} go={go} /></span>, i.state === 'Resolved' ? <span className="text-ink3 whitespace-nowrap">{isAutoInc(i) ? <b className="text-ok">Fixed automatically</b> : 'Fixed'} · {dateShort(i.resolved)}</span> : <Pill tone={slaClock(i, now).used > 0.5 ? 'warn' : 'info'}>{i.state}</Pill>] }))} />
         </Panel>
         <Panel title="Devices" hint={`${devs.length} at this branch`}>
           <Rows page={8} cols={['Device', 'Model', 'Software', 'Lifecycle']} onRow={r => go({ t: 'device', id: r.id })}
@@ -328,7 +362,7 @@ function CircuitView({ n, go, ctx }) {
         </Panel>
         <Panel title="Faults and carrier repairs">
           <Clickable go={go} items={[
-            ...(inc ? [{ title: `Open: ${inc.title}`, sub: `${inc.id} · ${inc.pri} · opened ${ago(inc.opened, now)}`, tone: 'bad', go: { t: 'incident', id: inc.id } }] : []),
+            ...(inc ? [{ title: `Open: ${inc.title}`, sub: `${inc.id} · ${inc.pri} · opened ${ago(inc.opened, now)} · root cause: ${rootOf(inc).top.layer}, ${rootOf(inc).top.text}`, tone: 'bad', go: { t: 'rca', id: inc.id } }] : []),
             ...cs.map(x => ({ title: `${x.carrier} case ${x.id}`, sub: `${x.status} · opened ${dateShort(x.opened)}${x.eta ? ` · promised ${hhmm(x.eta)} CT` : ''}`, tone: /Closed/.test(x.status) ? 'ok' : x.eta && x.eta < now ? 'bad' : 'warn', go: x.inc ? { t: 'incident', id: x.inc } : null })),
             ...(!inc && !cs.length ? [{ title: 'No open fault and no carrier case on record', tone: 'ok' }] : []),
           ]} />
@@ -347,7 +381,7 @@ function CarrierView({ n, go, ctx }) {
   const regs = regionOrder(ls.map(c => D.BR[c.branchId])).map(r => { const g = ls.filter(c => D.BR[c.branchId].region === r); return { label: r, value: sum(g, D.availOf) / g.length, sub: `${g.length} lines`, key: r }; });
   return (
     <div>
-      <Head kicker="Carrier" title={n.carrier} sub={`${num(ls.length)} lines${n.region ? ` in ${n.region}` : ' across the estate'}: how they are doing right now and against their uptime promise this month.`} />
+      <Head kicker="Carrier" right={<div className="pt-5"><OpenIn what="carriers" /></div>} title={n.carrier} sub={`${num(ls.length)} lines${n.region ? ` in ${n.region}` : ' across the estate'}: how they are doing right now and against their uptime promise this month.`} />
       <Kpis go={go} items={[
         { label: 'Lines', value: num(ls.length), go: { t: 'lines', k: 'all', carrier: n.carrier, region: n.region } },
         { label: 'Down now', value: num(down.length), tone: down.length ? 'bad' : 'ok', go: down.length ? { t: 'lines', k: 'down', carrier: n.carrier, region: n.region } : null },
@@ -385,7 +419,7 @@ function LinesView({ n, go, ctx }) {
   const sorted = ls.slice().sort((a, c) => n.k === 'flap' ? c.flaps30 - a.flaps30 : n.k === 'repeat' ? c.tickets90 - a.tickets90 : D.availOf(a) - D.availOf(c));
   return (
     <div>
-      <Head kicker="Internet lines" title={`${set.label}${n.carrier ? ` – ${n.carrier}` : ''}${n.region ? ` – ${scopeOf(n)}` : ''}`} sub={set.plain} />
+      <Head kicker="Internet lines" right={<div className="pt-5"><OpenIn what="carriers" /></div>} title={`${set.label}${n.carrier ? ` – ${n.carrier}` : ''}${n.region ? ` – ${scopeOf(n)}` : ''}`} sub={set.plain} />
       <Kpis go={go} items={[
         { label: n.k === 'all' ? 'Lines' : 'Lines in this list', value: num(ls.length), tone: n.k === 'all' ? null : 'warn' },
         { label: 'Main lines', value: num(ls.filter(c => c.role === 'Primary').length) },
@@ -413,7 +447,7 @@ function DeviceView({ n, go, ctx }) {
   const crit = vulns.filter(a => a.sev === 'Critical');
   return (
     <div>
-      <Head kicker={<button className="hover:underline" onClick={() => go({ t: 'branch', id: b.id })}>{b.name}</button>} title={d.id} sub={`${modelName(d)} · ${d.role}. ${d.type === 'SD-WAN' ? 'The SD-WAN appliance joins the branch to the data centre over both lines and moves traffic between them.' : d.type === 'Switch' ? 'Connects the branch’s computers, tills, access points and cameras.' : 'Wi-Fi for handhelds, laptops and the yard.'}`} />
+      <Head kicker={<button className="hover:underline" onClick={() => go({ t: 'branch', id: b.id })}>{b.name}</button>} right={<div className="pt-5"><OpenIn what="inventory" /></div>} title={d.id} sub={`${modelName(d)} · ${d.role}. ${d.type === 'SD-WAN' ? 'The SD-WAN appliance joins the branch to the data centre over both lines and moves traffic between them.' : d.type === 'Switch' ? 'Connects the branch’s computers, tills, access points and cameras.' : 'Wi-Fi for handhelds, laptops and the yard.'}`} />
       <Kpis go={go} items={[
         { label: 'Software', value: fwText(d), tone: fwBehind(d) ? 'warn' : 'ok', sub: `running ${d.fw}; approved ${target}` },
         { label: 'Critical security flaws', value: num(crit.length), tone: crit.length ? 'bad' : 'ok', go: crit.length ? { t: 'devices', k: 'crit', model: d.model } : null },
@@ -450,7 +484,7 @@ function DevicesView({ n, go, ctx }) {
   const tone = n.k === 'all' ? C.s1 : n.k === 'crit' ? C.bad : C.warn;
   return (
     <div>
-      <Head kicker="Devices" title={`${set.label}${n.model ? ` – ${n.model}` : ''}${n.region ? ` – ${scopeOf(n)}` : ''}`} sub={set.plain} />
+      <Head kicker="Devices" right={<div className="pt-5"><OpenIn what={['crit', 'fw', 'eos'].includes(n.k) ? 'vuln' : 'inventory'} /></div>} title={`${set.label}${n.model ? ` – ${n.model}` : ''}${n.region ? ` – ${scopeOf(n)}` : ''}`} sub={set.plain} />
       <Kpis go={go} items={[
         { label: 'Devices', value: num(ds.length), tone: n.k === 'all' ? null : 'warn' },
         { label: 'Branches affected', value: num(new Set(ds.map(d => d.branchId)).size) },
@@ -489,13 +523,13 @@ function IncidentView({ n, go, ctx }) {
   return (
     <div>
       <Head kicker={<button className="hover:underline" onClick={() => go({ t: 'branch', id: b.id })}>{b.name}</button>} title={inc.title} sub={`${inc.id} · ${inc.cat}. ${(inc.impact || [])[0] ? `What the branch feels: ${inc.impact[0].replace(/\.$/, '')}.` : ''}`}
-        right={<div className="pt-5 flex gap-1.5"><Pill tone={inc.pri === 'P1' || inc.pri === 'P2' ? 'bad' : 'warn'}>{inc.pri}</Pill><Pill tone={done ? 'ok' : 'info'}>{done ? (isAutoInc(inc) ? 'Fixed automatically' : 'Fixed') : inc.state}</Pill></div>} />
+        right={<div className="pt-5 flex items-center gap-1.5"><OpenIn what="incident" id={inc.id} /><Pill tone={inc.pri === 'P1' || inc.pri === 'P2' ? 'bad' : 'warn'}>{inc.pri}</Pill><Pill tone={done ? 'ok' : 'info'}>{done ? (isAutoInc(inc) ? 'Fixed automatically' : 'Fixed') : inc.state}</Pill></div>} />
       <Kpis go={go} items={[
         { label: done ? 'Took' : 'Open for', value: hrs((inc.resolved || now) - inc.opened), tone: clk.resBreached ? 'bad' : 'ok', sub: `opened ${dt(inc.opened)} CT` },
         { label: 'Deadline to fix', value: done ? (clk.resBreached ? 'Missed' : 'Met') : clk.resLeft > 0 ? `${hrs(clk.resLeft)} left` : 'Passed', tone: clk.resBreached ? 'bad' : clk.used > 0.5 ? 'warn' : 'ok', sub: `${inc.pri} allows ${hrs(D.slaOf(inc.pri).res)}` },
         { label: 'Owner', value: inc.assignee || 'Not yet', tone: inc.assignee ? null : 'warn', sub: inc.group },
         { label: 'Alerts grouped into this one', value: num((inc.corr || 0) + inc.signals.length), sub: `${num(inc.suppressed || 0)} kept quiet as noise` },
-        { label: 'Likely cause', value: P(inc.rca[0].conf, 0), tone: inc.rca[0].conf >= 0.8 ? 'ok' : 'warn', sub: 'confidence' },
+        { label: 'Root cause', value: rootOf(inc).top.layer, tone: 'bad', sub: `${P(inc.rca[0].conf, 0)} confidence`, go: { t: 'rca', id: inc.id } },
         ci && { label: D.CIR[inc.ci] ? 'The line' : 'The device', value: D.CIR[inc.ci] ? D.CIR[inc.ci].carrier : inc.ci.split('-').pop(), go: ci },
       ]} />
       {!done && <div className="mt-4"><div className="flex justify-between text-[11.5px] text-ink3 mb-1"><span>Time used of the {hrs(D.slaOf(inc.pri).res)} allowed</span><b className={TX[clk.used > 0.75 ? 'bad' : clk.used > 0.5 ? 'warn' : 'ok']}>{P(Math.min(1, clk.used), 0)}</b></div><div className="h-2 bg-ink/10 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.min(100, clk.used * 100)}%`, background: clk.used > 0.75 ? C.bad : clk.used > 0.5 ? C.warn : C.ok }} /></div></div>}
@@ -508,7 +542,7 @@ function IncidentView({ n, go, ctx }) {
             </li>))}</ol>
         </Panel>
         <div className="space-y-7 min-w-0">
-          <Panel title="Likely cause" hint="ranked by Mova iO">
+          <Panel title="Likely cause" hint="ranked by Mova iO" right={<button onClick={() => go({ t: 'rca', id: inc.id })} className="text-[12px] font-semibold text-brand hover:underline inline-flex items-center gap-1">Full root cause<I.ArrowRight size={12} /></button>}>
             <HBars rows={inc.rca.map(r => ({ label: r.cause, value: r.conf, sub: r.ev, color: r === inc.rca[0] ? C.brand : C.s3 }))} max={1} fmt={v => P(v, 0)} labelW={220} />
           </Panel>
           <Panel title="The fix">
@@ -522,6 +556,94 @@ function IncidentView({ n, go, ctx }) {
             ].filter(Boolean)} />
           </Panel>
         </div>
+      </Grid>
+    </div>
+  );
+}
+
+// ---------- root cause ----------
+const PATH_TONE = { ok: 'border-ok/40 bg-ok/5', warn: 'border-warn/60 bg-warn/10', bad: 'border-bad bg-bad/10 ring-2 ring-bad/30', fixed: 'border-info/50 bg-info/5' };
+const PATH_WORD = { ok: 'Clean', warn: 'Degraded', bad: 'Fault here', fixed: 'Fixed' };
+const PATH_TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', fixed: 'text-info' };
+function PathBox({ x, go }) {
+  const El = x.go ? 'button' : 'div';
+  return (
+    <El onClick={x.go ? () => go(x.go) : undefined} className={cx('text-left rounded-md border px-2.5 py-2 min-w-0 w-full', PATH_TONE[x.st], x.go && 'hover:brightness-95')}>
+      <div className={cx('text-[10.5px] font-bold uppercase tracking-wider', PATH_TX[x.st])}>{PATH_WORD[x.st]}</div>
+      <div className="text-[12.5px] font-semibold text-ink leading-tight mt-0.5">{x.label}</div>
+      <div className="text-[11px] text-ink3 leading-tight mt-0.5">{x.sub}</div>
+    </El>
+  );
+}
+function FaultPath({ nodes, go }) {
+  const by = Object.fromEntries(nodes.map(x => [x.id, x]));
+  const Arrow = () => <I.ArrowRight size={16} className="text-ink3 shrink-0 hidden md:block self-center" />;
+  return (
+    <div className="flex flex-col md:flex-row items-stretch gap-2">
+      <div className="md:w-[15%]"><PathBox x={by.apps} go={go} /></div><Arrow />
+      <div className="md:w-[15%]"><PathBox x={by.lan} go={go} /></div><Arrow />
+      <div className="md:w-[15%]"><PathBox x={by.edge} go={go} /></div><Arrow />
+      <div className="md:w-[19%] flex flex-col gap-2"><PathBox x={by.wan1} go={go} /><PathBox x={by.wan2} go={go} /></div><Arrow />
+      <div className="md:w-[16%]"><PathBox x={by.carrier} go={go} /></div><Arrow />
+      <div className="md:w-[15%]"><PathBox x={by.dc} go={go} /></div>
+    </div>
+  );
+}
+function RcaView({ n, go, ctx }) {
+  const { s, now } = ctx;
+  const inc = incOf(s, n.id); if (!inc) return <p>Incident not found.</p>;
+  const b = D.BR[inc.branchId], done = inc.state === 'Resolved', { top, causes, layers } = rootOf(inc);
+  const path = faultPath(s, inc), ci = D.CIR[inc.ci] ? { t: 'circuit', id: inc.ci } : D.DEV[inc.ci] ? { t: 'device', id: inc.ci } : null;
+  const chg = changeIn(s, inc);
+  const line = circuitOf(s, b.wan[0]);
+  // has this happened before here, and is it happening elsewhere?
+  const all = [...s.incidents, ...s.resolved];
+  const before = all.filter(i => i.id !== inc.id && i.branchId === b.id && i.kind === inc.kind && i.opened >= now - 7 * DAY);
+  const sameCarrier = top.layer === 'ISP' ? s.incidents.filter(i => i.id !== inc.id && i.state !== 'Resolved' && ['circuit', 'jitter', 'pos'].includes(i.kind) && circuitOf(s, D.BR[i.branchId].wan[0]).carrier === line.carrier && D.BR[i.branchId].region === b.region) : [];
+  const prob = s.problems.find(p => (top.layer === 'ISP' && p.title.includes(line.carrier)) || (inc.kind === 'backup' && /backup|TACACS/i.test(p.title)) || (inc.kind === 'apdown' && /AP/.test(p.title)));
+  const found = [...inc.signals.slice(0, 3).map(x => ({ t: x.t, text: x.msg, src: x.src })), ...(inc.agentSteps || []).filter(a => ['correlation', 'diagnosis'].includes(a.agent)).map(a => ({ t: a.t, text: a.text, src: `Mova iO ${a.agent} agent` }))].sort((a, c) => a.t - c.t);
+  return (
+    <div>
+      <Head kicker={<button className="hover:underline" onClick={() => go({ t: 'branch', id: b.id })}>{b.name}</button>} title={`Root cause: ${top.text}`}
+        sub={`${inc.id} · ${inc.title}. ${LAYER_PLAIN[top.layer]}.`}
+        right={<div className="pt-5 flex items-center gap-1.5"><OpenIn what="incident" id={inc.id} /><Pill tone="bad">{top.layer}</Pill>{done && <Pill tone="ok">Fixed</Pill>}</div>} />
+      <Kpis go={go} items={[
+        { label: 'Where the fault is', value: top.layer, tone: 'bad', sub: { Network: 'inside SRS', ISP: 'the carrier', Application: 'the application' }[top.layer] },
+        { label: 'Confidence', value: P(top.conf, 0), tone: top.conf >= 0.8 ? 'ok' : 'warn', sub: top.conf >= 0.8 ? 'high enough to act on its own' : 'below 80%: a person decides' },
+        { label: 'Alerts grouped into it', value: num((inc.corr || 0) + inc.signals.length), sub: `${num(inc.suppressed || 0)} kept quiet as noise` },
+        { label: done ? 'Took' : 'Open for', value: hrs((inc.resolved || now) - inc.opened), tone: done ? 'ok' : 'warn' },
+        { label: 'Other times here, 7 days', value: num(before.length), tone: before.length ? 'warn' : 'ok', sub: before.length ? 'a repeat' : 'first time', go: before.length ? { t: 'incidents', k: 'opened7', kind: inc.kind, branch: b.id } : null },
+        chg ? { label: 'The change that caused it', value: chg, tone: 'bad', go: { t: 'change', id: chg } } : ci && { label: D.CIR[inc.ci] ? 'The line' : 'The device', value: D.CIR[inc.ci] ? D.CIR[inc.ci].carrier : inc.ci.split('-').pop(), go: ci },
+      ]} />
+      <div className="mt-6"><Panel title="Where the fault is" hint="from what the branch feels to the data centre · click a part">
+        <FaultPath nodes={path} go={go} />
+      </Panel></div>
+      <Grid>
+        <Panel title="Network, ISP or application" hint="each layer checked">
+          <ul className="space-y-2">{layers.map(l => (
+            <li key={l.layer} className={cx('border rounded-md px-3 py-2 bg-panel border-l-4', l.cause ? 'border-l-bad border-line' : 'border-l-ok border-line')}>
+              <div className="flex items-center gap-2"><b className="text-[13px] text-ink">{l.layer}</b><span className={cx('text-[11.5px] font-bold', l.cause ? 'text-bad' : 'text-ok')}>{l.cause ? 'Cause' : 'Ruled out'}</span><span className="text-[11px] text-ink3 ml-auto">{l.plain}</span></div>
+              <div className="text-[12.5px] text-ink2 leading-snug mt-0.5">{l.r ? <>{l.cause && <b className="text-ink">{l.r.text} ({P(l.r.conf, 0)}). </b>}{l.r.ev}</> : 'No sign of a problem at this layer at the same time.'}</div>
+            </li>))}</ul>
+        </Panel>
+        <Panel title="Ranked causes" hint="with the evidence for each">
+          <HBars rows={causes.map((r, i) => ({ label: r.text, value: r.conf, sub: r.ev, color: i ? C.s3 : C.bad }))} max={1} fmt={v => P(v, 0)} labelW={230} />
+        </Panel>
+        <Panel title="How it was found" hint="Central time">
+          <ol className="border border-line rounded-md bg-panel px-3 py-2">{found.map((e, i) => (
+            <li key={i} className="grid grid-cols-[46px_minmax(0,1fr)] gap-2 py-1 text-[12.5px]"><span className="font-mono text-ink3 tabular-nums">{hhmm(e.t)}</span><span className="min-w-0"><span className="text-ink">{e.text}</span><span className="block text-[11px] text-ink3">{e.src}</span></span></li>))}</ol>
+        </Panel>
+        <Panel title="Fix and prevention">
+          <Clickable go={go} items={[
+            { title: done ? (inc.autoAction || `Fixed: ${inc.closeCode}`) : `Fix under way: ${D.RB[inc.runbook] ? `${D.RB[inc.runbook].id} ${D.RB[inc.runbook].name}` : inc.state}`, sub: (inc.verify || []).length ? `Checks before closing: ${inc.verify.map(v => v.v).join(' · ')}` : null, tone: done ? 'ok' : 'warn', go: { t: 'incident', id: inc.id } },
+            chg && { title: `The change behind it: ${chg}`, sub: `${(s.changes.find(c => c.id === chg) || {}).title || ''} · ${(s.changes.find(c => c.id === chg) || {}).state || ''}`, tone: 'bad', go: { t: 'change', id: chg } },
+            inc.carrierCase && { title: `Carrier case ${inc.carrierCase} with ${line.carrier}`, sub: 'evidence pack sent: an hour of loss and delay readings, path tests, timestamps', tone: 'warn', go: { t: 'circuit', id: inc.ci } },
+            sameCarrier.length > 0 && { title: `${sameCarrier.length} more ${line.carrier} line fault${sameCarrier.length > 1 ? 's' : ''} open in ${b.region}`, sub: 'the same carrier in the same region: a wider carrier problem is likely', tone: 'bad', go: { t: 'lines', k: 'problem', carrier: line.carrier, region: b.region } },
+            before.length > 0 && { title: `Happened ${before.length} more time${before.length > 1 ? 's' : ''} at this branch in 7 days`, sub: 'repeats go to problem management for a permanent fix', tone: 'warn', go: { t: 'incidents', k: 'opened7', kind: inc.kind, branch: b.id } },
+            prob && { title: `Problem record ${prob.id}: ${prob.title}`, sub: `${prob.state} · ${prob.incidents} incidents linked · owner ${prob.owner}`, tone: 'info' },
+            { title: `Everything at ${b.name}`, sub: 'lines, devices, opening checks and other incidents', go: { t: 'branch', id: b.id } },
+          ].filter(Boolean)} />
+        </Panel>
       </Grid>
     </div>
   );
@@ -541,7 +663,7 @@ function IncidentsView({ n, go, ctx }) {
   const buckets = TTR_BUCKETS.map(([l, [a, b]]) => ({ label: l, value: closed.filter(i => i.resolved - i.opened >= a && i.resolved - i.opened < b).length }));
   return (
     <div>
-      <Head kicker="Incidents" title={labelOf(n)} sub={set.plain} />
+      <Head kicker="Incidents" title={labelOf(n)} sub={set.plain} right={<div className="pt-5"><OpenIn what="incidents" /></div>} />
       <Kpis go={go} items={[
         { label: 'Incidents', value: num(list.length) },
         { label: 'Still open', value: num(list.filter(i => i.state !== 'Resolved').length), tone: list.some(i => i.state !== 'Resolved') ? 'warn' : 'ok' },
@@ -558,6 +680,7 @@ function IncidentsView({ n, go, ctx }) {
           <Bars h={170} data={pris} keys={['On track', 'To watch']} colors={[C.ok, C.warn]} onBar={d => go({ ...n, pri: d.label })} />
           <Legend className="mt-1" items={[['On track against the deadline', C.ok], ['To watch', C.warn]]} />
         </Panel>}
+        {!n.kind && <RootCausesPanel incs={list} go={go} base={n} />}
         <Panel title="What kind of problem" hint="click to narrow">
           <HBars rows={kinds.map(([k, v]) => ({ label: KIND_PLAIN[k] || k, key: k, value: v, color: C.s1 }))} labelW={200} onRow={r => go({ ...n, kind: r.key })} />
         </Panel>
@@ -566,7 +689,7 @@ function IncidentsView({ n, go, ctx }) {
       </Grid>
       <div className="mt-7"><Panel title="The incidents" hint="click one for its full detail">
         <Rows page={15} cols={['Incident', 'Branch', 'What', 'Outcome']} onRow={r => go({ t: 'incident', id: r.id })} empty="No incident matches."
-          rows={list.map(i => ({ key: i.id, id: i.id, cells: [<Name t={i.id} sub={`${i.pri} · ${dt(i.opened)}`} />, <span className="text-ink2">{D.BR[i.branchId].name}</span>, <span className="text-ink2">{i.title}</span>, i.state === 'Resolved' ? <span className="whitespace-nowrap">{isAutoInc(i) ? <b className="text-ok">Automatic</b> : <span className="text-ink2">Engineer</span>}<span className="text-ink3"> · {hrs(i.resolved - i.opened)}</span></span> : <Pill tone={slaClock(i, now).used > 0.5 ? 'warn' : 'info'}>{i.state}</Pill>] }))} />
+          rows={list.map(i => ({ key: i.id, id: i.id, cells: [<Name t={i.id} sub={`${i.pri} · ${dt(i.opened)}`} />, <span className="text-ink2">{D.BR[i.branchId].name}</span>, <span className="text-ink2">{i.title}<CauseCell inc={i} go={go} /></span>, i.state === 'Resolved' ? <span className="whitespace-nowrap">{isAutoInc(i) ? <b className="text-ok">Automatic</b> : <span className="text-ink2">Engineer</span>}<span className="text-ink3"> · {hrs(i.resolved - i.opened)}</span></span> : <Pill tone={slaClock(i, now).used > 0.5 ? 'warn' : 'info'}>{i.state}</Pill>] }))} />
       </Panel></div>
     </div>
   );
@@ -580,7 +703,7 @@ function ChangesView({ n, go, ctx }) {
   const freezes = s.freezes.filter(f => f.end > now && f.start < now + 30 * DAY && (!n.region || f.scope === n.region || f.scope === 'All regions'));
   return (
     <div>
-      <Head kicker="Changes" title={`${set.label}${n.region ? ` – ${n.region}` : ''}`} sub={`${set.plain} Every change is tested before it goes in and checked after; a change that slows a branch rolls back on its own.`} />
+      <Head kicker="Changes" right={<div className="pt-5"><OpenIn what="changes" /></div>} title={`${set.label}${n.region ? ` – ${n.region}` : ''}`} sub={`${set.plain} Every change is tested before it goes in and checked after; a change that slows a branch rolls back on its own.`} />
       <Kpis go={go} items={[
         { label: 'Changes', value: num(list.length) },
         { label: 'High risk', value: num(list.filter(c => c.risk === 'High').length), tone: list.some(c => c.risk === 'High') ? 'warn' : 'ok' },
@@ -599,6 +722,7 @@ function ChangesView({ n, go, ctx }) {
 function ChangeView({ n, go, ctx }) {
   const { s, now } = ctx;
   const c = s.changes.find(x => x.id === n.id); if (!c) return <p>Change not found.</p>;
+  const caused = [...s.incidents, ...s.resolved].filter(i => changeIn(s, i) === c.id);
   const clash = s.freezes.filter(f => c.start < f.end && c.end > f.start && (f.scope === c.scope || f.scope === 'All regions' || c.scope === 'All regions'));
   const region = D.REGIONS.includes(c.scope) ? c.scope : null;
   return (
@@ -613,6 +737,7 @@ function ChangeView({ n, go, ctx }) {
       ]} />
       <Grid>
         <Panel title="The change"><KV items={[['Window', c.window], ['Ends', dt(c.end)], ['Type', c.type], ['Owner', c.owner], ['Configuration file', <span className="font-mono">{c.nac}</span>]]} /></Panel>
+        {caused.length > 0 && <Panel title="Incidents it caused" className="lg:col-span-2"><Clickable go={go} items={caused.map(i => ({ title: `${i.id}: ${i.title}`, sub: `${D.BR[i.branchId].name} · ${i.state === 'Resolved' ? `fixed ${dateShort(i.resolved)}${i.autoAction ? ` – ${i.autoAction}` : ''}` : i.state}`, tone: i.state === 'Resolved' ? 'ok' : 'bad', right: 'root cause', go: { t: 'rca', id: i.id } }))} /></Panel>}
         <Panel title="Before it starts"><Clickable go={go} items={[
           { title: c.validation === 'Passed' ? 'Pre-checks passed in the test lab' : `Pre-checks: ${c.validation}`, tone: c.validation === 'Passed' ? 'ok' : 'warn' },
           ...(clash.length ? clash.map(f => ({ title: `Overlaps the ${f.name} freeze`, sub: 'Needs an exception or a new date', tone: 'bad' })) : [{ title: 'No change freeze in the window', tone: 'ok' }]),
@@ -627,7 +752,7 @@ function ApprovalsView({ go, ctx }) {
   const list = s.approvals.filter(a => a.status === 'Pending');
   return (
     <div>
-      <Head kicker="Decisions" title="Decisions waiting for a person" sub="Mova iO acts on its own only when it is at least 80% sure, the change is low risk and easy to undo, and nothing is trading on it. Everything else waits here with its evidence and a recommendation." />
+      <Head kicker="Decisions" right={<div className="pt-5"><OpenIn what="changes" /></div>} title="Decisions waiting for a person" sub="Mova iO acts on its own only when it is at least 80% sure, the change is low risk and easy to undo, and nothing is trading on it. Everything else waits here with its evidence and a recommendation." />
       <div className="mt-6"><Clickable go={go} items={list.map(a => ({ title: a.title, sub: `${a.type} · ${Math.round(a.conf * 100)}% confidence · ${a.why.join('; ')}`, right: a.branchId ? D.BR[a.branchId].name : '', tone: a.risk === 'High' ? 'bad' : 'warn', go: { t: 'approval', id: a.id } }))} /></div>
     </div>
   );
@@ -655,7 +780,7 @@ function SlaView({ go }) {
   const fmt = m => v => m.fmt ? P(v, m.fmt) : P(v, 1);
   return (
     <div>
-      <Head kicker="Service levels" title={`${rows.filter(r => r.st === 'met').length} of ${rows.length} service levels met`} sub="The Annexure B service levels and KPIs, last month against the expected level. The black mark on each bar is the target." />
+      <Head kicker="Service levels" right={<div className="pt-5"><OpenIn what="sla" /></div>} title={`${rows.filter(r => r.st === 'met').length} of ${rows.length} service levels met`} sub="The Annexure B service levels and KPIs, last month against the expected level. The black mark on each bar is the target." />
       <Kpis go={go} items={[
         { label: 'Met the expected level', value: num(rows.filter(r => r.st === 'met').length), tone: 'ok' },
         { label: 'Above minimum, below expected', value: num(rows.filter(r => r.st === 'below').length), tone: 'warn' },
@@ -680,7 +805,7 @@ function MetricView({ n, go }) {
   const st = slaState(m), f = v => P(v, m.fmt || 1);
   return (
     <div>
-      <Head kicker={m.line} title={m.name} sub={`${m.def}. ${m.cls}. ${st === 'met' ? 'Met the expected level last month.' : st === 'min' ? 'Below the minimum last month.' : 'Above the minimum, short of the expected level.'}`} />
+      <Head kicker={m.line} right={<div className="pt-5"><OpenIn what="sla" /></div>} title={m.name} sub={`${m.def}. ${m.cls}. ${st === 'met' ? 'Met the expected level last month.' : st === 'min' ? 'Below the minimum last month.' : 'Above the minimum, short of the expected level.'}`} />
       <Kpis go={go} items={[
         { label: 'Last month', value: f(m.act), tone: st === 'met' ? 'ok' : st === 'min' ? 'bad' : 'warn' },
         { label: 'Expected level', value: f(m.esl) },
@@ -698,7 +823,7 @@ function MttrView({ go }) {
   const M = D.MTTR_MONTHS;
   return (
     <div>
-      <Head kicker="Time to fix" title={`Major outages fixed in ${M.P1[4]} hours on average in ${M.months[4]}`} sub="Mean time to restore by priority, month by month, against the contract targets (P1 4 hours, P2 8 hours, P3 24 hours). Faster every month since May." />
+      <Head kicker="Time to fix" right={<div className="pt-5"><OpenIn what="sla" /></div>} title={`Major outages fixed in ${M.P1[4]} hours on average in ${M.months[4]}`} sub="Mean time to restore by priority, month by month, against the contract targets (P1 4 hours, P2 8 hours, P3 24 hours). Faster every month since May." />
       <Kpis go={go} items={['P1', 'P2', 'P3'].map(p => ({ label: `${p}, ${M.months[4]}`, value: `${M[p][4]} h`, tone: 'ok', sub: `target ${M.target[p]} h · was ${M[p][0]} h in ${M.months[0]}`, go: { t: 'incidents', k: 'resolved7', pri: p } }))} />
       <Grid>
         {['P1', 'P2', 'P3'].map(p => <Panel key={p} title={`${p} – ${{ P1: 'major outage', P2: 'urgent', P3: 'standard' }[p]}`} hint="hours"><LineChart h={160} labels={MONTHS_SO_FAR} yMin={0} yFmt={v => `${v.toFixed(1)} h`} series={[{ name: p, color: C.s1, area: true, data: M[p] }]} refLines={[{ v: M.target[p], label: `Target ${M.target[p]} h`, color: C.bad }]} /></Panel>)}
@@ -714,7 +839,7 @@ function ProjectsView({ n, go, ctx }) {
   const list = s.projects.filter(p => !n.region || p.region === n.region).sort((a, b) => a.golive - b.golive);
   return (
     <div>
-      <Head kicker="Branch-in-a-Box" title="New and acquired branches" sub="Every new branch goes in with the same kit, the same setup and the same checks as the 900 already running." />
+      <Head kicker="Branch-in-a-Box" right={<div className="pt-5"><OpenIn what="biab" /></div>} title="New and acquired branches" sub="Every new branch goes in with the same kit, the same setup and the same checks as the 900 already running." />
       <Kpis go={go} items={[{ label: 'Projects', value: num(list.length) }, { label: 'On track', value: num(list.filter(p => p.rag === 'Green').length), tone: 'ok' }, { label: 'At risk', value: num(list.filter(p => p.rag === 'Amber').length), tone: 'warn' }, { label: 'Need help', value: num(list.filter(p => p.rag === 'Red').length), tone: 'bad' }, { label: 'Going live in 30 days', value: num(list.filter(p => p.golive > now && p.golive < now + 30 * DAY).length) }]} />
       <div className="mt-6"><Panel title="Projects" hint="click one"><Rows cols={['Project', 'Stage', 'Go-live', 'Status']} onRow={r => go({ t: 'project', id: r.id })}
         rows={list.map(p => ({ key: p.id, id: p.id, cells: [<Name t={`${p.brand} – ${p.site}`} sub={`${p.id} · ${p.track}`} />, <span className="text-ink2">{p.stage}</span>, <span className="text-ink2 whitespace-nowrap">{dateShort(p.golive)}</span>, <Pill tone={{ Green: 'ok', Amber: 'warn', Red: 'bad' }[p.rag]}>{{ Green: 'On track', Amber: 'At risk', Red: 'Needs help' }[p.rag]}</Pill>] }))} /></Panel></div>
@@ -728,7 +853,7 @@ function ProjectView({ n, go, ctx }) {
   return (
     <div>
       <Head kicker={`${p.track} branch · ${p.region}`} title={`${p.brand} – ${p.site}`} sub={`${p.id}. Go-live ${dateShort(p.golive)} (${p.golive > now ? `in ${Math.round((p.golive - now) / DAY)} days` : `${Math.round((now - p.golive) / DAY)} days ago`}).`} right={<div className="pt-5"><Pill tone={{ Green: 'ok', Amber: 'warn', Red: 'bad' }[p.rag]}>{{ Green: 'On track', Amber: 'At risk', Red: 'Needs help' }[p.rag]}</Pill></div>} />
-      <div className="mt-5 flex gap-1">{D.STAGES.map((x, i) => <div key={x} className="flex-1 min-w-0"><div className="h-2 rounded-sm" style={{ background: i < si ? C.ok : i === si ? C.brand : '#e4e0d6' }} /><div className={cx('text-[11px] mt-1 truncate', i === si ? 'text-ink font-bold' : 'text-ink3')}>{x}</div></div>)}</div>
+      <div className="mt-5 flex gap-1">{D.STAGES.map((x, i) => <div key={x} className="flex-1 min-w-0"><div className="h-2 rounded-sm bg-chip" style={i <= si ? { background: i < si ? C.ok : C.brand } : undefined} /><div className={cx('text-[11px] mt-1 truncate', i === si ? 'text-ink font-bold' : 'text-ink3')}>{x}</div></div>)}</div>
       <Grid>
         <Panel title="Blockers">{p.blockers.length ? <Clickable go={go} items={p.blockers.map(b => ({ title: b, tone: 'warn' }))} /> : <p className="text-[13px] text-ok font-semibold">No blockers.</p>}</Panel>
         <Panel title="Cutover gates" hint={`${passed} of ${(p.gates || []).length} passed`}><Clickable go={go} items={(p.gates || []).slice(0, 14).map(g => ({ title: g.name, sub: `${g.when} · ${g.owner}`, tone: g.st === 'Pass' ? 'ok' : 'muted' }))} /></Panel>
@@ -752,13 +877,13 @@ function PredictionView({ n, go, ctx }) {
 }
 function PredictionsView({ go, ctx }) {
   const { s } = ctx;
-  return (<div><Head kicker="Predictions" title="Problems spotted before they happen" sub="Mova iO watches trends on every line and device and flags the ones heading for trouble, with how sure it is and what to do." />
+  return (<div><Head kicker="Predictions" right={<div className="pt-5"><OpenIn what="predict" /></div>} title="Problems spotted before they happen" sub="Mova iO watches trends on every line and device and flags the ones heading for trouble, with how sure it is and what to do." />
     <div className="mt-6"><Clickable go={go} items={s.predictions.map(p => ({ title: `${p.kind}: ${p.branchId ? D.BR[p.branchId].name : p.target}`, sub: `${p.signal} · ${p.horizon}`, right: `${Math.round(p.conf * 100)}%`, tone: p.conf >= 0.8 ? 'warn' : 'info', go: { t: 'prediction', id: p.id } }))} /></div></div>);
 }
 function DriftView({ n, go, ctx }) {
   const { s, now } = ctx;
   const list = s.drift.filter(d => !n.region || D.BR[d.branchId].region === n.region);
-  return (<div><Head kicker="Configuration" title="Differences from the standard setup" sub="Settings found on a device that are not in its approved configuration. High-risk ones are corrected first; changes made with no change record are traced to who made them." />
+  return (<div><Head kicker="Configuration" right={<div className="pt-5"><OpenIn what="changes" /></div>} title="Differences from the standard setup" sub="Settings found on a device that are not in its approved configuration. High-risk ones are corrected first; changes made with no change record are traced to who made them." />
     <Kpis go={go} items={[{ label: 'Devices', value: num(list.length), tone: 'warn' }, { label: 'High risk', value: num(list.filter(d => d.sev === 'High').length), tone: 'bad' }, { label: 'Made with no change record', value: num(list.filter(d => /no CHG/i.test(d.source || '')).length), tone: 'warn' }, { label: 'Match the standard', value: P(1 - list.length / D.DEVICES.length, 1), tone: 'ok' }]} />
     <div className="mt-6"><Rows cols={['Device', 'Branch', 'Difference', 'Risk', 'Source']} onRow={r => go({ t: 'device', id: r.id })}
       rows={list.map(d => ({ key: d.device, id: d.device, cells: [<Name t={d.device} sub={`found ${ago(d.since, now)}`} />, <span className="text-ink2">{D.BR[d.branchId].name}</span>, <span className="text-ink2">{d.item}</span>, <Pill tone={d.sev === 'High' ? 'bad' : d.sev === 'Medium' ? 'warn' : 'muted'}>{d.sev}</Pill>, <span className="text-ink3">{d.source}</span>] }))} /></div></div>);
@@ -766,16 +891,16 @@ function DriftView({ n, go, ctx }) {
 function CasesView({ n, go, ctx }) {
   const { s, now } = ctx;
   const list = s.cases.filter(c => !c.closed && /^Open|^Dispatched/.test(c.status || '') && (!n.region || D.BR[c.branchId].region === n.region));
-  return (<div><Head kicker="Carriers" title="Carrier repairs in progress" sub="Each open case has the evidence pack the carrier needs (an hour of loss and delay readings, path tests and timestamps) and a promised restore time." />
+  return (<div><Head kicker="Carriers" right={<div className="pt-5"><OpenIn what="carriers" /></div>} title="Carrier repairs in progress" sub="Each open case has the evidence pack the carrier needs (an hour of loss and delay readings, path tests and timestamps) and a promised restore time." />
     <Kpis go={go} items={[{ label: 'Open cases', value: num(list.length) }, { label: 'On schedule', value: num(list.filter(c => !c.eta || c.eta >= now).length), tone: 'ok' }, { label: 'Past the promised time', value: num(list.filter(c => c.eta && c.eta < now).length), tone: list.some(c => c.eta && c.eta < now) ? 'bad' : 'ok' }]} />
     <div className="mt-6"><Rows cols={['Case', 'Branch', 'Status', 'Promised by']} onRow={r => go({ t: 'circuit', id: r.id })}
       rows={list.map(c => ({ key: c.id, id: c.circuit, cells: [<Name t={`${c.carrier} ${c.id}`} sub={c.circuit} />, <span className="text-ink2">{D.BR[c.branchId].name}</span>, <span className="text-ink2">{c.status}</span>, c.eta ? <b className={c.eta < now ? 'text-bad' : 'text-ink'}>{hhmm(c.eta)} CT{c.eta < now ? ' (late)' : ''}</b> : '—'] }))} /></div></div>);
 }
 
-const VIEWS = { set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
+const VIEWS = { rca: RcaView, set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
 
 // The panel: slides in from the right over the dashboard; Escape closes it, the breadcrumb or Back steps out a level.
-export function DrillPanel({ stack, setStack, now, scope, snap }) {
+export function DrillPanel({ stack, setStack, now, scope, snap, links, root = 'Dashboard' }) {
   const app = useApp();
   const s = snap || app.s;
   const box = useRef(null);
@@ -794,13 +919,13 @@ export function DrillPanel({ stack, setStack, now, scope, snap }) {
         <div className="sticky top-0 z-10 border-b border-line px-4 sm:px-6 py-2 flex items-center gap-2 bg-panel" >
           <button onClick={back} className="h-8 px-2.5 rounded-md border border-line hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1 shrink-0"><I.ArrowLeft size={14} />{stack.length > 1 ? 'Back' : 'Close'}</button>
           <nav aria-label="Where you are" className="flex-1 min-w-0 flex items-center gap-1 text-[12px] overflow-x-auto whitespace-nowrap py-1">
-            <button onClick={() => setStack([])} className="text-ink3 hover:text-ink hover:underline">Dashboard</button>
+            <button onClick={() => setStack([])} className="text-ink3 hover:text-ink hover:underline">{root}</button>
             {stack.map((x, i) => <React.Fragment key={i}><I.ChevronRight size={12} className="text-ink3 shrink-0" />{i === stack.length - 1 ? <span className="font-bold text-ink">{labelOf(x)}</span> : <button onClick={() => setStack(stack.slice(0, i + 1))} className="text-ink2 hover:text-ink hover:underline">{labelOf(x)}</button>}</React.Fragment>)}
           </nav>
           <span className="text-[11px] text-ink3 hidden md:inline shrink-0">Level {stack.length}</span>
           <button onClick={() => setStack([])} aria-label="Close" className="h-8 w-8 rounded-md border border-line hover:bg-chip grid place-items-center text-ink shrink-0"><I.X size={15} /></button>
         </div>
-        <div className="px-4 sm:px-6 pt-5 pb-14" key={stack.length + labelOf(n)}><V n={n} go={go} ctx={ctx} /></div>
+        <div className="px-4 sm:px-6 pt-5 pb-14" key={stack.length + labelOf(n)}><DrillLinks.Provider value={links || null}><V n={n} go={go} ctx={ctx} /></DrillLinks.Provider></div>
       </div>
     </div>
   );

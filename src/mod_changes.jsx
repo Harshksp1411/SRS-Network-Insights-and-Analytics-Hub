@@ -57,7 +57,7 @@ export function Changes() {
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat label="Waiting for approval" icon={I.Hand} value={pending.length} tone={pending.length ? 'amber' : 'green'} onClick={() => go('approvals')} />
         <Stat label="Changes next 7 days" icon={I.CalendarRange} value={s.changes.filter(c => c.start > now && c.start < now + 7 * DAY).length} onClick={() => go('calendar')} />
-        <Stat label="Freeze windows" icon={I.Snowflake} value={s.freezes.length} sub={s.freezes.find(f => now >= f.start && now <= f.end) ? 'one active now' : 'none active now'} />
+        <Stat label="Freeze windows" icon={I.Snowflake} onClick={() => act.drill({ t: 'changes', k: 'next30' })} value={s.freezes.length} sub={s.freezes.find(f => now >= f.start && now <= f.end) ? 'one active now' : 'none active now'} />
         <Stat label="Config drift" icon={I.GitCompare} value={s.drift.filter(d => !d.done).length} tone="amber" sub={`${s.drift.filter(d => d.sev === 'High' && !d.done).length} high severity`} onClick={() => go('drift')} />
         <Stat label="Firmware policy" icon={I.ShieldCheck} value={pct(totOk / totN)} sub={`Annexure B #32 target 98%, ${num(totN - totOk)} below`} onClick={() => go('firmware')} tone={totOk / totN >= 0.92 ? 'green' : 'red'} />
       </div>

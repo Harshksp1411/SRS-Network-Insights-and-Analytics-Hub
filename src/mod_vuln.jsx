@@ -47,10 +47,10 @@ export function Vulns() {
       <PageHead title="Lifecycle and vulnerabilities" sub="Every device matched against HPE Aruba Networking security bulletins and end-of-life notices, with exposure by branch and a plan to close it without touching trading hours."
         right={<Btn size="sm" icon={I.Download} onClick={() => exportCSV('srs-vulnerable-devices.csv', rows.flatMap(r => r.ds.map(d => ({ ...d, adv: r }))), [{ label: 'Advisory', get: d => d.adv.id }, { label: 'CVEs', get: d => d.adv.cves.join(' ') }, { label: 'CVSS', get: d => d.adv.cvss || '' }, { label: 'Hostname', key: 'id' }, { label: 'Model', key: 'desc' }, { label: 'Firmware', key: 'fw' }, { label: 'Branch', get: d => D.BR[d.branchId].name }, { label: 'Brand', get: d => D.BR[d.branchId].brand }, { label: 'Region', get: d => D.BR[d.branchId].region }])}>Export affected devices</Btn>} />
       <div className="kpi-strip grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6">
-        <Stat label="Devices with a critical CVE" value={num(critDevs)} tone={critDevs ? 'red' : 'green'} sub={`of ${num(devs.length)} in view`} />
+        <Stat label="Devices with a critical CVE" onClick={() => act.drill({ t: 'devices', k: 'crit' })} value={num(critDevs)} tone={critDevs ? 'red' : 'green'} sub={`of ${num(devs.length)} in view`} />
         <Stat label="Open advisories" value={rows.filter(r => r.cvss && r.n).length} sub={`${crit.filter(r => r.n).length} critical, ${high.filter(r => r.n).length} high`} />
-        <Stat label="Branches exposed" value={num(exposedBranches)} tone="amber" sub={`of ${num(filteredBranches(s).length)}`} />
-        <Stat label="End of support within 12 months" value={num(nearEos)} tone={nearEos ? 'amber' : 'green'} sub="Aruba 2530: 31 Jan 2027 (48G), 31 Mar 2027 (24G)" />
+        <Stat label="Branches exposed" onClick={() => act.drill({ t: 'set', k: 'exposed' })} value={num(exposedBranches)} tone="amber" sub={`of ${num(filteredBranches(s).length)}`} />
+        <Stat label="End of support within 12 months" onClick={() => act.drill({ t: 'devices', k: 'eos' })} value={num(nearEos)} tone={nearEos ? 'amber' : 'green'} sub="Aruba 2530: 31 Jan 2027 (48G), 31 Mar 2027 (24G)" />
         <Stat label="Patch compliance" value={pct(patched / Math.max(1, devs.length))} sub="no known CVE on running firmware" />
         <Stat label="Mean time to patch, critical" value="9 d" sub="target 14 d, last 90 days" />
       </div>

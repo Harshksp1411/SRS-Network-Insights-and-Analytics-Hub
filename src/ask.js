@@ -138,7 +138,7 @@ function onBackup(s, now) {
 }
 
 // ── 3. why was a store slow ──────────────────────────────────────────
-const layerOf = cause => /^ISP:/.test(cause) ? 'ISP' : /^Application:/.test(cause) ? 'Application' : /^Network:/.test(cause) ? 'Network' : /\b(?:isp|carrier|lec|fibre|fiber|circuit|comcast|spectrum|at&t|lumen|verizon|cox|broadband|dia|mpls|lte|access link)\b/i.test(cause) && !/policy|change/i.test(cause) ? 'ISP' : /application|erp slow at|server|processor|data centre/i.test(cause) && !/policy/i.test(cause) ? 'Application' : 'Network';
+export const layerOf = cause => /^ISP:/.test(cause) ? 'ISP' : /^Application:/.test(cause) ? 'Application' : /^Network:/.test(cause) ? 'Network' : /\b(?:isp|carrier|lec|fibre|fiber|circuit|comcast|spectrum|at&t|lumen|verizon|cox|broadband|dia|mpls|lte|access link)\b/i.test(cause) && !/policy|change/i.test(cause) ? 'ISP' : /application|erp slow at|server|processor|data centre/i.test(cause) && !/policy/i.test(cause) ? 'Application' : 'Network';
 function rootCause(s, b, q, now) {
   const t = q.toLowerCase();
   const p0 = parts(now, b.tz); const dayStart = now - (p0.h * 60 + p0.m) * MIN;

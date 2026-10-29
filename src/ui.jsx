@@ -76,8 +76,8 @@ export function Stat({ label, value, sub, tone, icon: I, onClick, children, clas
   const vt = { red: 'text-bad', amber: 'text-warn', green: 'text-ok', alert: 'text-alert', brand: 'text-brand dark:text-[#e8a3a5]' }[tone] || 'text-ink';
   const up = delta != null && delta > 0;
   return (
-    <div onClick={onClick} className={cx('bg-panel border border-line rounded-lg px-4 py-3 flex flex-col min-w-0', onClick && 'cursor-pointer hover:bg-chip/50', className)}>
-      <div className="text-[12.5px] text-ink2 font-medium leading-tight">{label}</div>
+    <div onClick={onClick} role={onClick ? 'button' : undefined} title={onClick ? 'Click for the detail' : undefined} className={cx('bg-panel border border-line rounded-lg px-4 py-3 flex flex-col min-w-0 group/stat', onClick && 'cursor-pointer hover:bg-chip/50 hover:border-ink3/40', className)}>
+      <div className="text-[12.5px] text-ink2 font-medium leading-tight flex items-start gap-1"><span className="flex-1 min-w-0">{label}</span>{onClick && <ChevronRight size={14} className="shrink-0 text-ink3 group-hover/stat:text-brand" />}</div>
       <div className="flex items-baseline gap-2 mt-1 min-w-0">
         <FitText className={cx('font-display text-[30px] font-semibold leading-none flex-1', vt)}>{typeof value === 'string' || typeof value === 'number' ? <TweenNum value={value} /> : value}</FitText>
         {delta != null && delta !== 0 && <span className={cx('text-[12px] font-semibold whitespace-nowrap', (deltaGood ? up : !up) ? 'text-ok' : 'text-bad')}>{up ? '▲' : '▼'} {Math.abs(delta)}</span>}
@@ -86,6 +86,11 @@ export function Stat({ label, value, sub, tone, icon: I, onClick, children, clas
       {children}
     </div>
   );
+}
+
+// a clickable number inside a tile: opens its own detail without triggering the tile
+export function Hit({ onClick, children, className, title }) {
+  return <button type="button" title={title} onClick={e => { e.stopPropagation(); onClick(); }} className={cx('rounded-sm hover:underline decoration-2 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-info', className)}>{children}</button>;
 }
 
 export function Modal({ open, onClose, title, sub, children, footer, wide, xwide, right }) {

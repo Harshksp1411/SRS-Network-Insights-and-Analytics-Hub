@@ -52,8 +52,8 @@ export function Inventory() {
       <PageHead icon={I.Boxes} title="Device & Circuit Inventory" sub="CMDB view of every in-scope device and circuit. Totals: 933 EdgeConnect EC-XS, 1,856 switches, 1,286 APs (4,075 total) and 1,800 circuits across 900 branches."
         right={<ExportBtn onClick={() => tab === 'circuits' ? exportCSV('srs-circuits.csv', cirRows, [{ label: 'Circuit', key: 'id' }, { label: 'Branch', get: c => D.BR[c.branchId].name }, { label: 'Role', key: 'role' }, { label: 'Type', key: 'type' }, { label: 'Carrier', key: 'carrier' }, { label: 'Carrier ID', key: 'cid' }, { label: 'Mb/s', key: 'bw' }, { label: 'Status', key: 'status' }, { label: 'Tickets 90d', key: 'tickets90' }]) : exportCSV('srs-devices.csv', devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Model', key: 'model' }, { label: 'Role', key: 'role' }, { label: 'Branch', get: d => D.BR[d.branchId].name }, { label: 'Brand', get: d => D.BR[d.branchId].brand }, { label: 'Firmware', key: 'fw' }, { label: 'Backup', get: d => d.backup.st }, { label: 'Warranty / contract end', get: d => D.warrantyText(d) }, { label: 'Serial', key: 'serial' }])} />} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
-        <Stat label="Devices in view" icon={I.HardDrive} value={num(devs.length)} sub={`${devs.filter(d => d.type === 'SD-WAN').length} EC, ${devs.filter(d => d.type === 'Switch').length} sw, ${devs.filter(d => d.type === 'AP').length} AP`} />
-        <Stat label="Circuits in view" icon={I.Cable} value={num(cirs.length)} sub="primary + backup per branch" />
+        <Stat label="Devices in view" icon={I.HardDrive} onClick={() => act.drill({ t: 'devices', k: 'all' })} value={num(devs.length)} sub={`${devs.filter(d => d.type === 'SD-WAN').length} EC, ${devs.filter(d => d.type === 'Switch').length} sw, ${devs.filter(d => d.type === 'AP').length} AP`} />
+        <Stat label="Circuits in view" icon={I.Cable} onClick={() => act.drill({ t: 'lines', k: 'all' })} value={num(cirs.length)} sub="primary + backup per branch" />
         <Stat label="Config backups failed" icon={I.DatabaseBackup} value={failed.length} tone={failed.length ? 'red' : 'green'} sub="last nightly run 02:00 CT" onClick={() => { setTab('devices'); setBk('Failed'); }} />
         <Stat label="Below firmware policy" icon={I.ShieldAlert} value={below} tone={below ? 'amber' : 'green'} sub="EC: N-1, others: N-2" onClick={() => { setTab('devices'); setFw('Below policy'); }} />
         <Stat label="Support contracts (EdgeConnect)" icon={I.CalendarClock} value={<span><span className="text-bad">{expired}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{expiring}</span></span>} sub="lapsed / renewing in 90 days. Switches and APs have a lifetime warranty" onClick={() => { setTab('devices'); setWar('Expired'); }} />
@@ -177,8 +177,8 @@ export function Carriers() {
       <PageHead icon={I.RadioTower} title="Carrier Management" sub="Carrier cases with auto-built evidence packs, carrier scorecard, repeat-offender circuits and no-trouble-found tracking. 6-month history: 533 carrier/LEC and 875 NTF tickets."
         right={<Btn kind="brand" icon={I.Plus} onClick={() => setRaise(true)}>Raise carrier case</Btn>} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Open carrier cases" icon={I.FolderOpen} value={open.length} />
-        <Stat label="Past carrier restore commitment" icon={I.AlarmClockOff} value={late.length} tone={late.length ? 'red' : 'green'} sub="escalate per carrier matrix" />
+        <Stat label="Open carrier cases" icon={I.FolderOpen} value={open.length} onClick={() => act.drill({ t: 'cases' })} />
+        <Stat label="Past carrier restore commitment" icon={I.AlarmClockOff} onClick={() => act.drill({ t: 'cases' })} value={late.length} tone={late.length ? 'red' : 'green'} sub="escalate per carrier matrix" />
         <Stat label="Repeat-offender circuits" icon={I.Repeat} value={repeat.length} tone="amber" sub="≥ 3 tickets in 90 days" onClick={() => setTab('repeat')} />
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>

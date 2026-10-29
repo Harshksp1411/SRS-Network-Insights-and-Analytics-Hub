@@ -858,3 +858,7 @@ export function capacityOf(b) {
 
 // ---------- mean time to restore by month (hours) ----------
 export const MTTR_MONTHS = { months: ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'], P1: [2.6, 2.4, 2.3, 2.1, 1.9, 1.7], P2: [5.2, 5.0, 4.7, 4.4, 4.1, 3.9], P3: [15.8, 15.1, 14.2, 13.4, 12.3, 11.6], target: { P1: 4, P2: 8, P3: 24 } };
+
+// The diagnosis step always names the same top cause and confidence as the ranked causes (some stories replace
+// the ranked causes after the incident is built).
+[...INCIDENTS, ...RESOLVED].forEach(i => (i.agentSteps || []).forEach(a => { if (a.agent === 'diagnosis' && /^Ranked /.test(a.text) && i.rca && i.rca[0]) a.text = `Ranked ${i.rca.length} causes; top: ${i.rca[0].cause} (${Math.round(i.rca[0].conf * 100)}%)`; }));

@@ -3,6 +3,7 @@ import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
 import { ErrorBudgets, CalendarHeat } from './viz2.jsx';
 import * as D from './data.js';
+import { clockState } from './dash/drilldata.js';
 import { useApp, useNow, gate, slaClock, branchClock, healthOf, circuitOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Conf, GateBox, Modal, KV, cx, Progress, Select, SearchBox, Illus, ExportBtn, Pri, Dot, Logo } from './ui.jsx';
 import { Spark, LineChart, Bars, Legend, C } from './charts.jsx';
@@ -26,9 +27,9 @@ export function Predictive() {
     <div>
       <PageHead icon={I.TrendingUp} title="Predictive Watchlist" sub="Degrading circuits, AP and switch failure risk, capacity forecasts. Every prediction creates a watch or an approval – never a direct change." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Open predictions" icon={I.Telescope} value={s.predictions.filter(p => ['New', 'Watching'].includes(p.status)).length} />
+        <Stat label="Open predictions" icon={I.Telescope} onClick={() => act.drill({ t: 'predictions' })} value={s.predictions.filter(p => ['New', 'Watching'].includes(p.status)).length} />
         <Stat label="Predictive accuracy (KPI 38)" icon={I.Target} value="78%" sub="true positives, target 75%" tone="green" />
-        <Stat label="Active watches" icon={I.Eye} value={s.watches.length + s.predictions.filter(p => p.status === 'Watching').length} />
+        <Stat label="Active watches" icon={I.Eye} onClick={() => act.drill({ t: 'predictions' })} value={s.watches.length + s.predictions.filter(p => p.status === 'Watching').length} />
         <Stat label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
@@ -118,7 +119,7 @@ export function Automation() {
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label="Runbooks" icon={I.BookMarked} value={s.runbooks.length} />
         <Stat label="Runs (30 days)" icon={I.Play} value={num(s.runbooks.reduce((a, r) => a + r.runs30, 0))} />
-        <Stat label="Auto-resolution rate" icon={I.Bot} value="23.1%" sub="KPI 37 target 25% – trending up" tone="amber" />
+        <Stat label="Auto-resolution rate" icon={I.Bot} onClick={() => act.drill({ t: 'incidents', k: 'auto7' })} value="23.1%" sub="KPI 37 target 25% – trending up" tone="amber" />
         <Stat label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
       </div>
       <LivePanel kind="automation" className="mb-3 mt-3" />
@@ -164,17 +165,17 @@ export function SLATracker() {
   const tone = st => ({ 'Meets ESL': 'green', 'Above MSL': 'amber', 'Below MSL': 'red', 'Below target': 'amber' }[st]);
   const f = (v, m) => v == null ? '—' : `${(v * 100).toFixed(m.fmt || 1)}%`;
   const open = s.incidents.filter(i => i.state !== 'Resolved');
-  const queues = ['P1', 'P2', 'P3', 'P4'].map(p => { const l = open.filter(i => i.pri === p).map(i => ({ i, c: slaClock(i, now) })); return { p, n: l.length, risk: l.filter(x => x.c.used > 0.75 && x.c.resLeft > 0).length, breached: l.filter(x => x.c.resLeft <= 0).length, respRisk: l.filter(x => !x.i.acked && x.c.respLeft < 5 * MIN).length, list: l }; });
+  const queues = ['P1', 'P2', 'P3', 'P4'].map(p => { const l = open.filter(i => i.pri === p).map(i => ({ i, c: slaClock(i, now) })); return { p, n: l.length, risk: l.filter(x => clockState(x.i, now) === 'atRisk').length, breached: l.filter(x => x.c.resLeft <= 0).length, respRisk: l.filter(x => !x.i.acked && x.c.respLeft < 5 * MIN).length, list: l }; });
   const m = D.SLA[sel];
   const lines = [...new Set(D.SLA.map(x => x.line))];
   return (
     <div>
       <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels and KPIs: minimum (MSL), expected (ESL) and actual for the current month, six-month trend, and breach risk by queue." right={<ExportBtn onClick={() => exportCSV('srs-annexure-b-sla.csv', D.SLA, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: 'Actual', key: 'act' }, { label: 'Class', key: 'cls' }, { label: 'Status', get: status }])} />} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Metrics meeting ESL" icon={I.CheckCircle2} value={`${D.SLA.filter(x => status(x) === 'Meets ESL').length}/${D.SLA.length}`} tone="green" />
-        <Stat label="Below MSL" icon={I.XCircle} value={D.SLA.filter(x => status(x) === 'Below MSL').length} tone={D.SLA.some(x => status(x) === 'Below MSL') ? 'red' : 'green'} />
-        <Stat label="Open incidents at breach risk" icon={I.AlarmClock} value={queues.reduce((a, q) => a + q.risk, 0)} tone="amber" sub="> 75% of resolution clock used" />
-        <Stat label="Critical availability (#29)" icon={I.Activity} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
+        <Stat label="Metrics meeting ESL" icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla' })} value={`${D.SLA.filter(x => status(x) === 'Meets ESL').length}/${D.SLA.length}`} tone="green" />
+        <Stat label="Below MSL" icon={I.XCircle} onClick={() => act.drill({ t: 'sla' })} value={D.SLA.filter(x => status(x) === 'Below MSL').length} tone={D.SLA.some(x => status(x) === 'Below MSL') ? 'red' : 'green'} />
+        <Stat label="Open incidents at breach risk" icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={queues.reduce((a, q) => a + q.risk, 0)} tone="amber" sub="> 75% of resolution clock used" />
+        <Stat label="Critical availability (#29)" icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29) })} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
       </div>
       <LivePanel kind="sla" className="mb-3 mt-3" />
       <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} /></div>

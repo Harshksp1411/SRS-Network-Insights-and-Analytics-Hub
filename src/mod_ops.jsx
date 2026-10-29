@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, filteredBranches, inScope, slaClock, lineOf, onBackupOf } from './store.jsx';
-import { Card, Badge, Btn, Stat, Table, Dot, Pri, PageHead, Section, Progress, cx, healthTone, Modal, Illus, ExportBtn, Tabs } from './ui.jsx';
+import { Card, Badge, Btn, Stat, Table, Dot, Pri, PageHead, Section, Progress, cx, healthTone, Modal, Illus, ExportBtn, Tabs, Hit } from './ui.jsx';
+import { clockState, rootOf } from './dash/drilldata.js';
 import { NAMap, Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, rng, exportCSV, MIN, HR, groupBy, T0 } from './util.js';
 import { useLive } from './live.jsx';
@@ -28,8 +29,9 @@ export function Overview() {
   const circDown = circ.filter(c => c.status === 'Down'), circDeg = circ.filter(c => c.status === 'Degraded');
   const downDevices = list.filter(b => healthOf(s, b) === 'down').reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0) + open.filter(i => i.kind === 'apdown').length;
   const suppressed = L.counters.suppressed;
-  const clocks = open.map(i => slaClock(i, now));
-  const atRisk = clocks.filter(c => c.used > 0.75 && c.resLeft > 0).length, breached = clocks.filter(c => c.resLeft <= 0 || c.respBreached).length;
+  const clocks = open.map(i => clockState(i, now));
+  const atRisk = clocks.filter(c => c === 'atRisk').length, breached = clocks.filter(c => c === 'breached').length;
+  const dr = node => act.drill(node);
   const onBackup = list.filter(b => onBackupOf(s, b)).length;
 
   // every branch on the map
@@ -50,17 +52,17 @@ export function Overview() {
       <PageHead icon={I.LayoutDashboard} title={bm ? `My branch – ${list[0].name}` : 'Operations Overview'} sub={bm ? `${list[0].brand}. What the NOC sees for your branch, in plain terms.` : 'Live state of the in-scope SRS branch network. Filter by region, brand or branch from the bar above.'}
         right={<><LiveBadge /><ExportBtn onClick={() => exportCSV('srs-branch-health.csv', list, [{ label: 'Branch ID', key: 'id' }, { label: 'Branch', key: 'name' }, { label: 'Brand', key: 'brand' }, { label: 'City', key: 'city' }, { label: 'State', key: 'state' }, { label: 'Region', key: 'region' }, { label: 'Health', get: b => healthOf(s, b) }, { label: 'Primary', get: b => { const c = circuitOf(s, b.wan[0]); return `${c.carrier} ${c.type} ${c.status}`; } }, { label: 'Backup', get: b => { const c = circuitOf(s, b.wan[1]); return `${c.carrier} ${c.type} ${c.status}`; } }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-        <Stat label="Branches open now" icon={I.Store} value={num(openNow)} sub={`of ${num(list.length)}, local hours`} />
-        <Stat label="Healthy / degraded / down" icon={I.HeartPulse} value={<span><span className="text-ok">{num(health.up)}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{health.degraded}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{health.down}</span></span>}>
+        <Stat label="Branches open now" icon={I.Store} value={num(openNow)} sub={`of ${num(list.length)}, local hours`} onClick={() => dr({ t: 'set', k: 'openNow' })} />
+        <Stat label="Healthy / degraded / down" icon={I.HeartPulse} onClick={() => dr({ t: 'set', k: 'all' })} value={<span><Hit title="Healthy branches" onClick={() => dr({ t: 'set', k: 'healthy' })} className="text-ok">{num(health.up)}</Hit><span className="text-ink3 text-[18px]"> / </span><Hit title="Degraded branches" onClick={() => dr({ t: 'set', k: 'degraded' })} className="text-warn">{health.degraded}</Hit><span className="text-ink3 text-[18px]"> / </span><Hit title="Branches down" onClick={() => dr({ t: 'set', k: 'down' })} className="text-bad">{health.down}</Hit></span>}>
           <div className="flex h-1.5 rounded-full overflow-hidden mt-2.5 bg-chip"><span className="bg-ok" style={{ width: `${health.up / list.length * 100}%` }} /><span className="bg-warn" style={{ width: `${health.degraded / list.length * 100}%` }} /><span className="bg-bad" style={{ width: `${health.down / list.length * 100}%` }} /></div>
         </Stat>
-        <Stat label="Open incidents" icon={I.Siren} value={<span className="flex items-center gap-2">{open.length}{Object.keys(L.newIncs).length > 0 && <Badge tone="alert" className="pulse-alert">+{Object.keys(L.newIncs).length} new</Badge>}</span>} onClick={() => act.go('incidents')} tone={byPri.P1 ? 'alert' : undefined}>
-          <div className="flex flex-wrap gap-x-1.5 gap-y-1 mt-2">{Object.entries(byPri).map(([p, n]) => <span key={p} className="flex items-center gap-1 text-[11.5px]"><Pri p={p} /><b className="text-ink">{n}</b></span>)}</div>
+        <Stat label="Open incidents" icon={I.Siren} value={<span className="flex items-center gap-2">{open.length}{Object.keys(L.newIncs).length > 0 && <Badge tone="alert" className="pulse-alert">+{Object.keys(L.newIncs).length} new</Badge>}</span>} onClick={() => dr({ t: 'incidents', k: 'open' })} tone={byPri.P1 ? 'alert' : undefined}>
+          <div className="flex flex-wrap gap-x-1.5 gap-y-1 mt-2">{Object.entries(byPri).map(([p, n]) => <Hit key={p} title={`Open ${p} incidents`} onClick={() => dr({ t: 'incidents', k: 'open', pri: p })} className="flex items-center gap-1 text-[11.5px]"><Pri p={p} /><b className="text-ink">{n}</b></Hit>)}</div>
         </Stat>
-        <Stat label="Devices down" icon={I.ServerCrash} value={downDevices} tone={downDevices ? 'red' : 'green'} sub={`of ${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))} in view`} />
-        <Stat label="Circuits down / degraded" icon={I.Cable} value={<span><span className="text-bad">{circDown.length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{circDeg.length}</span></span>} sub={`${onBackup} branches on the backup line`} onClick={() => act.go('carriers')} />
-        <Stat label="Noise removed today" icon={I.BellOff} value={num(suppressed)} sub={`of ${num(L.counters.events)} events (${Math.round(suppressed / Math.max(1, L.counters.events) * 100)}%); ${Math.round(L.series.raw.at(-1))} events/min now`}><Spark data={L.series.raw.slice(-60)} color={C.info} w={150} h={22} className="mt-1.5" /></Stat>
-        <Stat label="SLA clocks" icon={I.Timer} value={<span><span className="text-ok">{clocks.length - atRisk - breached}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{atRisk}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{breached}</span></span>} sub="on track / at risk / breached" onClick={() => act.go('sla')} />
+        <Stat label="Devices down" icon={I.ServerCrash} value={downDevices} tone={downDevices ? 'red' : 'green'} sub={`of ${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))} in view`} onClick={() => dr({ t: 'devices', k: 'down' })} />
+        <Stat label="Circuits down / degraded" icon={I.Cable} value={<span><Hit title="Circuits down" onClick={() => dr({ t: 'lines', k: 'down' })} className="text-bad">{circDown.length}</Hit><span className="text-ink3 text-[18px]"> / </span><Hit title="Circuits degraded" onClick={() => dr({ t: 'lines', k: 'degraded' })} className="text-warn">{circDeg.length}</Hit></span>} sub={<Hit onClick={() => dr({ t: 'set', k: 'backup' })} className="text-left">{onBackup} branches on the backup line</Hit>} onClick={() => dr({ t: 'lines', k: 'problem' })} />
+        <Stat label="Noise removed today" icon={I.BellOff} onClick={() => act.go('correlation')} value={num(suppressed)} sub={`of ${num(L.counters.events)} events (${Math.round(suppressed / Math.max(1, L.counters.events) * 100)}%); ${Math.round(L.series.raw.at(-1))} events/min now`}><Spark data={L.series.raw.slice(-60)} color={C.info} w={150} h={22} className="mt-1.5" /></Stat>
+        <Stat label="SLA clocks" icon={I.Timer} value={<span><Hit title="On track" onClick={() => dr({ t: 'incidents', k: 'onTrack' })} className="text-ok">{clocks.length - atRisk - breached}</Hit><span className="text-ink3 text-[18px]"> / </span><Hit title="At risk" onClick={() => dr({ t: 'incidents', k: 'atRisk' })} className="text-warn">{atRisk}</Hit><span className="text-ink3 text-[18px]"> / </span><Hit title="Breached" onClick={() => dr({ t: 'incidents', k: 'breached' })} className="text-bad">{breached}</Hit></span>} sub="on track / at risk / breached" onClick={() => dr({ t: 'incidents', k: 'open' })} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-3 mt-3">
@@ -72,11 +74,12 @@ export function Overview() {
             {open.slice().sort((a, b) => a.pri.localeCompare(b.pri) || slaClock(a, now).resLeft - slaClock(b, now).resLeft).slice(0, 14).map(i => {
               const c = slaClock(i, now); const b = D.BR[i.branchId];
               return (
-                <button key={i.id} onClick={() => act.openInc(i.id)} className={cx('w-full text-left border rounded-md px-2.5 py-2 hover:bg-chip/70', L.newIncs[i.id] ? 'border-alert/60 bg-alert/5 feed-in' : 'border-line')}>
+                <div key={i.id} role="button" tabIndex={0} onClick={() => act.openInc(i.id)} onKeyDown={e => e.key === 'Enter' && act.openInc(i.id)} className={cx('w-full text-left border rounded-md px-2.5 py-2 hover:bg-chip/70 cursor-pointer', L.newIncs[i.id] ? 'border-alert/60 bg-alert/5 feed-in' : 'border-line')}>
                   <div className="flex items-center gap-2"><Pri p={i.pri} /><span className="text-[11.5px] font-mono text-ink3">{i.id}</span>{i.major && <Badge tone="alert">MAJOR</Badge>}{L.newIncs[i.id] && <Badge tone="alert">NEW</Badge>}<span className="flex-1" /><span className={cx('text-[11.5px] font-mono font-semibold', c.resLeft < 0 ? 'text-bad' : c.used > 0.75 ? 'text-warn' : 'text-ink2')}>{c.resLeft < 0 ? 'breached' : dur(c.resLeft)}</span></div>
                   <div className="text-[12.5px] text-ink font-semibold mt-0.5 line-clamp-1">{i.title}</div>
                   <div className="text-[11.5px] text-ink3">{b.name}, {b.brand}, {i.state}</div>
-                </button>
+                  {i.rca && i.rca[0] && <Hit title="Open the root cause" onClick={() => dr({ t: 'rca', id: i.id })} className="block text-left text-[11.5px] text-ink2 mt-0.5 hover:text-bad"><b className="text-bad">Root cause, {rootOf(i).top.layer}:</b> {rootOf(i).top.text} ({Math.round(rootOf(i).top.conf * 100)}%)</Hit>}
+                </div>
               );
             })}
             {!open.length && <div className="text-[13px] text-ink3 py-6 text-center">No open incidents in this view.</div>}
@@ -104,25 +107,26 @@ export function Overview() {
       </div>
 
       <div className="mt-3">
-        <Card title="By region" sub="Click a row to filter the console" icon={I.Globe2}>
+        <Card title="By region" sub="Click a row to filter the console; click a count to see those branches or incidents" icon={I.Globe2}>
           <Table dense rows={regionRows} onRow={r => act.set(st => ({ filters: { ...st.filters, region: r.region, city: 'All', branchId: null } }))} cols={[
             { key: 'region', label: 'Region', render: r => <span className="font-semibold whitespace-nowrap">{r.region}</span> },
             { key: 'n', label: 'Branches', right: true },
             { key: 'openNow', label: 'Open now', right: true },
             { key: 'health', label: 'Health', sortable: false, render: r => <div className="flex h-2 w-28 rounded-full overflow-hidden bg-chip"><span className="bg-ok" style={{ width: `${r.up / r.n * 100}%` }} /><span className="bg-warn" style={{ width: `${r.deg / r.n * 100}%` }} /><span className="bg-bad" style={{ width: `${r.down / r.n * 100}%` }} /></div> },
-            { key: 'deg', label: 'Degr.', right: true, render: r => <span className={r.deg ? 'text-warn font-semibold' : 'text-ink3'}>{r.deg}</span> },
-            { key: 'down', label: 'Down', right: true, render: r => <span className={r.down ? 'text-bad font-semibold' : 'text-ink3'}>{r.down}</span> },
-            { key: 'backup', label: 'On backup', right: true },
-            { key: 'inc', label: 'Incidents', right: true },
+            { key: 'deg', label: 'Degr.', right: true, render: r => r.deg ? <Hit title="Degraded branches" onClick={() => dr({ t: 'set', k: 'degraded', region: r.region })} className="text-warn font-semibold">{r.deg}</Hit> : <span className="text-ink3">0</span> },
+            { key: 'down', label: 'Down', right: true, render: r => r.down ? <Hit title="Branches down" onClick={() => dr({ t: 'set', k: 'down', region: r.region })} className="text-bad font-semibold">{r.down}</Hit> : <span className="text-ink3">0</span> },
+            { key: 'backup', label: 'On backup', right: true, render: r => r.backup ? <Hit title="Branches on the backup line" onClick={() => dr({ t: 'set', k: 'backup', region: r.region })} className="text-info font-semibold">{r.backup}</Hit> : <span className="text-ink3">0</span> },
+            { key: 'inc', label: 'Incidents', right: true, render: r => r.inc ? <Hit title="Open incidents" onClick={() => dr({ t: 'incidents', k: 'open', region: r.region })} className="font-semibold text-ink">{r.inc}</Hit> : <span className="text-ink3">0</span> },
+            { key: 'go', label: '', sortable: false, render: r => <Hit title="Drill down into the region" onClick={() => dr({ t: 'set', k: 'all', region: r.region })} className="text-ink3 hover:text-brand"><I.Layers size={14} /></Hit> },
           ]} />
         </Card>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mt-3">
         <AlertsPerMinCard />
-        <Card title="Circuits down or degraded" icon={I.Cable} right={<Btn size="sm" onClick={() => act.go('carriers')}>Carriers</Btn>}>
+        <Card title="Circuits down or degraded" icon={I.Cable} right={<div className="flex gap-1.5"><Btn size="sm" icon={I.Layers} onClick={() => dr({ t: 'lines', k: 'problem' })}>Drill down</Btn><Btn size="sm" onClick={() => act.go('carriers')}>Carriers</Btn></div>}>
           <div className="space-y-1 max-h-[260px] overflow-y-auto">
-            {[...circDown, ...circDeg].map(c => { const b = D.BR[c.branchId]; return <button key={c.id} onClick={() => act.openBranch(b.id)} className="w-full text-left flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60 hover:bg-chip/60"><Dot tone={c.status === 'Down' ? 'red' : 'amber'} /><span className="font-semibold text-ink w-28 truncate">{b.name}</span><span className="text-ink2 flex-1 min-w-0 leading-snug">{c.role}, {c.carrier} {c.type}</span><span className="text-ink3 text-[11.5px]">{c.status}</span></button>; })}
+            {[...circDown, ...circDeg].map(c => { const b = D.BR[c.branchId]; return <button key={c.id} onClick={() => dr({ t: 'circuit', id: c.id })} className="w-full text-left flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60 hover:bg-chip/60"><Dot tone={c.status === 'Down' ? 'red' : 'amber'} /><span className="font-semibold text-ink w-28 truncate">{b.name}</span><span className="text-ink2 flex-1 min-w-0 leading-snug">{c.role}, {c.carrier} {c.type}</span><span className="text-ink3 text-[11.5px]">{c.status}</span></button>; })}
             {!circDown.length && !circDeg.length && <div className="text-ink3 text-[13px]">All circuits clean.</div>}
           </div>
         </Card>

@@ -10,6 +10,7 @@ import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
+import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark } from './ui.jsx';
 export { RoofMark };
 import LOGOS from './logos.js';
@@ -311,6 +312,21 @@ function DemosApp() {
   );
 }
 
+// The drill-down panel in the console: opened from any tile, chart segment or count, it walks down to one branch,
+// line, device or incident and can hand over to Branch 360, the incident record or the screen that owns the list.
+function ConsoleDrill() {
+  const { s, act } = useApp();
+  const now = useNow();
+  const links = useMemo(() => ({
+    branch: id => { act.setDrill([]); act.openBranch(id); },
+    incident: id => { act.setDrill([]); act.openInc(id); },
+    module: m => { act.setDrill([]); act.go(m); },
+  }), []);
+  if (!s.drill || !s.drill.length) return null;
+  const M = MODULES.find(m => m.id === s.module);
+  return <DrillPanel stack={s.drill} setStack={act.setDrill} now={now} links={links} root={M ? M.label : 'Console'} />;
+}
+
 export default function App() {
   const { s } = useApp();
   if (DEMOS_ONLY) return <DemosApp />;
@@ -325,7 +341,7 @@ export default function App() {
           <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
         </main>
       </div>
-      <AskPanel /><Toasts /><Notifications /><BranchDrawer />
+      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill />
     </div>
   );
 }

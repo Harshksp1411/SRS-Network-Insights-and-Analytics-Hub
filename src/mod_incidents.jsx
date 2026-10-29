@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
+import { rootOf } from './dash/drilldata.js';
 import { useApp, useNow, slaClock, gate, branchClock, circuitOf, inScope, healthOf, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Progress, Conf, GateBox, cx, Logo, SRC_LOGO, KV, SearchBox, Select, Empty, ExportBtn, Modal } from './ui.jsx';
 import { dur, ago, hhmmss, hhmm, dt, MIN, exportCSV } from './util.js';
@@ -152,6 +153,7 @@ function IncidentDetail({ id }) {
             <div><div className="text-[11px] text-ink3 font-semibold">Resolution ({inc.pri})</div><SlaTimer inc={inc} now={now} /></div>
           </div>
         </div>
+        <button onClick={() => act.drill({ t: 'rca', id: inc.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="block text-[11px] font-bold uppercase tracking-wider text-bad">Root cause · {rootOf(inc).top.layer} · {Math.round(rootOf(inc).top.conf * 100)}% confidence</span><span className="block text-[13.5px] font-semibold text-ink leading-snug">{rootOf(inc).top.text}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">Where the fault is →</span></button>
         {!isRes && <div className="flex flex-wrap gap-2 mt-3">
           {!inc.acked && <Btn kind="brand" icon={I.Hand} onClick={() => { upd({ acked: Date.now(), state: 'In Progress', assignee: ROLES.find(r => r.id === s.role).who }); act.audit(`Acknowledged ${inc.id}`, inc.id); }}>Acknowledge & take</Btn>}
           <Select label="Priority" value={inc.pri} onChange={v => { upd({ pri: v, group: v === 'P1' ? 'Movate NOC – Major Incident' : inc.group }); act.audit(`Priority ${inc.pri} → ${v} on ${inc.id}`, inc.id); }} options={['P1', 'P2', 'P3', 'P4']} />
@@ -183,7 +185,7 @@ function IncidentDetail({ id }) {
             <Table dense rows={inc.signals.map((x, k) => ({ ...x, id: k }))} cols={[{ key: 't', label: 'Time', render: x => <span className="font-mono text-[12px]">{hhmmss(x.t)}</span> }, { key: 'src', label: 'Source' }, { key: 'sev', label: 'Severity', render: x => <Badge tone={x.sev === 'Critical' ? 'red' : x.sev === 'Major' ? 'amber' : 'gray'}>{x.sev}</Badge> }, { key: 'msg', label: 'Event' }, { key: 'role', label: 'Role', render: (x) => <span className="text-[11.5px] text-ink3">{x.id === 0 ? 'Parent' : 'Child / duplicate'}</span> }]} />
             {inc.children && inc.children.length > 0 && <div className="mt-3"><div className="text-[12px] font-bold text-ink3 mb-1">Branches grouped into this major incident</div><div className="flex flex-wrap gap-1.5">{inc.children.map(id => <button key={id} onClick={() => act.openBranch(id)}><Badge tone={healthOf(s, D.BR[id]) === 'down' ? 'red' : 'amber'}>{D.BR[id].name}, {D.BR[id].brand}</Badge></button>)}</div></div>}
           </Card>}
-          {tab === 'rca' && <Card title="Root-cause ranking" sub="Diagnosis Agent over the network knowledge graph, topology, recent changes and carrier status" icon={I.Microscope}>
+          {tab === 'rca' && <Card title="Root-cause ranking" sub="Diagnosis Agent over the network knowledge graph, topology, recent changes and carrier status" icon={I.Microscope} right={<Btn size="sm" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id })}>Where the fault is</Btn>}>
             {inc.rca.length ? inc.rca.map((r, k) => (
               <div key={k} className={cx('border rounded-md p-3 mb-2', k === 0 ? 'border-ai/40 bg-ai/5' : 'border-line')}>
                 <div className="flex items-center gap-2"><span className="text-[12px] font-bold text-ink3">#{k + 1}</span><span className="font-bold text-ink text-[13.5px] flex-1">{r.cause}</span><Conf value={r.conf} showGate={k === 0} /></div>
