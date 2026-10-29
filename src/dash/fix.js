@@ -295,7 +295,7 @@ export function dispatchVisit(act, s, inc, r, job, win) {
     workOrder: id, acked: x.acked || now, state: x.state === 'New' ? 'In Progress' : x.state,
     notes: [...x.notes, { t: now, who: 'Dispatch Agent', text: `Field visit booked, approved by ${me}. ${what}. Task: ${job.task}.` }],
     agentSteps: [...x.agentSteps, { agent: 'dispatch', t: now, text: `${what}${job.parts.length && r.depot ? '; spare reserved at the depot' : ''}`, st: 'done' }],
-    trail: [...(x.trail || []), { t: now, who: 'Dispatch Agent', by: me, text: `Booked field visit ${id}: ${r.t.name}${job.parts.length && r.depot ? `, spare reserved` : ''}`, route: 'field' }],
+    trail: [...(x.trail || []), { t: now, who: 'Dispatch Agent', by: me, text: `Booked field visit ${id}: ${r.t.name}${job.parts.length && r.depot ? `, spare reserved` : ''}; onsite work pack sent to the technician`, route: 'field' }],
   }));
   act.audit(`Approved the field visit for ${inc.id}`, inc.id);
   act.audit(`Booked ${r.t.name} on ${id} for ${inc.id}${job.parts.length && r.depot ? `; spare reserved at ${r.depot.id}` : ''}`, inc.id, 'Dispatch Agent');

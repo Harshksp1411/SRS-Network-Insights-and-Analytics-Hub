@@ -95,7 +95,7 @@ export const useNow = () => useContext(NowCtx);
 // the filter bar as drill-down scope: region, state and city, brand, or one branch
 export function withFilters(s, node) {
   const f = s.filters || {}, out = { ...node };
-  if (['branch', 'circuit', 'device', 'incident', 'change', 'approval', 'metric', 'mttr', 'sla', 'project', 'prediction', 'carrier'].includes(node.t)) return out;
+  if (['branch', 'circuit', 'device', 'incident', 'change', 'approval', 'metric', 'mttr', 'sla', 'project', 'prediction', 'carrier', 'rca', 'workpack'].includes(node.t)) return out;
   if (f.branchId && !out.branch) out.branch = f.branchId;
   if (f.region && f.region !== 'All' && !out.region) out.region = f.region;
   if (f.city && f.city !== 'All' && !out.city) { const i = f.city.lastIndexOf(', '); out.city = f.city.slice(0, i); out.state = f.city.slice(i + 2); }

@@ -200,6 +200,7 @@ export function labelOf(n) {
     case 'incidents': return `${(INC_SETS[n.k] || INC_SETS.open).label}${n.pri ? ` · ${n.pri}` : ''}${n.kind ? ` · ${KIND_PLAIN[n.kind] || n.kind}` : ''}${n.day != null ? ` · ${n.dayLabel || ''}` : ''}${n.ttr ? ` · ${n.ttr}` : ''}${n.auto != null ? (n.auto ? ' · automatic' : ' · by an engineer') : ''}${sc}`;
     case 'incident': return n.id;
     case 'rca': return `Root cause · ${n.id}`;
+    case 'workpack': return `Work pack · ${n.id}`;
     case 'lines': return `${(LINE_SETS[n.k] || LINE_SETS.all).label}${n.carrier ? ` · ${n.carrier}` : ''}${sc}`;
     case 'carrier': return n.carrier;
     case 'circuit': { const c = D.CIR[n.id]; return c ? `${c.carrier} ${c.type} (${c.role === 'Primary' ? 'main' : 'backup'})` : n.id; }

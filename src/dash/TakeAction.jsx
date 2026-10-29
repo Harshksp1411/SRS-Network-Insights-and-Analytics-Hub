@@ -12,6 +12,8 @@ import { hhmm } from '../util.js';
 import { rootOf } from './drilldata.js';
 import { DrillLinks } from './links.js';
 import { MovaChip } from './Mova.jsx';
+import { Brief } from './WorkPack.jsx';
+import { briefOf } from './workpack.js';
 import { fixPlan, peopleOf, rankTechs, visitWindow, etaText, arriveText, trailOf, handOff, dispatchVisit, carrierCase, vendorCase, tellSecurity, STATE, CAN } from './fix.js';
 
 const TONE = { brand: 'bg-brand text-white border-brand', info: 'bg-info/10 text-info border-info/30', ok: 'bg-ok/10 text-ok border-ok/30', warn: 'bg-warn/10 text-warn border-warn/30', muted: 'bg-chip text-ink3 border-line', bad: 'bg-bad/10 text-bad border-bad/30' };
@@ -64,7 +66,7 @@ export function TakeAction({ inc, s, now, go, focus }) {
       if (!plan.rb || !r.run || !['rec', 'first'].includes(r.st)) return null;
       return { text: plan.rbOk ? `Let Mova iO run ${plan.rb.id}` : `Approve ${plan.rb.id} for Mova iO`, icon: I.Play, need: 'run', run: () => L.incident(inc.id, 'runbook') };
     }
-    if (r.id === 'field') return plan.tech ? { text: 'Track the visit', icon: I.Navigation, need: null, run: () => L.module('dispatch') } : { text: plan.wo ? 'Review the technician' : 'Review the dispatch', icon: I.Truck, need: 'field', form: 'field' };
+    if (r.id === 'field') return plan.tech ? { text: 'Open the work pack', icon: I.ListChecks, need: null, run: () => go({ t: 'workpack', id: plan.wo.id }) } : { text: plan.wo ? 'Review the technician' : 'Review the dispatch', icon: I.Truck, need: 'field', form: 'field' };
     if (r.id === 'carrier') return { text: plan.cs ? 'Review an escalation' : 'Review the carrier case', icon: plan.cs ? I.ArrowUpCircle : I.RadioTower, need: 'carrier', form: 'carrier' };
     if (r.id === 'noc') return { text: plan.owner && nocTeam ? 'Reassign' : 'Review the hand-off', icon: I.UserPlus, need: 'hand', form: 'noc' };
     if (r.id === 'sme') return { text: plan.team && plan.team.id === 'sme' ? 'Reassign' : 'Review the hand-off to an SME', icon: I.GraduationCap, need: 'hand', form: 'sme' };
@@ -118,6 +120,7 @@ export function TakeAction({ inc, s, now, go, focus }) {
               <div className="text-[11px] text-ink3 mt-1 flex items-center gap-1 flex-wrap"><MovaChip agent={r.agent} h={8} /><span>· {r.who}</span></div>
               <p className="text-[12.5px] text-ink2 leading-snug mt-1.5 flex-1">{r.text}</p>
               {act && actionOf(r) && <div className="mt-2"><Action r={r} /></div>}
+              {!act && r.id === 'field' && plan.wo && <button onClick={() => go({ t: 'workpack', id: plan.wo.id })} className="mt-2 self-start text-[12px] font-semibold text-brand hover:underline inline-flex items-center gap-1"><I.ListChecks size={13} />See the onsite work pack</button>}
             </div>
           );
         })}
@@ -200,6 +203,7 @@ function FieldForm({ s, inc, plan, now, act, onCancel, onDone }) {
     <div>
       <div className="flex items-center gap-2 mb-3"><I.Truck size={16} className="text-brand" /><b className="text-[14px] text-ink">{plan.wo ? `Mova iO's technician for ${plan.wo.id}` : "Mova iO's field visit"}</b><span className="text-[12px] text-ink3 hidden sm:inline">· {b.name}, {b.brand}</span></div>
       <Prepared agent="dispatch">from the root cause, the branch hours and the depot stock. Change anything, then approve.</Prepared>
+      <Field title="What Mova iO tells the technician" hint="the summary at the top of the onsite work pack"><div className="rounded-md border border-line bg-canvas p-3"><Brief brief={briefOf(s, inc, job)} compact /></div></Field>
       <Field title="The job" hint="what the technician does on site"><Area value={task} onChange={setTask} rows={2} />
         <div className="flex flex-wrap gap-1.5 mt-1.5 text-[11.5px]">{job.skills.map(x => <span key={x} className="px-1.5 py-[1px] rounded border border-line bg-chip text-ink2">{x}</span>)}{job.parts.map(x => <span key={x} className="px-1.5 py-[1px] rounded border border-info/30 bg-info/10 text-info inline-flex items-center gap-1"><I.Package size={11} />{x}</span>)}</div>
       </Field>
@@ -216,7 +220,7 @@ function FieldForm({ s, inc, plan, now, act, onCancel, onDone }) {
           </Radio>))}</div>
       </Field>
       <div className="flex flex-wrap gap-2">
-        <Btn kind="brand" icon={I.Truck} disabled={!r} onClick={() => { const id = dispatchVisit(act, s, inc, r, job, win); onDone(`Approved. The Dispatch Agent booked ${id}: ${r.t.name} ${win.now ? `is on the way, ${arriveText(r.eta)}` : `comes ${win.label.toLowerCase()}`}${job.parts.length && r.depot ? `, with the spare it reserved at ${r.depot.city.split(',')[0]}` : ''}. It is in Field Dispatch.`); }}>{win.now ? `Approve: dispatch ${r ? r.t.name : ''}` : `Approve: book ${r ? r.t.name : ''} ${win.label.toLowerCase()}`}</Btn>
+        <Btn kind="brand" icon={I.Truck} disabled={!r} onClick={() => { const id = dispatchVisit(act, s, inc, r, job, win); onDone(`Approved. The Dispatch Agent booked ${id}: ${r.t.name} ${win.now ? `is on the way, ${arriveText(r.eta)}` : `comes ${win.label.toLowerCase()}`}${job.parts.length && r.depot ? `, with the spare it reserved at ${r.depot.city.split(',')[0]}` : ''}. Mova iO sent ${r.t.name.replace(/ .*/, '')} the onsite work pack.`); }}>{win.now ? `Approve: dispatch ${r ? r.t.name : ''}` : `Approve: book ${r ? r.t.name : ''} ${win.label.toLowerCase()}`}</Btn>
         <Btn onClick={onCancel}>Cancel</Btn>
       </div>
     </div>

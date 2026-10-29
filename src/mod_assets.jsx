@@ -4,7 +4,7 @@ import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
 import { CarrierNetworks, ToolsStrip, TopBranches } from './viz2.jsx';
 import * as D from './data.js';
-import { useApp, useNow, healthOf, circuitOf, branchClock, inScope } from './store.jsx';
+import { useApp, useNow, healthOf, circuitOf, branchClock, inScope, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
 import { Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, dt, hhmm, exportCSV, MIN, HR, DAY, T0, rng } from './util.js';
@@ -278,6 +278,7 @@ export function Dispatch() {
         <Stat label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length}`} />
         <Stat label="Low-stock depot lines" icon={I.PackageX} value={s.depots.reduce((a, d) => a + Object.values(d.spares).filter(v => v <= 1).length, 0)} tone="amber" onClick={() => setTab('depots')} />
       </div>
+      {s.role === 'tech' && <MyJobs />}
       <LivePanel kind="dispatch" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
         <FieldDemandCard />
@@ -294,6 +295,7 @@ export function Dispatch() {
         { key: 'tech', label: 'Technician', render: w => w.tech ? <span className="font-semibold">{s.techs.find(t => t.id === w.tech).name}</span> : <Btn size="xs" kind="brand" icon={I.Wand2} onClick={() => setMatch(w)}>Match</Btn> },
         { key: 'status', label: 'Status', render: w => <Badge tone={w.status === 'Unassigned' ? 'amber' : w.status === 'Completed' ? 'green' : 'blue'}>{w.status}</Badge> },
         { key: 'eta', label: 'ETA', render: w => w.eta && w.status !== 'Completed' ? <span className="font-mono text-[12px]">{w.eta > now ? dur(w.eta - now) : 'due'}</span> : '—' },
+        { key: 'pack', label: 'Work pack', sortable: false, render: w => <Btn size="xs" icon={I.ListChecks} onClick={() => act.drill({ t: 'workpack', id: w.id })}>{w.pack && w.pack.accepted ? 'Accepted' : w.pack && Object.keys(w.pack.steps || {}).length ? `${Object.keys(w.pack.steps).length} steps done` : 'Open'}</Btn> },
         { key: 'act', label: '', sortable: false, render: w => w.tech && w.status !== 'Completed' ? <div className="flex gap-1 justify-end">{['Assigned', 'Dispatched', 'Scheduled'].includes(w.status) && <Btn size="xs" onClick={() => adv(w, 'En route')}>En route</Btn>}{w.status === 'En route' && <Btn size="xs" onClick={() => adv(w, 'On site')}>On site</Btn>}<Btn size="xs" kind="ok" icon={I.Check} onClick={() => adv(w, 'Completed')}>Complete</Btn></div> : null },
       ]} /></div></Card>}
       {tab === 'techs' && <Card pad={false}><div className="p-3"><Table rows={s.techs} cols={[{ key: 'name', label: 'Technician', render: t => <b>{t.name}</b> }, { key: 'region', label: 'Region' }, { key: 'base', label: 'Base' }, { key: 'skills', label: 'Skills', sortable: false, render: t => <div className="flex flex-wrap gap-1">{t.skills.map(k => <Badge key={k}>{k}</Badge>)}</div> }, { key: 'status', label: 'Status', render: t => <Badge tone={t.status === 'Available' ? 'green' : t.status === 'On site' ? 'blue' : 'gray'}>{t.status}</Badge> }, { key: 'jobs30', label: 'Jobs 30d', right: true }, { key: 'rating', label: 'Rating', right: true }]} /></div></Card>}
@@ -315,5 +317,25 @@ export function Dispatch() {
         </>; })()}
       </Modal>
     </div>
+  );
+}
+
+// the Field Technician's day: each job opens the work pack Mova iO assembled for it
+function MyJobs() {
+  const { s, act } = useApp();
+  const now = useNow();
+  const me = s.techs.find(t => t.name === ROLES.find(r => r.id === 'tech').who);
+  const jobs = s.workOrders.filter(w => me && w.tech === me.id);
+  return (
+    <Card title={`My jobs today${me ? `: ${me.name}` : ''}`} sub="Mova iO's Dispatch Agent sends a work pack with every job: the site, what to bring, what was found, the approved steps, the evidence to capture and the hand-off." icon={I.ListChecks} className="mt-3">
+      {jobs.length ? <div className="grid md:grid-cols-2 gap-2">{jobs.map(w => { const b = D.BR[w.branchId]; const st = w.pack || {}; return (
+        <button key={w.id} onClick={() => act.drill({ t: 'workpack', id: w.id })} className="text-left rounded-md border border-line hover:border-brand px-3 py-2.5 flex items-start gap-3">
+          <I.Tablet size={22} className="text-brand shrink-0 mt-0.5" />
+          <span className="min-w-0 flex-1"><span className="flex items-center gap-2"><b className="text-[13px] text-ink">{w.id}</b><Pri p={w.priority} /><Badge tone={w.status === 'Completed' ? 'green' : 'blue'}>{w.status}</Badge></span>
+            <span className="block text-[12.5px] text-ink">{b.name}, {b.brand}</span><span className="block text-[12px] text-ink2 line-clamp-2">{w.task}</span>
+            <span className="block text-[11.5px] text-ink3 mt-0.5">{w.eta && w.status !== 'Completed' ? `Due ${dur(Math.max(0, w.eta - now))} from now · ` : ''}{Object.keys(st.steps || {}).length} steps done{st.accepted ? ' · accepted' : ''}</span></span>
+          <span className="text-[12px] font-semibold text-brand self-center whitespace-nowrap">Open the work pack</span>
+        </button>); })}</div> : <p className="text-[13px] text-ink2">No jobs assigned to you right now.</p>}
+    </Card>
   );
 }

@@ -19,6 +19,7 @@ import { DrillLinks } from './links.js';
 import { TakeAction } from './TakeAction.jsx';
 import { fixPlan } from './fix.js';
 import { MovaChip } from './Mova.jsx';
+import { WorkPackView } from './WorkPack.jsx';
 
 const DISPLAY = { fontFamily: '"Aptos Display", Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif' };
 const TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', info: 'text-info', muted: 'text-ink3' };
@@ -904,7 +905,8 @@ function CasesView({ n, go, ctx }) {
       rows={list.map(c => ({ key: c.id, id: c.circuit, cells: [<Name t={`${c.carrier} ${c.id}`} sub={c.circuit} />, <span className="text-ink2">{D.BR[c.branchId].name}</span>, <span className="text-ink2">{c.status}</span>, c.eta ? <b className={c.eta < now ? 'text-bad' : 'text-ink'}>{hhmm(c.eta)} CT{c.eta < now ? ' (late)' : ''}</b> : '—'] }))} /></div></div>);
 }
 
-const VIEWS = { rca: RcaView, set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
+const WorkPack = props => <WorkPackView {...props} ui={{ Head, Kpis }} />;
+const VIEWS = { workpack: WorkPack, rca: RcaView, set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
 
 // The panel: slides in from the right over the dashboard; Escape closes it, the breadcrumb or Back steps out a level.
 export function DrillPanel({ stack, setStack, now, scope, snap, links, root = 'Dashboard' }) {

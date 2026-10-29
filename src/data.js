@@ -474,6 +474,8 @@ export const WORK_ORDERS = [
   { id: 'WO0041851', branchId: BRANCHES[220].id, inc: null, task: 'Install out-of-band console server (IT closet)', skills: ['Rack and closet'], parts: ['OOB console server'], tech: TECHS[8].id, status: 'Scheduled', created: T0 - 26 * HR, eta: T0 + 20 * HR, window: 'After 17:00 local', priority: 'P4' },
 ];
 WORK_ORDERS.forEach(w => { const i = w.inc && INCIDENTS.find(x => x.id === w.inc); if (i) i.workOrder = w.id; });
+// a booked visit has its spare reserved at the first depot that serves the region
+WORK_ORDERS.forEach(w => { if (w.tech && !w.depot) w.depot = (DEPOT_REGION[BR[w.branchId].region] || [])[0] || null; });
 
 // ---------- approvals, changes, drift ----------
 export const APPROVALS = [
