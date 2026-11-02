@@ -13,6 +13,8 @@ import { rootOf } from './drilldata.js';
 import { DrillLinks } from './links.js';
 import { MovaChip } from './Mova.jsx';
 import { Brief } from './WorkPack.jsx';
+import { EscalateButton, EscalationBanner, aboutOf } from '../escalate.jsx';
+import { useApp } from '../store.jsx';
 import { briefOf } from './workpack.js';
 import { fixPlan, peopleOf, rankTechs, visitWindow, etaText, arriveText, trailOf, handOff, dispatchVisit, carrierCase, vendorCase, tellSecurity, STATE, CAN } from './fix.js';
 
@@ -80,11 +82,13 @@ export function TakeAction({ inc, s, now, go, focus }) {
     const a = actionOf(r); if (!a) return null;
     if (!act) return null; // the dashboards are read-only
     const ok = !a.need || may(a.need);
+    if (!ok) return null; // SRS roles see the plan and escalate instead
     return <Btn size={size} kind={primary ? 'brand' : 'secondary'} icon={a.icon} disabled={!ok} title={ok ? undefined : `${roleName || 'This role'} can see what Mova iO recommends but not approve it`} onClick={() => { setDone(null); a.form ? setOpen(open === a.form ? null : a.form) : a.run(); }}>{a.text}</Btn>;
   };
 
   return (
     <section ref={box} className="mt-7 scroll-mt-16" aria-label="Take action">
+      <EscalationBanner id={inc.id} className="mb-3" />
       <Header title="who fixes it" chip={<MovaChip />} right={<span className="text-[12px] text-ink2 truncate">Ticket owner: <b className="text-ink">{plan.ownerText || 'nobody yet'}</b></span>} />
       <div className="rounded-md border-2 border-brand/40 bg-brand/[0.04] p-4">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -96,11 +100,10 @@ export function TakeAction({ inc, s, now, go, focus }) {
         <div className="text-[19px] font-bold text-ink leading-snug mt-1">{plan.head}</div>
         <p className="text-[13.5px] text-ink2 leading-relaxed mt-1 max-w-[900px]">{plan.why}</p>
         <p className="text-[12.5px] text-ink2 mt-1.5 flex items-start gap-1.5"><I.Laptop size={14} className="mt-[2px] shrink-0 text-ink3" /><span>{plan.remote.text.replace(/^(Yes|No|Partly|Maybe)\.\s*/, '')}</span></p>
-        {act && <div className="flex flex-wrap gap-2 mt-3">{next.map((r, i) => <Action key={r.id} r={r} primary={i === 0} size="md" />)}</div>}
+        {act && role && (CAN[role] || []).length > 0 && <div className="flex flex-wrap gap-2 mt-3">{next.map((r, i) => <Action key={r.id} r={r} primary={i === 0} size="md" />)}</div>}
         <p className="text-[12px] text-ink3 mt-3 flex items-start gap-1.5"><I.ShieldCheck size={13} className="mt-[2px] shrink-0" /><span>Mova iO prepares each step and carries it out once an engineer approves it. Movate keeps the ticket end to end, whoever does the work (SRS field services, the carrier or HPE), and it closes only after the Verification Agent's checks pass.</span></p>
         {done && <div className="mt-3 text-[12.5px] font-semibold text-ok flex items-center gap-1.5" role="status"><I.CheckCircle2 size={15} />{done}</div>}
-        {!act && <p className="text-[12px] text-ink3 mt-3 flex items-center gap-1.5"><I.Eye size={13} />Read-only view. Mova iO carries these steps out once the NOC approves them in the operations console; each one shows here as it happens.</p>}
-        {act && role && !(CAN[role] || []).length && <p className="text-[12px] text-ink3 mt-3 flex items-center gap-1.5"><I.Lock size={13} />Your role ({roleName}) sees what Mova iO recommends and who has the ticket. NOC and network engineers approve the steps.</p>}
+        {(!act || !(CAN[role] || []).length) && <div className="mt-3 flex flex-wrap items-center gap-3"><EscalateButton about={() => aboutOf(s, { t: 'incident', id: inc.id })} size="md" /><p className="text-[12px] text-ink2 flex items-center gap-1.5 flex-1 min-w-[240px]"><I.Eye size={13} className="shrink-0" />SRS view{act && roleName ? ` (${roleName})` : ''}: you see what Mova iO recommends and who has the ticket. Movate approves and carries out the steps; escalate to Movate if you need something done or done sooner.</p></div>}
       </div>
 
       {open && <div className="mt-3 rounded-md border border-brand/40 bg-panel p-4">

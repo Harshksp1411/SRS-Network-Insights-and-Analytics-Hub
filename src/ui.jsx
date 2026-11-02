@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext, createContext } from 'react';
 import { X, ChevronDown, Search, ChevronLeft, ChevronRight, ArrowUpDown, ShieldCheck, ShieldAlert, Download } from 'lucide-react';
 import LOGOS from './logos.js';
 import { TweenNum, FitText } from './charts.jsx';
@@ -46,7 +46,13 @@ export function Dot({ tone = 'green', pulse }) {
 }
 export const healthTone = h => ({ up: 'green', degraded: 'amber', down: 'red' }[h] || 'gray');
 
-export function Btn({ kind = 'secondary', size = 'md', icon: I, children, className, ...p }) {
+// Who may act. Movate roles carry out actions; SRS roles see everything and escalate to Movate. A control marked
+// `op` is an action: for an SRS role it is disabled and says why. The app sets this from the role.
+export const OpsCtx = createContext(null); // null: may act; otherwise the reason actions are off
+export const useOpsLock = () => useContext(OpsCtx);
+export function Btn({ kind = 'secondary', size = 'md', icon: I, children, className, op, ...p }) {
+  const lock = useContext(OpsCtx);
+  if (op && lock) { p = { ...p, disabled: true, title: lock, 'data-locked': 'srs' }; }
   const k = {
     primary: 'bg-action text-white border-action hover:brightness-110',
     brand: 'bg-brand text-white border-brand hover:brightness-110',
@@ -111,11 +117,12 @@ export function Modal({ open, onClose, title, sub, children, footer, wide, xwide
   );
 }
 
-export function Select({ value, onChange, options, icon: I, className, label }) {
+export function Select({ value, onChange, options, icon: I, className, label, op }) {
+  const lock = useContext(OpsCtx), off = !!(op && lock);
   return (
-    <label className={cx('relative inline-flex items-center h-8 bg-panel border border-line rounded-md text-[13px] text-ink pl-2 pr-7 gap-1.5', className)}>
+    <label title={off ? lock : undefined} className={cx('relative inline-flex items-center h-8 bg-panel border border-line rounded-md text-[13px] text-ink pl-2 pr-7 gap-1.5', off && 'opacity-50', className)}>
       {I && <I size={14} className="text-ink3" />}{label && <span className="text-ink3">{label}</span>}
-      <select value={value} onChange={e => onChange(e.target.value)} className="bg-transparent outline-none appearance-none font-semibold pr-1 cursor-pointer max-w-[220px] truncate">
+      <select disabled={off} value={value} onChange={e => onChange(e.target.value)} className="bg-transparent outline-none appearance-none font-semibold pr-1 cursor-pointer max-w-[220px] truncate disabled:cursor-not-allowed">
         {options.map(o => typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <ChevronDown size={14} className="absolute right-2 text-ink3 pointer-events-none" />

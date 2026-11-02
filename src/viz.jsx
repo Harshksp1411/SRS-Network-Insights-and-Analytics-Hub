@@ -83,7 +83,7 @@ export function OpeningRiskCard() {
         {rows.map(r => <div key={r.id + r.kind} className="py-2 flex items-start gap-3 text-[12.5px]">
           <div className="w-12 shrink-0 pt-0.5"><Pct p={r.p} /></div>
           <div className="flex-1 min-w-0"><button onClick={() => act.openBranch(r.b.id)} className="font-semibold text-ink hover:underline">{r.b.name}</button> <span className="text-ink3">{r.b.brand}</span><div className="text-ink2">{r.why}</div><div className="text-ink3">Prevent: {r.action}</div></div>
-          {done[r.id + r.kind] ? <Badge tone="green"><I.Check size={11} />Scheduled</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [r.id + r.kind]: true })); act.audit(`Preventive step scheduled for ${r.b.name}: ${r.action}`, r.id); act.toast(`Scheduled for tonight: ${r.action}`); }}>Schedule</Btn>}
+          {done[r.id + r.kind] ? <Badge tone="green"><I.Check size={11} />Scheduled</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.id + r.kind]: true })); act.audit(`Preventive step scheduled for ${r.b.name}: ${r.action}`, r.id); act.toast(`Scheduled for tonight: ${r.action}`); }}>Schedule</Btn>}
         </div>)}
       </div>
     </Card>
@@ -152,7 +152,7 @@ export function PreventRecurrence({ inc }) {
   }[inc.cat] || [['Open problem record', 'problem'], ['Write KB from this incident', 'kb']];
   return (
     <Card title="Prevent it happening again" sub="Suggested by the Knowledge and Change Validation agents from similar incidents">
-      {recs.map(([t, k]) => <div key={t} className="flex items-center gap-2 py-1.5 border-b border-line/60 last:border-0 text-[12.5px]"><I.ShieldPlus size={15} className="text-ink3 shrink-0" /><span className="flex-1 text-ink">{t}</span>{done[t] ? <Badge tone="green">Raised</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [t]: true })); if (k === 'problem') act.add('problems', { id: `PRB000${4300 + Math.floor(Math.random() * 99)}`, title: `${inc.title} (from ${inc.id})`, incidents: 1, state: 'New', owner: 'Network Eng L3', opened: Date.now() }); act.audit(`Preventive action raised from ${inc.id}: ${t}`, inc.id); act.toast(`Raised: ${t}`); }}>Raise</Btn>}</div>)}
+      {recs.map(([t, k]) => <div key={t} className="flex items-center gap-2 py-1.5 border-b border-line/60 last:border-0 text-[12.5px]"><I.ShieldPlus size={15} className="text-ink3 shrink-0" /><span className="flex-1 text-ink">{t}</span>{done[t] ? <Badge tone="green">Raised</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [t]: true })); if (k === 'problem') act.add('problems', { id: `PRB000${4300 + Math.floor(Math.random() * 99)}`, title: `${inc.title} (from ${inc.id})`, incidents: 1, state: 'New', owner: 'Network Eng L3', opened: Date.now() }); act.audit(`Preventive action raised from ${inc.id}: ${t}`, inc.id); act.toast(`Raised: ${t}`); }}>Raise</Btn>}</div>)}
     </Card>
   );
 }
@@ -188,7 +188,7 @@ export function DeviceRiskCard() {
   const [done, setDone] = useState({});
   return (
     <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age">
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} className="flex items-center gap-3 py-1.5 text-[12.5px]"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}</div>)}</div>
+      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} className="flex items-center gap-3 py-1.5 text-[12.5px]"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}</div>)}</div>
     </Card>
   );
 }
@@ -212,7 +212,7 @@ export function CarrierForecastCard() {
   const [done, setDone] = useState({});
   return (
     <Card title="Circuits likely to fail this week" sub="Raise a proactive case while the branch is still on its primary path">
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.b.id} className="py-2 flex items-start gap-3 text-[12.5px]"><span className="w-10 pt-0.5"><Pct p={r.p} /></span><div className="flex-1 min-w-0"><span className="font-semibold text-ink">{r.b.name}</span> <span className="text-ink3">{r.carrier}, {r.when}</span><div className="text-ink2">{r.why}</div></div>{done[r.b.id] ? <Badge tone="green">Case open</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [r.b.id]: true })); const no = D.caseNo(r.carrier); act.add('cases', { id: no, carrier: r.carrier, circuit: r.b.wan[0], inc: null, branchId: r.b.id, opened: Date.now(), status: 'Open – proactive (pre-failure)', eta: Date.now() + 24 * HR, lastUpdate: Date.now(), evidence: ['Trend graph', 'Prior outage signature'], escal: 0 }); act.audit(`Proactive ${r.carrier} case ${no} for ${r.b.name}`, no); act.toast(`Proactive case ${no} opened`); }}>{r.act === 'Watch' ? 'Watch' : 'Raise case'}</Btn>}</div>)}</div>
+      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.b.id} className="py-2 flex items-start gap-3 text-[12.5px]"><span className="w-10 pt-0.5"><Pct p={r.p} /></span><div className="flex-1 min-w-0"><span className="font-semibold text-ink">{r.b.name}</span> <span className="text-ink3">{r.carrier}, {r.when}</span><div className="text-ink2">{r.why}</div></div>{done[r.b.id] ? <Badge tone="green">Case open</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.b.id]: true })); const no = D.caseNo(r.carrier); act.add('cases', { id: no, carrier: r.carrier, circuit: r.b.wan[0], inc: null, branchId: r.b.id, opened: Date.now(), status: 'Open – proactive (pre-failure)', eta: Date.now() + 24 * HR, lastUpdate: Date.now(), evidence: ['Trend graph', 'Prior outage signature'], escal: 0 }); act.audit(`Proactive ${r.carrier} case ${no} for ${r.b.name}`, no); act.toast(`Proactive case ${no} opened`); }}>{r.act === 'Watch' ? 'Watch' : 'Raise case'}</Btn>}</div>)}</div>
     </Card>
   );
 }
@@ -231,7 +231,7 @@ export function SparesCoverCard() {
   const { s, act } = useApp();
   const rows = s.depots.map(d => { const days = Math.min(...Object.entries(d.spares).map(([k, v]) => v / (P.SPARE_USE[k] || 0.2) * 7)); const worst = Object.entries(d.spares).sort((a, b) => a[1] / (P.SPARE_USE[a[0]] || 0.2) - b[1] / (P.SPARE_USE[b[0]] || 0.2))[0]; return { label: d.city, sub: `tightest: ${worst[0]}`, value: Math.round(days), color: days < 14 ? C.bad : days < 30 ? C.s4 : C.s1, mark: 21, markLabel: '21-day target' }; }).sort((a, b) => a.value - b.value);
   return (
-    <Card title="Spares cover by depot" sub="Days until the tightest spare runs out at the forecast usage; black tick is the 21-day target" right={<Btn size="sm" onClick={() => { act.audit('Restock orders raised for depots under 21 days cover', 'depots'); act.toast('Restock raised for depots under 21 days'); }}>Restock under 21 days</Btn>}>
+    <Card title="Spares cover by depot" sub="Days until the tightest spare runs out at the forecast usage; black tick is the 21-day target" right={<Btn op size="sm" onClick={() => { act.audit('Restock orders raised for depots under 21 days cover', 'depots'); act.toast('Restock raised for depots under 21 days'); }}>Restock under 21 days</Btn>}>
       <HBars rows={rows} fmt={v => `${v} d`} labelW={140} />
     </Card>
   );
@@ -339,7 +339,7 @@ export function CandidatesCard() {
   const { act } = useApp(); const [done, setDone] = useState({});
   return (
     <Card title="What to automate next" sub="Repeated manual sequences found in work notes and command logs">
-      <div className="divide-y divide-line/70">{P.AUTO_CANDIDATES.map(c => <div key={c.pattern} className="py-2 flex items-start gap-3 text-[12.5px]"><div className="flex-1"><div className="font-semibold text-ink">{c.pattern}</div><div className="text-ink2">{c.note}</div><div className="text-ink3">{c.freq} times in 30 days, about {c.saved} h a month, risk {c.risk.toLowerCase()}</div></div>{done[c.pattern] ? <Badge tone="green">Drafted</Badge> : <Btn size="xs" onClick={() => { setDone(d => ({ ...d, [c.pattern]: true })); act.audit(`Draft runbook requested: ${c.pattern}`, 'automation'); act.toast('Draft runbook sent for review'); }}>Draft runbook</Btn>}</div>)}</div>
+      <div className="divide-y divide-line/70">{P.AUTO_CANDIDATES.map(c => <div key={c.pattern} className="py-2 flex items-start gap-3 text-[12.5px]"><div className="flex-1"><div className="font-semibold text-ink">{c.pattern}</div><div className="text-ink2">{c.note}</div><div className="text-ink3">{c.freq} times in 30 days, about {c.saved} h a month, risk {c.risk.toLowerCase()}</div></div>{done[c.pattern] ? <Badge tone="green">Drafted</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [c.pattern]: true })); act.audit(`Draft runbook requested: ${c.pattern}`, 'automation'); act.toast('Draft runbook sent for review'); }}>Draft runbook</Btn>}</div>)}</div>
     </Card>
   );
 }

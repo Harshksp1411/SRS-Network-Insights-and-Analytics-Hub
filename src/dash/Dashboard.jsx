@@ -14,6 +14,7 @@ import { downloadEdition } from './pdf.js';
 import { hhmm, hhmmss, dateShort } from '../util.js';
 import { APP_NAME } from '../edition.js';
 import { DrillPanel } from './Drill.jsx';
+import { EscalateDialog, EscalateButton } from '../escalate.jsx';
 import { ChartCards } from './Charts.jsx';
 import { Spark, C } from '../charts.jsx';
 
@@ -137,7 +138,8 @@ function Activity({ p, go, ver }) {
 }
 
 function Dash({ p, onOut }) {
-  const { s } = useApp(); const { L, ver, paused, setPaused, speed, setSpeed } = useLive();
+  const { s, act } = useApp(); const { L, ver, paused, setPaused, speed, setSpeed } = useLive();
+  useEffect(() => { act.set({ dashUser: p.title }); return () => act.set({ dashUser: null }); }, [p.id]); // SRS leaders see and escalate; Movate acts
   const sRef = useRef(s); sRef.current = s;
   const [period, setPeriod] = useState('daily');
   const [stamp, setStamp] = useState(Date.now());
@@ -165,6 +167,7 @@ function Dash({ p, onOut }) {
               <div className="text-ink2">Scope: <b className="text-ink">{scope}</b></div>
               <div className="text-ink2 mt-1">This dashboard answers: {p.focus}</div>
               <div className="flex flex-wrap gap-1 mt-2">{p.can.map(c => <span key={c} className="text-[11px] border border-line rounded px-1.5 py-0.5 text-ink2 bg-chip/50">{c}</span>)}</div>
+              <div className="text-ink2 mt-2"><b className="text-ink">See and escalate.</b> Every number opens its detail; Movate carries out the actions, and anything you need done goes to Movate with Escalate to Movate.</div>
               <div className="text-[11px] text-ink3 mt-2">Other roles' dashboards are not visible to this account.{p.region ? ` Every list and drill-down stays inside ${p.region}.` : ''}</div>
             </div>}
           </div>
@@ -172,6 +175,7 @@ function Dash({ p, onOut }) {
             {paused ? <I.Pause size={13} /> : <span className="relative w-2 h-2"><span className="absolute inset-0 rounded-full bg-ok animate-ping opacity-60" /><span className="absolute inset-0 rounded-full bg-ok" /></span>}{paused ? 'PAUSED' : 'LIVE'}<span className="font-normal text-ink3 hidden sm:inline">· {hhmmss(ed.at)} CT</span>
           </button>
           <div className="inline-flex items-center h-8 rounded-md border border-line overflow-hidden text-[12px]" role="group" aria-label="Live data speed">{[1, 5, 10].map(x => <button key={x} onClick={() => setSpeed(x)} className={cx('px-2 h-full font-semibold', speed === x ? 'bg-ink text-canvas' : 'text-ink2 hover:bg-chip')}>{x}×</button>)}</div>
+          <EscalateButton about={{ kind: 'general', label: `${p.title} dashboard` }} />
           <button onClick={pdf} disabled={busy} className="h-8 px-2.5 rounded-md border border-line hover:bg-chip text-ink text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"><I.FileDown size={14} />{busy ? 'Preparing…' : 'Export PDF'}</button>
           <button onClick={onOut} className="h-8 px-2.5 rounded-md border border-line hover:bg-chip font-semibold text-ink text-[12.5px] inline-flex items-center gap-1.5"><I.LogOut size={14} />Sign out</button>
         </div>
@@ -230,6 +234,7 @@ function Dash({ p, onOut }) {
       </div>
       {open && <InsightDetail x={open} go={go} onClose={() => setOpen(null)} />}
       {drill.length > 0 && <DrillPanel stack={drill} setStack={setDrill} now={ed.at} scope={p.region} snap={ed.snap} />}
+      <EscalateDialog />
     </div>
   );
 }

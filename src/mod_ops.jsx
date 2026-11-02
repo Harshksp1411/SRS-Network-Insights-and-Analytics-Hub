@@ -203,7 +203,7 @@ export function Readiness() {
   return (
     <div>
       <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Network checks run at 05:30 local for every branch: primary and backup internet, EdgeConnect, tunnels, switches, Wi-Fi, DHCP pools, config compliance and the POS and ERP paths. Issues are fixed overnight or given an owner before opening."
-        right={<><Btn icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
+        right={<><Btn op icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
       <PreopenBanner rows={R} />
       <div className="mt-3"><ReadinessSummary rows={R} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>

@@ -10,6 +10,7 @@ import { ROLES } from '../store.jsx';
 import { hhmm, dateShort, ago } from '../util.js';
 import { DrillLinks } from './links.js';
 import { MovaChip } from './Mova.jsx';
+import { EscalateButton, EscalationBanner, aboutOf } from '../escalate.jsx';
 import { packOf, briefOf, readingOk, tickStep, addPhoto, setReading, setFindings, returnCheck, acceptHandoff } from './workpack.js';
 
 const TABS = [['summary', 'Summary'], ['overview', 'Overview'], ['before', 'Before arrival'], ['history', 'History'], ['checklist', 'Checklist'], ['evidence', 'Evidence'], ['handoff', 'Hand-off']];
@@ -54,6 +55,7 @@ export function WorkPackView({ n, go, ctx, ui }) {
         { label: 'Return check', value: check ? (check.pass ? 'Passed' : 'Not yet') : 'Pending', tone: check ? (check.pass ? 'ok' : 'warn') : null },
         { label: 'Owner accepts', value: pk.accepted ? 'Accepted' : 'Waiting', tone: pk.accepted ? 'ok' : null, sub: P.owner || 'NOC', go: P.inc ? { t: 'incident', id: P.inc.id } : null },
       ]} />
+      <EscalationBanner id={wo.id} inc={wo.inc} className="mt-4" />
       <Flow />
       <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] gap-5 mt-5 items-start">
         <div className="rounded-[22px] border-[9px] border-[#1d2333] bg-panel shadow-xl overflow-hidden">
@@ -72,8 +74,8 @@ export function WorkPackView({ n, go, ctx, ui }) {
             {tab === 'evidence' && <Evidence P={P} wo={wo} act={act} canWork={canWork} />}
             {tab === 'handoff' && <Handoff P={P} wo={wo} s={s} act={act} canWork={canWork} canAccept={canAccept} />}
           </div>
-          {act && !canWork && !closed && <div className="border-t border-line px-4 py-2 text-[11.5px] text-ink3 flex items-center gap-2 flex-wrap">{role === 'tech' ? null : <><I.Info size={13} /><span>{roleName}: {['noc', 'l3'].includes(role) ? 'you accept the hand-off; the technician works the checklist and evidence.' : 'view only.'}</span>{['noc', 'l3'].includes(role) && <button onClick={() => act.set({ role: 'tech' })} className="font-semibold text-brand hover:underline">See it as the technician</button>}</>}</div>}
-          {!act && <div className="border-t border-line px-4 py-2 text-[11.5px] text-ink3 flex items-center gap-2"><I.Eye size={13} />Read-only view. The technician works this pack in the field app; the NOC owner accepts the hand-off in the console.</div>}
+          {act && !canWork && !closed && <div className="border-t border-line px-4 py-2 text-[11.5px] text-ink3 flex items-center gap-2 flex-wrap">{role === 'tech' ? null : <><I.Info size={13} /><span>{roleName}: {['noc', 'l3'].includes(role) ? 'you accept the hand-off; the technician works the checklist and evidence.' : 'SRS view: escalate to Movate if you need something done.'}</span>{!['noc', 'l3'].includes(role) && <EscalateButton about={() => aboutOf(s, { t: 'workpack', id: wo.id })} />}{['noc', 'l3'].includes(role) && <button onClick={() => act.set({ role: 'tech' })} className="font-semibold text-brand hover:underline">See it as the technician</button>}</>}</div>}
+          {!act && <div className="border-t border-line px-4 py-2 text-[11.5px] text-ink3 flex items-center gap-2 flex-wrap"><I.Eye size={13} /><span className="flex-1">SRS view: the technician works this pack in the field app and Movate accepts the hand-off.</span><EscalateButton about={() => aboutOf(s, { t: 'workpack', id: wo.id })} /></div>}
         </div>
         <ol className="space-y-2">
           <li><button onClick={() => setTab('summary')} className={cx('w-full text-left rounded-md border overflow-hidden flex bg-brand/[0.06]', tab === 'summary' ? 'border-brand ring-1 ring-brand/30' : 'border-brand/40 hover:border-brand')}>

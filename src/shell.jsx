@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as I from 'lucide-react';
-import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranches, cityKey } from './store.jsx';
+import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranches, cityKey, isMovate, roleOf, SRS_LOCK } from './store.jsx';
+import { EscalateDialog, EscalateButton, aboutOf } from './escalate.jsx';
 import * as D from './data.js';
 import { DemoStage } from './stage.jsx';
 import { useLive } from './live.jsx';
@@ -11,7 +12,7 @@ import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
-import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark } from './ui.jsx';
+import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
 import LOGOS from './logos.js';
 import { hhmmss, hhmm, ago, dt, num, MIN } from './util.js';
@@ -50,7 +51,7 @@ export const MODULES = [
 function Header() {
   const { s, act } = useApp();
   const now = useNow();
-  const pendingNotif = s.approvals.filter(a => a.status === 'Pending').length;
+  const pendingNotif = isMovate(s) ? s.approvals.filter(a => a.status === 'Pending').length + s.escalations.filter(e => e.status !== 'Answered').length : s.escalations.filter(e => e.status !== 'Sent' && !e.seen).length;
   const hb = 'h-8 rounded-[4px] border border-line text-ink hover:bg-chip';
   return (
     <header className="h-[60px] bg-head text-ink flex items-center pl-4 pr-3 gap-3 [&>*]:shrink-0 sticky top-0 z-40 border-b border-line shadow-[0_1px_3px_rgba(16,24,40,0.06)]">
@@ -74,7 +75,8 @@ function Header() {
       <label className={hb + ' relative inline-flex items-center pl-2 pr-7 gap-1.5 text-[13px] max-[1279px]:w-[150px]'}>
         <I.UserRound size={14} className="text-ink3" />
         <select value={s.role} onChange={e => { const v = e.target.value; const r = ROLES.find(x => x.id === v); act.set(st => ({ role: v, module: r.home, selInc: null, askLog: [], tab: r.tab ? { ...st.tab, changes: r.tab } : st.tab, filters: { region: 'All', city: 'All', brand: 'All', branchId: null } })); act.toast(`Viewing as ${r.name} (${r.who})`, 'info'); }} className="bg-transparent outline-none appearance-none font-semibold cursor-pointer min-w-0 w-full truncate">
-          {ROLES.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          <optgroup label="Movate: carries out actions">{ROLES.filter(r => r.org === 'Movate').map(r => <option key={r.id} value={r.id}>{r.name} · Movate</option>)}</optgroup>
+          <optgroup label="SRS: sees everything, escalates to Movate">{ROLES.filter(r => r.org === 'SRS').map(r => <option key={r.id} value={r.id}>{r.name} · SRS</option>)}</optgroup>
         </select>
         <I.ChevronDown size={14} className="absolute right-2 text-ink3 pointer-events-none" />
       </label>
@@ -253,8 +255,10 @@ function Toasts() {
 function Notifications() {
   const { s, act } = useApp();
   if (!s.notifOpen) return null;
+  const escItems = s.escalations.filter(e => isMovate(s) ? e.status !== 'Answered' : true).map(e => ({ t: e.reply ? e.reply.t : e.ackT || e.t, icon: I.Megaphone, text: isMovate(s) ? `SRS escalation ${e.id} (${e.urgency}) from ${e.from.replace(/ \(.*/, '')}: ${e.about.label}` : `${e.id}: ${e.status === 'Answered' ? `Movate replied: ${e.reply.text}` : e.status === 'Acknowledged' ? `acknowledged by ${e.ackBy}, next update ${hhmm(e.next)} CT` : 'sent to Movate'}`, go: () => { act.set({ notifOpen: false }); const inc = e.about.kind === 'incident' ? e.about.id : e.about.inc; if (inc) act.openInc(inc); else if (e.about.kind === 'workorder') act.drill({ t: 'workpack', id: e.about.id }); else if (e.about.kind === 'branch') act.openBranch(e.about.id); } }));
   const items = [
-    ...s.approvals.filter(a => a.status === 'Pending').map(a => ({ t: a.created, icon: I.ShieldAlert, text: `Approval needed: ${a.title}`, go: () => act.set(st => ({ module: 'changes', tab: { ...st.tab, changes: 'approvals' }, notifOpen: false })) })),
+    ...escItems,
+    ...s.approvals.filter(a => a.status === 'Pending' && isMovate(s)).map(a => ({ t: a.created, icon: I.ShieldAlert, text: `Approval needed: ${a.title}`, go: () => act.set(st => ({ module: 'changes', tab: { ...st.tab, changes: 'approvals' }, notifOpen: false })) })),
     ...s.incidents.filter(i => i.state !== 'Resolved' && (i.pri === 'P1' || i.pri === 'P2')).map(i => ({ t: i.opened, icon: I.Siren, text: `${i.pri} ${i.id}: ${i.title}`, go: () => { act.openInc(i.id); act.set({ notifOpen: false }); } })),
   ].sort((a, b) => b.t - a.t);
   return (
@@ -334,15 +338,32 @@ export default function App() {
   const M = MODULES.find(m => m.id === s.module) || MODULES[0];
   return (
     <div className="min-h-screen bg-canvas text-ink">
+      <OpsCtx.Provider value={isMovate(s) ? null : SRS_LOCK}>
       <Header />
       <div className="flex">
         <Sidebar />
         <main className="flex-1 min-w-0">
-          <div className="sticky top-[60px] z-30"><FilterBar /></div>
+          <div className="sticky top-[60px] z-30"><FilterBar />{!isMovate(s) && <SrsStrip />}</div>
           <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
         </main>
       </div>
-      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill />
+      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog />
+      </OpsCtx.Provider>
+    </div>
+  );
+}
+
+// for SRS roles: a reminder of what the view allows, and the way to get Movate to act on what is on screen
+function SrsStrip() {
+  const { s } = useApp();
+  const r = roleOf(s);
+  const about = () => s.selInc ? aboutOf(s, { t: 'incident', id: s.selInc }) : s.module === 'b360' && s.b360 ? aboutOf(s, { t: 'branch', id: s.b360 }) : { kind: 'general', label: `${(MODULES.find(m => m.id === s.module) || {}).label || 'Console'}: general` };
+  const open = s.escalations.filter(e => e.from.indexOf(r.who) === 0 && e.status !== 'Answered').length;
+  return (
+    <div className="bg-[#1f2a44] text-white px-5 py-1.5 flex items-center gap-3 text-[12.5px]">
+      <I.Eye size={14} className="shrink-0" />
+      <span className="flex-1 min-w-0"><b>SRS view ({r.name}).</b> You see everything live; actions are carried out by Movate. To get something done, escalate it to Movate.{r.id === 'tech' ? ' As the field technician you also record your onsite work in the work pack.' : ''}{open ? ` ${open} escalation${open === 1 ? '' : 's'} open.` : ''}</span>
+      <EscalateButton about={about} size="sm" className="!bg-white !text-[#1f2a44] !border-white" />
     </div>
   );
 }

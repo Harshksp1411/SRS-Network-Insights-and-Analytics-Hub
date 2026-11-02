@@ -20,6 +20,7 @@ import { TakeAction } from './TakeAction.jsx';
 import { fixPlan } from './fix.js';
 import { MovaChip } from './Mova.jsx';
 import { WorkPackView } from './WorkPack.jsx';
+import { EscalateButton, aboutOf } from '../escalate.jsx';
 
 const DISPLAY = { fontFamily: '"Aptos Display", Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif' };
 const TX = { ok: 'text-ok', warn: 'text-warn', bad: 'text-bad', info: 'text-info', muted: 'text-ink3' };
@@ -931,6 +932,7 @@ export function DrillPanel({ stack, setStack, now, scope, snap, links, root = 'D
             <button onClick={() => setStack([])} className="text-ink3 hover:text-ink hover:underline">{root}</button>
             {stack.map((x, i) => <React.Fragment key={i}><I.ChevronRight size={12} className="text-ink3 shrink-0" />{i === stack.length - 1 ? <span className="font-bold text-ink">{labelOf(x)}</span> : <button onClick={() => setStack(stack.slice(0, i + 1))} className="text-ink2 hover:text-ink hover:underline">{labelOf(x)}</button>}</React.Fragment>)}
           </nav>
+          <EscalateButton about={() => aboutOf(app.s, n)} className="shrink-0" />
           <span className="text-[11px] text-ink3 hidden md:inline shrink-0">Level {stack.length}</span>
           <button onClick={() => setStack([])} aria-label="Close" className="h-8 w-8 rounded-md border border-line hover:bg-chip grid place-items-center text-ink shrink-0"><I.X size={15} /></button>
         </div>

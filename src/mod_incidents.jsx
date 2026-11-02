@@ -4,7 +4,8 @@ import * as D from './data.js';
 import { rootOf } from './dash/drilldata.js';
 import { fixPlan, ROUTES, STATE } from './dash/fix.js';
 import { MovaChip } from './dash/Mova.jsx';
-import { useApp, useNow, slaClock, gate, branchClock, circuitOf, inScope, healthOf, ROLES } from './store.jsx';
+import { EscalateButton, EscalationBanner, aboutOf } from './escalate.jsx';
+import { useApp, useNow, slaClock, gate, branchClock, circuitOf, inScope, healthOf, ROLES, isMovate } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Progress, Conf, GateBox, cx, Logo, SRC_LOGO, KV, SearchBox, Select, Empty, ExportBtn, Modal } from './ui.jsx';
 import { dur, ago, hhmmss, hhmm, dt, MIN, exportCSV } from './util.js';
 import { useLive } from './live.jsx';
@@ -76,7 +77,7 @@ function Queue() {
           { key: 'title', label: 'Short description', render: i => <div className="max-w-[420px]"><div className="font-semibold text-ink line-clamp-1">{i.major && <Badge tone="alert" className="mr-1">MAJOR</Badge>}{L.newIncs[i.id] && <Badge tone="blue" className="mr-1">NEW</Badge>}{i.title}</div><div className="text-[11.5px] text-ink3">{i.cat}, {i.corr} events{i.suppressed ? `, ${i.suppressed} suppressed` : ''}</div></div> },
           { key: 'branch', label: 'Branch', render: i => { const b = D.BR[i.branchId]; return <div><div className="text-ink font-semibold whitespace-nowrap">{b.name}</div><div className="text-[11.5px] text-ink3 truncate max-w-[200px]" title="">{b.brand}</div></div>; } },
           { key: 'state', label: 'State', render: i => <Badge tone={i.state === 'New' ? 'red' : i.state.startsWith('On Hold') ? 'amber' : i.state === 'Resolved' ? 'green' : 'blue'}>{i.state}</Badge> },
-          { key: 'assignee', label: 'Assigned to', render: i => i.assignee ? <span className="text-[12px]">{i.assignee}</span> : <Btn size="xs" kind="brand" onClick={e => { e.stopPropagation(); ack(i); }}>Acknowledge</Btn> },
+          { key: 'assignee', label: 'Assigned to', render: i => i.assignee ? <span className="text-[12px]">{i.assignee}</span> : <Btn op size="xs" kind="brand" onClick={e => { e.stopPropagation(); ack(i); }}>Acknowledge</Btn> },
           { key: 'resp', label: 'Response', render: i => <RespTimer inc={i} now={now} /> },
           { key: 'res', label: 'Resolution SLA', render: i => <SlaTimer inc={i} now={now} compact /> },
           { key: 'age', label: 'Opened', render: i => <span className="text-[12px] text-ink3 whitespace-nowrap">{ago(i.opened, now)}</span> },
@@ -157,16 +158,18 @@ function IncidentDetail({ id }) {
           </div>
         </div>
         <button onClick={() => act.drill({ t: 'rca', id: inc.id })} className="mt-3 w-full text-left rounded-md border border-bad/40 bg-bad/5 px-3 py-2 hover:bg-bad/10 flex items-start gap-2.5 group"><I.Crosshair size={16} className="text-bad mt-[2px] shrink-0" /><span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-bad"><MovaChip agent="diagnosis" h={8} className="normal-case tracking-normal" />Root cause · {rootOf(inc).top.layer} · {Math.round(rootOf(inc).top.conf * 100)}% confidence</span><span className="block text-[13.5px] font-semibold text-ink leading-snug">{rootOf(inc).top.text}</span></span><span className="text-[12px] font-semibold text-brand whitespace-nowrap self-center group-hover:underline">Where the fault is →</span></button>
+        <EscalationBanner id={inc.id} className="mt-3" />
         {!isRes && <div className="flex flex-wrap gap-2 mt-3">
-          {!inc.acked && <Btn kind="brand" icon={I.Hand} onClick={() => { upd({ acked: Date.now(), state: 'In Progress', assignee: ROLES.find(r => r.id === s.role).who }); act.audit(`Acknowledged ${inc.id}`, inc.id); }}>Acknowledge & take</Btn>}
-          <Select label="Priority" value={inc.pri} onChange={v => { upd({ pri: v, group: v === 'P1' ? 'Movate NOC – Major Incident' : inc.group }); act.audit(`Priority ${inc.pri} → ${v} on ${inc.id}`, inc.id); }} options={['P1', 'P2', 'P3', 'P4']} />
-          <Select label="State" value={inc.state} onChange={v => { upd({ state: v }); act.audit(`State → ${v} on ${inc.id}`, inc.id); }} options={['New', 'In Progress', 'On Hold – Carrier', 'On Hold – Branch', 'On Hold – Vendor']} />
-          <Select label="Assign" value={inc.assignee || ''} onChange={v => { const t = D.TEAMS.find(x => (x.people || []).includes(v)); upd({ assignee: v, ...(t ? { group: t.group } : {}) }); act.audit(`Assigned ${inc.id} to ${v}${t ? ` (${t.name})` : ''}`, inc.id); }} options={[{ value: '', label: '—' }, ...(inc.assignee && !D.TEAMS.some(t => (t.people || []).includes(inc.assignee)) ? [{ value: inc.assignee, label: inc.assignee }] : []), ...D.TEAMS.filter(t => t.people && ['l1', 'l2', 'mim', 'sme'].includes(t.id)).flatMap(t => t.people.map(p => ({ value: p, label: `${p} · ${t.name}` })))]} />
-          {!inc.major && <Btn icon={I.Megaphone} onClick={() => { upd({ major: true, pri: 'P1', group: 'Movate NOC – Major Incident' }); act.audit(`Declared major incident ${inc.id}`, inc.id); act.toast('Major incident declared – leadership updates every 60 min', 'warn'); }}>Declare major</Btn>}
-          {inc.cat === 'Carrier / LEC' && !inc.carrierCase && <Btn icon={I.RadioTower} onClick={raiseCase}>Raise carrier case</Btn>}
-          {!inc.workOrder && <Btn icon={I.Truck} onClick={makeWO}>Create work order</Btn>}
+          <EscalateButton about={() => aboutOf(s, { t: 'incident', id: inc.id })} size="md" />
+          {!inc.acked && <Btn op kind="brand" icon={I.Hand} onClick={() => { upd({ acked: Date.now(), state: 'In Progress', assignee: ROLES.find(r => r.id === s.role).who }); act.audit(`Acknowledged ${inc.id}`, inc.id); }}>Acknowledge & take</Btn>}
+          <Select op label="Priority" value={inc.pri} onChange={v => { upd({ pri: v, group: v === 'P1' ? 'Movate NOC – Major Incident' : inc.group }); act.audit(`Priority ${inc.pri} → ${v} on ${inc.id}`, inc.id); }} options={['P1', 'P2', 'P3', 'P4']} />
+          <Select op label="State" value={inc.state} onChange={v => { upd({ state: v }); act.audit(`State → ${v} on ${inc.id}`, inc.id); }} options={['New', 'In Progress', 'On Hold – Carrier', 'On Hold – Branch', 'On Hold – Vendor']} />
+          <Select op label="Assign" value={inc.assignee || ''} onChange={v => { const t = D.TEAMS.find(x => (x.people || []).includes(v)); upd({ assignee: v, ...(t ? { group: t.group } : {}) }); act.audit(`Assigned ${inc.id} to ${v}${t ? ` (${t.name})` : ''}`, inc.id); }} options={[{ value: '', label: '—' }, ...(inc.assignee && !D.TEAMS.some(t => (t.people || []).includes(inc.assignee)) ? [{ value: inc.assignee, label: inc.assignee }] : []), ...D.TEAMS.filter(t => t.people && ['l1', 'l2', 'mim', 'sme'].includes(t.id)).flatMap(t => t.people.map(p => ({ value: p, label: `${p} · ${t.name}` })))]} />
+          {!inc.major && <Btn op icon={I.Megaphone} onClick={() => { upd({ major: true, pri: 'P1', group: 'Movate NOC – Major Incident' }); act.audit(`Declared major incident ${inc.id}`, inc.id); act.toast('Major incident declared – leadership updates every 60 min', 'warn'); }}>Declare major</Btn>}
+          {inc.cat === 'Carrier / LEC' && !inc.carrierCase && <Btn op icon={I.RadioTower} onClick={raiseCase}>Raise carrier case</Btn>}
+          {!inc.workOrder && <Btn op icon={I.Truck} onClick={makeWO}>Create work order</Btn>}
           <div className="flex-1" />
-          <Btn kind="ok" icon={I.CheckCheck} onClick={() => setResolveOpen(true)}>Resolve</Btn>
+          <Btn op kind="ok" icon={I.CheckCheck} onClick={() => setResolveOpen(true)}>Resolve</Btn>
         </div>}
       </div>
 
@@ -212,21 +215,22 @@ function IncidentDetail({ id }) {
                 <GateBox g={g} />
                 <div className="text-[12px] text-ink2">Status: <b className="text-ink">{inc.rbState}</b></div>
                 {!isRes && <div className="flex flex-wrap gap-2">
-                  {inc.rbState !== 'done' && inc.rbState !== 'running' && (g.auto ? <Btn kind="ok" icon={I.Play} onClick={() => runRunbook(false)}>Run now</Btn> : <Btn kind="ok" icon={I.ShieldCheck} onClick={() => runRunbook(true)}>Approve & run</Btn>)}
-                  {inc.rbState !== 'done' && inc.rbState !== 'running' && !g.auto && <Btn icon={I.Send} onClick={toApproval}>Send to approvals queue</Btn>}
-                  {inc.rbState !== 'running' && <Btn icon={I.FlaskConical} onClick={() => { act.note(inc.id, `Dry run of ${rb.id}: all pre-checks pass; ${rb.steps.length} steps would execute; no changes made.`); act.toast('Dry run complete – see work notes', 'info'); }}>Dry run</Btn>}
-                  {inc.rbState === 'done' && rb.kind === 'change' && <Btn kind="danger" icon={I.Undo2} onClick={rollback}>Rollback</Btn>}
+                  {inc.rbState !== 'done' && inc.rbState !== 'running' && (g.auto ? <Btn op kind="ok" icon={I.Play} onClick={() => runRunbook(false)}>Run now</Btn> : <Btn op kind="ok" icon={I.ShieldCheck} onClick={() => runRunbook(true)}>Approve & run</Btn>)}
+                  {inc.rbState !== 'done' && inc.rbState !== 'running' && !g.auto && <Btn op icon={I.Send} onClick={toApproval}>Send to approvals queue</Btn>}
+                  {inc.rbState !== 'running' && <Btn op icon={I.FlaskConical} onClick={() => { act.note(inc.id, `Dry run of ${rb.id}: all pre-checks pass; ${rb.steps.length} steps would execute; no changes made.`); act.toast('Dry run complete – see work notes', 'info'); }}>Dry run</Btn>}
+                  {inc.rbState === 'done' && rb.kind === 'change' && <Btn op kind="danger" icon={I.Undo2} onClick={rollback}>Rollback</Btn>}
                 </div>}
               </div>
             </div>
           </Card> : <Card><Empty icon={I.Workflow} title="No runbook recommended yet" sub="The Runbook Agent proposes one once the root cause is above the evidence threshold." /></Card>)}
           {tab === 'verify' && <Card title="Verification" sub="Checks that must pass before the incident can be resolved">
             {inc.verify.length ? inc.verify.map((v, k) => <div key={k} className="flex items-center gap-2 py-2 border-b border-line/60 last:border-0 text-[13px]">{v.st === 'pass' ? <I.CheckCircle2 size={16} className="text-ok" /> : v.st === 'fail' ? <I.XCircle size={16} className="text-bad" /> : <I.Circle size={16} className="text-ink3" />}<span className="flex-1 text-ink">{v.v}</span><span className="text-ink3 text-[12px]">{v.val || 'pending'}</span></div>) : <Empty title="No checks yet" />}
-            {!isRes && <Btn className="mt-3" icon={I.RefreshCw} onClick={() => { upd(x => ({ verify: x.verify.map(v => ({ ...v, st: x.rbState === 'done' ? 'pass' : v.st, val: x.rbState === 'done' ? (v.val || 'OK') : v.val })) })); act.toast('Verification re-run', 'info'); }}>Re-run checks</Btn>}
+            {!isRes && <Btn op className="mt-3" icon={I.RefreshCw} onClick={() => { upd(x => ({ verify: x.verify.map(v => ({ ...v, st: x.rbState === 'done' ? 'pass' : v.st, val: x.rbState === 'done' ? (v.val || 'OK') : v.val })) })); act.toast('Verification re-run', 'info'); }}>Re-run checks</Btn>}
           </Card>}
           {tab === 'notes' && <Card title="Work notes">
             <div className="space-y-2 mb-3">{inc.notes.map((n, k) => <div key={k} className="border border-line rounded-md p-2.5"><div className="text-[11.5px] text-ink3"><b className="text-ink">{n.who}</b>, {dt(n.t)} CT</div><div className="text-[13px] text-ink mt-0.5">{n.text}</div></div>)}{!inc.notes.length && <div className="text-ink3 text-[13px]">No notes yet.</div>}</div>
-            <form onSubmit={e => { e.preventDefault(); if (!note.trim()) return; act.note(inc.id, note); setNote(''); }} className="flex gap-2"><input value={note} onChange={e => setNote(e.target.value)} placeholder="Add a work note…" className="flex-1 h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" /><Btn kind="brand" icon={I.Send} type="submit">Post</Btn></form>
+            {!isMovate(s) ? <div className="flex items-center gap-2 text-[12.5px] text-ink2"><span className="flex-1">Work notes are written by Movate. To add something, escalate it to Movate and it lands on this ticket.</span><EscalateButton about={() => aboutOf(s, { t: 'incident', id: inc.id })} /></div> :
+            <form onSubmit={e => { e.preventDefault(); if (!note.trim()) return; act.note(inc.id, note); setNote(''); }} className="flex gap-2"><input value={note} onChange={e => setNote(e.target.value)} placeholder="Add a work note…" className="flex-1 h-9 px-3 rounded-md border border-line bg-canvas text-ink text-[13px] outline-none" /><Btn kind="brand" icon={I.Send} type="submit">Post</Btn></form>}
           </Card>}
         </div>
         <div className="space-y-3">
@@ -253,7 +257,7 @@ function IncidentDetail({ id }) {
           </Card>
         </div>
       </div>
-      <Modal open={resolveOpen} onClose={() => setResolveOpen(false)} title={`Resolve ${inc.id}`} sub="Close code feeds the ticket-mix and NTF reporting" footer={<><Btn kind="ok" icon={I.CheckCheck} onClick={resolve}>Resolve incident</Btn><Btn onClick={() => setResolveOpen(false)}>Cancel</Btn></>}>
+      <Modal open={resolveOpen} onClose={() => setResolveOpen(false)} title={`Resolve ${inc.id}`} sub="Close code feeds the ticket-mix and NTF reporting" footer={<><Btn op kind="ok" icon={I.CheckCheck} onClick={resolve}>Resolve incident</Btn><Btn onClick={() => setResolveOpen(false)}>Cancel</Btn></>}>
         <Select label="Close code" value={code} onChange={setCode} options={['Carrier / LEC', 'No trouble found (NTF)', 'After-hours mended', 'Customer-caused', 'Reboot', 'Hardware replaced', 'Config change']} />
         <div className="mt-3 text-[12.5px] text-ink2">Verification: {inc.verify.filter(v => v.st === 'pass').length}/{inc.verify.length} passed. {inc.verify.some(v => v.st !== 'pass') && <span className="text-warn font-semibold">Some checks have not passed – resolving anyway will be noted.</span>}</div>
       </Modal>
@@ -273,7 +277,7 @@ function NextStep({ inc, now }) {
       <div className="text-[13.5px] font-bold text-ink leading-snug">{p.head}</div>
       <div className="text-[12px] text-ink2 mt-1">Can Mova iO fix it remotely? <b className={can[1]}>{can[0]}</b></div>
       <div className="mt-2 space-y-1">{p.routes.filter(x => ['rec', 'first', 'also', 'on', 'tried'].includes(x.st)).map(x => <div key={x.id} className="flex items-center gap-2 text-[12px]"><span className="text-ink flex-1 min-w-0 truncate">{x.label}</span><span className="text-[11px] text-ink3 truncate hidden 2xl:inline">{D.AGENTS[x.agent].name}</span><span className="text-[11px] font-semibold text-ink3">{STATE[x.st].label}</span></div>)}</div>
-      <Btn size="sm" kind="brand" className="mt-3 w-full" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id, focus: 'act' })}>Review what Mova iO has prepared</Btn>
+      <Btn size="sm" kind="brand" className="mt-3 w-full" icon={I.Crosshair} onClick={() => act.drill({ t: 'rca', id: inc.id, focus: 'act' })}>{isMovate(s) ? 'Review what Mova iO has prepared' : 'See what Mova iO has prepared'}</Btn>
     </Card>
   );
 }

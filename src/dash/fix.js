@@ -31,7 +31,8 @@ export const STATE = {
   no: { label: 'Not needed', tone: 'muted' },
 };
 // what each console role may do here (role-based access); dashboards are read-only
-export const CAN = { noc: ['hand', 'field', 'carrier', 'vendor', 'sec', 'run'], l3: ['hand', 'field', 'carrier', 'vendor', 'sec', 'run'], sec: ['sec'], tech: [], storeops: [], bm: [], mna: [] };
+// only Movate roles approve; SRS roles (and the SRS leaders on the dashboards) see the plan and escalate to Movate
+export const CAN = { noc: ['hand', 'field', 'carrier', 'vendor', 'sec', 'run'], l3: ['hand', 'field', 'carrier', 'vendor', 'sec', 'run'], sec: [], tech: [], storeops: [], bm: [], mna: [] };
 
 const pct = x => `${Math.round((x || 0) * 100)}%`;
 const list = a => a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;

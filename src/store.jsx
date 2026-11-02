@@ -2,15 +2,25 @@ import React, { createContext, useContext, useReducer, useEffect, useState, useM
 import * as D from './data.js';
 import { parts, pad, MIN, HR, uid, tzAbbr } from './util.js';
 
+// `org` decides who may act: Movate roles carry out actions; SRS roles see everything and escalate to Movate.
+// The SRS field technician also records the onsite work in the work pack Movate sends (steps, photos, readings).
 export const ROLES = [
-  { id: 'noc', name: 'NOC Engineer', home: 'incidents', who: 'Priya S.' },
-  { id: 'l3', name: 'Network Engineer L3', home: 'changes', who: 'Marcus L.' },
-  { id: 'storeops', name: 'StoreOps Lead', home: 'readiness', who: 'Jenna H.' },
-  { id: 'bm', name: 'Branch Manager', home: 'overview', who: 'Rick D.', branch: true },
-  { id: 'tech', name: 'Field Technician', home: 'dispatch', who: 'Carlos M.' },
-  { id: 'mna', name: 'M&A Integration Lead', home: 'biab', who: 'Alicia R.' },
-  { id: 'sec', name: 'Security Lead', home: 'changes', who: 'Omar N.', tab: 'firmware' },
+  { id: 'noc', name: 'NOC Engineer', org: 'Movate', home: 'incidents', who: 'Priya S.' },
+  { id: 'l3', name: 'Network Engineer L3', org: 'Movate', home: 'changes', who: 'Marcus L.' },
+  { id: 'storeops', name: 'StoreOps Lead', org: 'SRS', home: 'readiness', who: 'Jenna H.' },
+  { id: 'bm', name: 'Branch Manager', org: 'SRS', home: 'overview', who: 'Rick D.', branch: true },
+  { id: 'tech', name: 'Field Technician', org: 'SRS', home: 'dispatch', who: 'Carlos M.' },
+  { id: 'mna', name: 'M&A Integration Lead', org: 'SRS', home: 'biab', who: 'Alicia R.' },
+  { id: 'sec', name: 'Security Lead', org: 'SRS', home: 'changes', who: 'Omar N.', tab: 'firmware' },
 ];
+export const roleOf = s => ROLES.find(r => r.id === s.role) || ROLES[0];
+export const isMovate = s => roleOf(s).org === 'Movate';
+export const SRS_LOCK = 'SRS view: you can see this and escalate to Movate; Movate carries out the action';
+// escalations are kept in the browser so the role dashboards and the console share them
+const ESC_KEY = 'srs-hub-escalations';
+const loadEsc = () => { try { return JSON.parse(localStorage.getItem(ESC_KEY) || '[]'); } catch { return []; } };
+const saveEsc = list => { try { localStorage.setItem(ESC_KEY, JSON.stringify(list.slice(0, 60))); } catch { } };
+export const ESC_URGENCY = { Normal: { reply: 4 * 60, text: 'reply within 4 hours' }, High: { reply: 30, text: 'reply within 30 minutes' }, Critical: { reply: 15, text: 'reply within 15 minutes; the major incident manager joins' } };
 
 const clone = x => JSON.parse(JSON.stringify(x));
 function init() {
@@ -33,6 +43,7 @@ function init() {
       { t: Date.now() - 140 * MIN, who: 'Runbook Agent', what: 'RB-109 re-ran 6 failed config backups after TACACS+ timeout – all OK', ref: 'RB-109' },
       { t: Date.now() - 200 * MIN, who: 'Kevin T. (NOC Engineer)', what: `Approved RB-102 return to primary at ${(D.findBranch('Mobile') || D.BRANCHES[0]).name} (after 30 clean minutes)`, ref: '' },
     ],
+    escalations: loadEsc(), escalating: null, dashUser: null,
     drill: [], // the drill-down panel: a stack of levels, from a tile or chart down to one branch, line, device or incident
     toasts: [], selInc: null, selBranch: null, askOpen: false, askLog: [], scenario: null, scenarioLog: [], notif: 3, wizard: false, guide: false,
   };
@@ -73,6 +84,29 @@ export function AppProvider({ children }) {
       // open the drill-down at a level; the console's filters (region, city, brand, one branch) carry into it
       drill: node => d({ type: 'set', patch: st => ({ drill: node ? [withFilters(st, node)] : [] }) }),
       setDrill: f => d({ type: 'set', patch: st => ({ drill: typeof f === 'function' ? f(st.drill) : f }) }),
+      // escalate to Movate: what SRS people do instead of acting. Mova iO's Smart Triage Agent routes it to the
+      // ticket owner and the Movate engagement lead (and the major incident manager when critical); the owner
+      // acknowledges and sets the next update time.
+      escalateOpen: about => d({ type: 'set', patch: { escalating: about || { kind: 'general', label: 'General' } } }),
+      escalateClose: () => d({ type: 'set', patch: { escalating: null } }),
+      escalate: e => {
+        const st = sRef.current, now = Date.now();
+        const id = `ESC-${1001 + st.escalations.length}`;
+        const owner = e.owner || 'Priya S.', team = e.ownerTeam || 'NOC L2 Network';
+        const to = [`${owner} (${team})`, 'the Movate engagement lead', ...(e.urgency === 'Critical' ? ['Arjun M. (major incident manager)'] : [])];
+        const rec = { ...e, id, t: now, status: 'Sent', to, ackBy: e.urgency === 'Critical' ? 'Arjun M.' : owner };
+        const list = [rec, ...st.escalations]; saveEsc(list);
+        d({ type: 'set', patch: { escalations: list } });
+        d({ type: 'add', key: 'audit', item: { t: now, who: e.from, what: `Escalated to Movate (${e.urgency}): ${e.about.label}. ${e.reason}`, ref: e.about.id || id } });
+        A.toast(`${id} sent to Movate: ${to[0]}`, 'info');
+        setTimeout(() => {
+          const cur = sRef.current.escalations.map(x => x.id === id ? { ...x, status: 'Acknowledged', ackT: Date.now(), next: Date.now() + Math.min(ESC_URGENCY[e.urgency].reply, 60) * MIN } : x);
+          saveEsc(cur); d({ type: 'set', patch: { escalations: cur } });
+          A.toast(`Movate acknowledged ${id}: ${rec.ackBy} sends the next update by ${new Date(Date.now() + Math.min(ESC_URGENCY[e.urgency].reply, 60) * MIN).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Chicago' })} CT`);
+        }, 4500);
+        return id;
+      },
+      escalationReply: (id, text) => { const cur = sRef.current.escalations.map(x => x.id === id ? { ...x, status: 'Answered', reply: { t: Date.now(), who: A.me(), text } } : x); saveEsc(cur); d({ type: 'set', patch: { escalations: cur } }); A.audit(`Answered SRS escalation ${id}`, id); A.toast(`Reply sent to SRS on ${id}`); },
       openBranch: id => d({ type: 'set', patch: { module: 'b360', b360: id, selInc: null, selBranch: null } }),
       setTab: (mod, tab) => d({ type: 'set', patch: st => ({ tab: { ...st.tab, [mod]: tab } }) }),
       note: (incId, text, who) => d({ type: 'upd', key: 'incidents', id: incId, patch: x => ({ notes: [...x.notes, { t: Date.now(), who: who || A.me(), text }] }) }),
@@ -80,6 +114,8 @@ export function AppProvider({ children }) {
     return A;
   }, []);
   useEffect(() => { document.documentElement.classList.toggle('dark', s.theme === 'dark'); try { localStorage.setItem('srs-hub-theme', s.theme); } catch { } }, [s.theme]);
+  // an escalation sent from the role dashboards in another tab reaches the console, and the reverse
+  useEffect(() => { const f = e => { if (e.key === ESC_KEY) d({ type: 'set', patch: { escalations: loadEsc() } }); }; window.addEventListener('storage', f); return () => window.removeEventListener('storage', f); }, []);
   return <Ctx.Provider value={{ s, act }}>{children}</Ctx.Provider>;
 }
 export const useApp = () => useContext(Ctx);
