@@ -100,19 +100,21 @@ export function CreditHeadroomCard() {
 }
 
 // ── Mean time to restore and tickets per month ──────────────────────
-export function MTTRTrendCard() {
-  const series = [['P1', D.MTTR_MONTHS.P1, COL.red], ['P2', D.MTTR_MONTHS.P2, COL.amber], ['P3', D.MTTR_MONTHS.P3, COL.blue]];
+export function MTTRTrendCard({ P }) {
+  const src = P ? P.mttr : D.MTTR_MONTHS, labels = P ? P.months.map(m => m.m) : MONTHS6;
+  const series = [['P1', src.P1, COL.red], ['P2', src.P2, COL.amber], ['P3', src.P3, COL.blue]];
   return (
-    <Card title="Mean time to restore, hours" sub="Monthly average by priority; falling as automation and carrier evidence packs take hold" right={<Legend items={series.map(([n, , c]) => [n, c])} />}>
-      <LineChart labels={MONTHS6} series={series.map(([n, d, c]) => ({ name: n, data: d, color: c }))} h={170} yFmt={v => `${Math.round(v)}h`} yMin={0} />
+    <Card title="Mean time to restore, hours" sub={`Monthly average by priority${P ? `, last ${P.n} months` : ''}; falling as automation and carrier evidence packs take hold`} right={<Legend items={series.map(([n, , c]) => [n, c])} />}>
+      <LineChart labels={labels} series={series.map(([n, d, c]) => ({ name: n, data: d, color: c }))} h={170} yFmt={v => `${Math.round(v)}h`} yMin={0} />
     </Card>
   );
 }
-export function TicketsAutoCard() {
+export function TicketsAutoCard({ P }) {
   const auto = D.SLA.find(m => /Auto-resolution/.test(m.name)).trend;
-  const months = D.TICKET_MONTHS.slice(-6).map((t, i) => { const tot = t.afterHours + t.ntf + t.carrier + t.customer + t.reboot; const a = Math.round(tot * auto[i]); return { label: MONTHS6[i], 'Auto-resolved': a, 'Resolved by an engineer': tot - a }; });
+  const months = P ? P.byMonth.map(x => ({ label: x.label, 'Auto-resolved': x.auto, 'Resolved by an engineer': x.engineer }))
+    : D.TICKET_MONTHS.slice(-6).map((t, i) => { const tot = t.afterHours + t.ntf + t.carrier + t.customer + t.reboot; const a = Math.round(tot * auto[i]); return { label: MONTHS6[i], 'Auto-resolved': a, 'Resolved by an engineer': tot - a }; });
   return (
-    <Card title="Tickets per month and how they were closed" sub="Network tickets, split into zero-touch auto-resolution and engineer-resolved" right={<Legend items={[['Auto-resolved', COL.green], ['By an engineer', COL.blue]]} />}>
+    <Card title="Tickets per month and how they were closed" sub={`Network tickets${P ? `, last ${P.n} months` : ''}, split into zero-touch auto-resolution and engineer-resolved`} right={<Legend items={[['Auto-resolved', COL.green], ['By an engineer', COL.blue]]} />}>
       <Bars data={months} keys={['Auto-resolved', 'Resolved by an engineer']} colors={[COL.green, COL.blue]} h={170} />
     </Card>
   );

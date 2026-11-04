@@ -10,6 +10,8 @@ import { Spark, LineChart, Bars, Legend, C } from './charts.jsx';
 import { num, pct, dur, ago, dt, hhmm, dateShort, MIN, HR, DAY, exportCSV, downloadFile, rng, parts } from './util.js';
 import { KnowledgeUseCards, SLAScorecard, SLAStatusCard, SLAPriorityCard, SLAHeatCard, CreditHeadroomCard, MTTRTrendCard, TicketsAutoCard, RDonut, RBars, RHBars, RRow, RC } from './viz3.jsx';
 import { lineOf, onBackupOf } from './store.jsx';
+import * as HIST from './history.js';
+import { downloadSlaReport } from './slapdf.js';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -156,11 +158,61 @@ export function Automation() {
 }
 
 // ───────────────────────── SLA & KPI tracker ─────────────────────────
+const SL_TONE = { 'Meets ESL': 'green', 'Above MSL': 'amber', 'Below MSL': 'red', 'Below target': 'amber' };
+const slPct = (v, m) => v == null ? '—' : `${(v * 100).toFixed(m.fmt || (m.esl > 0.999 ? 3 : 1))}%`;
+
+// the AI and automation SLAs: Mova iO triage and routing, auto-remediation, AIOps and knowledge
+function AIAutomationCard({ P, onSel }) {
+  const rows = P.sla.filter(x => x.ai);
+  return (
+    <Card title="AI and automation SLAs" icon={I.Sparkles} sub={`Latest month against the expected level, and the last ${P.n} months. ${rows.filter(x => x.status === 'Meets ESL').length} of ${rows.length} meet ESL.`}>
+      <div className="divide-y divide-line">{rows.map(x => (
+        <button key={x.m.name} onClick={() => onSel(D.SLA.indexOf(x.m))} className="w-full grid grid-cols-[minmax(0,1fr)_70px_74px] gap-2 items-center py-1.5 text-left hover:bg-chip/60 rounded px-1">
+          <span className="min-w-0"><span className="block text-[12.5px] font-semibold text-ink truncate">{x.m.name}</span><span className="block text-[11px] text-ink3">{x.m.line.replace('Network ', '')} · ESL {x.m.lower ? '≤ ' : ''}{slPct(x.m.esl, x.m)} · {x.met} of {P.n} months</span></span>
+          <Spark data={x.series} w={70} h={22} color={x.status === 'Meets ESL' ? C.ok : C.warn} fill={false} />
+          <span className="text-right"><b className={cx('text-[14px] tabular-nums', x.status === 'Meets ESL' ? 'text-ok' : 'text-warn')}>{slPct(x.latest, x.m)}</b><span className="block"><Badge tone={SL_TONE[x.status]}>{x.status}</Badge></span></span>
+        </button>))}</div>
+    </Card>
+  );
+}
+
+// what the tickets were about, and how many came in as store calls
+function CallDriversCard({ P }) {
+  const mx = Math.max(...P.drivers.map(d => d.tickets));
+  return (
+    <Card title="Top call drivers" icon={I.PhoneCall} sub={`${num(P.tickets)} network tickets, ${P.from} to ${P.to}. Bars are tickets; the darker part came in as store calls.`}>
+      <div className="space-y-2">{P.drivers.map((d, i) => (
+        <div key={d.k} className="text-[12px]">
+          <div className="flex items-baseline gap-2"><span className="text-ink3 w-4 text-right tabular-nums">{i + 1}</span><span className="flex-1 min-w-0 truncate font-semibold text-ink">{d.label}</span><b className="tabular-nums text-ink">{num(d.tickets)}</b><span className="text-ink3 w-11 text-right tabular-nums">{(d.share * 100).toFixed(0)}%</span></div>
+          <div className="ml-6 h-2 rounded bg-chip overflow-hidden relative"><div className="absolute inset-y-0 left-0 bg-info/45" style={{ width: `${d.tickets / mx * 100}%` }} /><div className="absolute inset-y-0 left-0 bg-info" style={{ width: `${d.storeCalls / mx * 100}%` }} /></div>
+          <div className="ml-6 text-[11px] text-ink3">{num(d.storeCalls)} store calls · {d.auto ? `${num(d.autoFixed)} auto-resolved` : 'needs an engineer or carrier'}</div>
+        </div>))}</div>
+    </Card>
+  );
+}
+
+// the branches with the most network tickets in the period
+function ProblemBranchesCard({ P }) {
+  const { s, act } = useApp();
+  return (
+    <Card title="Branches with the most problems" icon={I.Store} sub={`Network tickets in the last ${P.n} months. Click a branch to open Branch 360.`} pad={false}>
+      <div className="p-2"><Table dense sortable={false} rows={P.branches.slice(0, 12).map((x, i) => ({ ...x, id: x.b.id, rank: i + 1 }))} onRow={x => act.openBranch(x.b.id)} cols={[
+        { key: 'rank', label: '#', render: x => <span className="text-ink3">{x.rank}</span> },
+        { key: 'b', label: 'Branch', render: x => <div><div className="font-semibold">{x.b.name}</div><div className="text-[11px] text-ink3">{x.b.brand} · {x.b.region}</div></div> },
+        { key: 'driver', label: 'Main cause', render: x => <div><div className="text-[12px]">{x.driver}</div>{x.repeat && <Badge tone="amber">Repeat-offender line</Badge>}</div> },
+        { key: 'tickets', label: 'Tickets', right: true, render: x => <b>{x.tickets}</b> },
+        { key: 'h', label: 'Now', render: x => { const h = healthOf(s, x.b); return <Badge tone={h === 'up' ? 'green' : h === 'down' ? 'red' : 'amber'}>{h === 'up' ? 'Healthy' : h === 'down' ? 'Down' : 'Degraded'}</Badge>; } },
+      ]} /></div>
+    </Card>
+  );
+}
+
 export function SLATracker() {
   const { s, act } = useApp();
   const now = useNow();
   const [sel, setSel] = useState(0);
-  const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+  const [per, setPer] = useState(6);
+  const P = useMemo(() => HIST.period(per), [per]);
   const status = m => { if (m.lower) return m.act <= m.esl ? 'Meets ESL' : 'Below target'; if (m.act >= m.esl) return 'Meets ESL'; if (m.msl != null && m.act >= m.msl) return 'Above MSL'; return m.msl == null ? 'Below target' : 'Below MSL'; };
   const tone = st => ({ 'Meets ESL': 'green', 'Above MSL': 'amber', 'Below MSL': 'red', 'Below target': 'amber' }[st]);
   const f = (v, m) => v == null ? '—' : `${(v * 100).toFixed(m.fmt || 1)}%`;
@@ -170,7 +222,7 @@ export function SLATracker() {
   const lines = [...new Set(D.SLA.map(x => x.line))];
   return (
     <div>
-      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels and KPIs: minimum (MSL), expected (ESL) and actual for the current month, six-month trend, and breach risk by queue." right={<ExportBtn onClick={() => exportCSV('srs-annexure-b-sla.csv', D.SLA, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: 'Actual', key: 'act' }, { label: 'Class', key: 'cls' }, { label: 'Status', get: status }])} />} />
+      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels, the AI and automation SLAs and KPIs: minimum (MSL), expected (ESL) and actual for the current month, the trend over the period you pick, the top call drivers and the branches with the most problems, and breach risk by queue." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV('srs-annexure-b-sla.csv', D.SLA, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: 'Actual', key: 'act' }, { label: 'Class', key: 'cls' }, { label: 'Status', get: status }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label="Metrics meeting ESL" icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla' })} value={`${D.SLA.filter(x => status(x) === 'Meets ESL').length}/${D.SLA.length}`} tone="green" />
         <Stat label="Below MSL" icon={I.XCircle} onClick={() => act.drill({ t: 'sla' })} value={D.SLA.filter(x => status(x) === 'Below MSL').length} tone={D.SLA.some(x => status(x) === 'Below MSL') ? 'red' : 'green'} />
@@ -179,9 +231,10 @@ export function SLATracker() {
       </div>
       <LivePanel kind="sla" className="mb-3 mt-3" />
       <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AIAutomationCard P={P} onSel={setSel} /><CallDriversCard P={P} /><ProblemBranchesCard P={P} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><SLAStatusCard /><SLAPriorityCard /><CreditHeadroomCard /></div>
       <div className="mb-3"><ErrorBudgets /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard /><TicketsAutoCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><SLAHeatCard onSel={setSel} /><CalendarHeat /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
@@ -198,7 +251,7 @@ export function SLATracker() {
             { key: 'name', label: 'Metric', render: x => <div><div className="font-semibold">{x.name}</div><div className="text-[11px] text-ink3">{x.def}</div></div> },
             { key: 'msl', label: 'MSL', right: true, render: x => f(x.msl, x) }, { key: 'esl', label: 'ESL', right: true, render: x => x.lower ? `≤ ${f(x.esl, x)}` : f(x.esl, x) },
             { key: 'act', label: 'Actual', right: true, render: x => <b>{f(x.act, x)}</b> },
-            { key: 'trend', label: '6 mo', render: x => <Spark data={x.trend} w={70} h={20} color={tone(status(x)) === 'green' ? C.ok : C.warn} fill={false} /> },
+            { key: 'trend', label: `${per} mo`, render: x => <Spark data={HIST.SLA12[x.id].series.slice(-per)} w={70} h={20} color={tone(status(x)) === 'green' ? C.ok : C.warn} fill={false} /> },
             { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
           ]} /></div>)}</div></Card>

@@ -9,6 +9,7 @@ import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, cx, Logo } from './ui.jsx';
 import { C, Legend, useWidth } from './charts.jsx';
 import { rng, parts, tzAbbr, hhmm, hhmmss, num, MIN } from './util.js';
+import { NextActionCell } from './nba.jsx';
 
 export const COLS = [
   { id: 'wan1', label: 'Primary', logo: 'aruba', tip: 'Primary internet line up and clean (Orchestrator)' },
@@ -163,7 +164,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
         <thead><tr className="text-ink3 border-b border-line">
           <th className="text-left font-semibold px-2 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>
           {COLS.map(c => <th key={c.id} title={c.tip} className="font-semibold px-0.5 py-2 text-center text-[11px] leading-tight">{c.label === 'EdgeConnect' ? <>Edge<br />Connect</> : c.label === 'Payment path' ? <>Payment<br />path</> : c.label === 'ERP path' ? <>ERP<br />path</> : c.label}</th>)}
-          <th className="font-semibold px-1 text-center text-[11px]">Incident</th><th className="text-left font-semibold px-2 text-[11px] leading-tight">Act before<br />opening</th>
+          <th className="font-semibold px-1 text-center text-[11px]">Incident</th><th className="text-left font-semibold px-2 text-[11px] leading-tight">Next best action<br />before opening</th>
         </tr></thead>
         <tbody>{shown.slice(0, n).map(r => (
           <tr key={r.id} className="border-b border-line/70 hover:bg-chip/40">
@@ -172,7 +173,7 @@ export function ReadinessTable({ rows, onRerun, onRaise, running }) {
             <td className="px-2"><Badge tone={RES_TONE[r.result]}>{r.result}</Badge></td>
             {COLS.map(c => <td key={c.id} className="text-center px-0.5"><Cell x={r.c[c.id]} /></td>)}
             <td className="text-center px-2">{r.incs.length ? <button onClick={() => act.openInc(r.incs[0].id)} title={r.incs[0].title}><I.AlertTriangle size={14} className="text-warn inline" /></button> : <I.Check size={15} className="text-ok inline" />}</td>
-            <td className="px-2 whitespace-nowrap">{r.result === 'Ready' || r.result === 'Fixed overnight' ? <span className="text-[12px] text-ink3">No action</span> : <span className="inline-flex items-center gap-1">{r.incs[0] && <button onClick={() => act.openInc(r.incs[0].id)} className="text-[11.5px] text-info hover:underline mr-1">{r.incs[0].id.slice(-4)}</button>}<Btn op size="xs" icon={I.RefreshCw} title="Re-run checks" disabled={running[r.b.id]} onClick={() => onRerun(r.b)} /><Btn op size="xs" icon={I.TicketPlus} title="Raise ticket" onClick={() => onRaise(r.b)} /><Btn op size="xs" icon={I.Send} title="Message branch manager" onClick={() => act.toast(`Message sent to the ${r.b.name} branch manager`, 'info')} /></span>}</td>
+            <td className="px-2 py-1">{r.result === 'Ready' || r.result === 'Fixed overnight' ? <span className="text-[12px] text-ink3">No action</span> : <span className="inline-flex items-center gap-1"><NextActionCell b={r.b} /><Btn op size="xs" icon={I.RefreshCw} title="Re-run checks" disabled={running[r.b.id]} onClick={() => onRerun(r.b)} /></span>}</td>
           </tr>))}</tbody>
       </table></div>
       <div className="flex items-center gap-3 px-3 py-2 text-[11.5px] text-ink3 border-t border-line">

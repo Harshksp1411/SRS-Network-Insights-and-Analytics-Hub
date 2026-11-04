@@ -8,6 +8,8 @@ import { Card, Badge, Btn, Table, Dot, Pri, KV, Progress, Logo, Modal, Tabs, cx,
 import { Spark, LineChart, Bars, Legend, Ring, C, useWidth, useTween } from './charts.jsx';
 import { num, pct, dur, ago, hhmm, hhmmss, dt, dateShort, rng, MIN, HR, DAY, T0, exportCSV } from './util.js';
 import { baseReadiness } from './mod_ops.jsx';
+import { NextBestActions } from './nba.jsx';
+
 
 // ───────── gauge with normal / warning / critical outer bands ─────────
 function Gauge({ value: v0, min = 0, max, warn, crit, label, sub, unit, fmt = v => v, invert }) {
@@ -214,7 +216,9 @@ export function Branch360() {
         <Btn op size="sm" icon={I.MessageSquare} onClick={() => setMsgOpen(true)}>Message branch manager</Btn>
       </div>
 
-      <Card title="Branch metrics" sub="Live from Orchestrator, synthetic probes and Aruba Central. Outer bands show normal, warning and critical." right={<span className="text-[12px] text-ok font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-ok animate-pulse" />Live</span>}>
+      <NextBestActions b={b} />
+
+      <Card className="mt-3" title="Branch metrics" sub="Live from Orchestrator, synthetic probes and Aruba Central. Outer bands show normal, warning and critical." right={<span className="text-[12px] text-ok font-bold flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-ok animate-pulse" />Live</span>}>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <Gauge value={x.cur.lat} max={200} warn={x.path.lat + 25} crit={x.path.lat + 60} unit="ms" fmt={v => Math.round(v)} label="Latency to data centre" sub={`${x.path.carrier} ${x.path.type}, line in use (normal ${x.path.lat} ms)`} />
           <Gauge value={x.cur.loss} max={5} warn={1} crit={2} unit="%" fmt={v => v >= 10 ? '100' : v.toFixed(2)} label="Packet loss" sub="line in use, Orchestrator" />
