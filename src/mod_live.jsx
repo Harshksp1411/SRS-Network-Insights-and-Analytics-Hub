@@ -10,6 +10,7 @@ import { LiveBadge, LiveFeed, AlertsPerMinCard, EventFlowCard } from './liveui.j
 import { todayCounts, LiveKpis, AreaTimeline, HeartbeatGrid, AreaHourHeat, ScoreHistogram, CorrelationEngine, AlertFunnel, AlertSankey, GroupingSwimlane, CorrMatrix, AgentActivity, AgentCards, AgentStream, ToolsStrip, TopBranches } from './viz2.jsx';
 import { AGENT_DEF } from './liveext.js';
 import { AgentMixCards } from './viz3.jsx';
+import { AlertStormReplay, SuppressionRulesCard, ServiceNowSyncCard } from './stormui.jsx';
 import { num, hhmmss } from './util.js';
 
 export function LiveOps() {
@@ -52,7 +53,7 @@ export function Correlation() {
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div>
-      <PageHead icon={I.GitMerge} title="Correlation" sub="Alerts normalised, de-duplicated and correlated into one incident per branch per event. Orchestrator, Aruba Central, OpsRamp and New Relic in; ServiceNow out." right={<LiveBadge />} />
+      <PageHead icon={I.GitMerge} title="Correlation" sub="Alerts deduplicated, suppressed and correlated into one incident per branch per event, then ticketed in ServiceNow automatically. Orchestrator, Aruba Central, OpsRamp, New Relic and Simplify in; ServiceNow out." right={<LiveBadge />} />
       <LiveKpis cols={5} items={[
         { label: 'Events in today', value: num(tc.events), sub: 'traps, syslog and threshold crossings from every tool', series: S.raw, color: C.s2, icon: I.Bell },
         { label: 'Noise removed', value: `${Math.round(tc.noise * 100)}%`, sub: `${num(tc.suppressed)} duplicates, flaps and info events (KPI 50%)`, series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
@@ -60,6 +61,8 @@ export function Correlation() {
         { label: 'Incidents today', value: tc.inc, sub: `${Math.round(tc.corr / Math.max(1, tc.inc))} correlated alerts per incident on average`, series: S.corr.map(v => v / 3), color: C.s1, icon: I.Ticket, go: { t: 'incidents', k: 'today' } },
         { label: 'Open correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers, go: { t: 'incidents', k: 'open' } },
       ]} />
+      <div className="mt-3"><AlertStormReplay /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-3 mt-3 items-start"><SuppressionRulesCard /><ServiceNowSyncCard /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
       <div className="mt-3"><GroupingSwimlane /></div>
       <div className="mt-3"><AlertFunnel /></div>
