@@ -12,6 +12,8 @@ import { KnowledgeUseCards, SLAScorecard, SLAStatusCard, SLAPriorityCard, SLAHea
 import { lineOf, onBackupOf } from './store.jsx';
 import * as HIST from './history.js';
 import { downloadSlaReport } from './slapdf.js';
+import { basisLine } from './predictbasis.js';
+import { PredictionPipelineCard, DataCollectedCard, PredictionBasisModal } from './predictui.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -23,11 +25,13 @@ export function Predictive() {
   const watch = p => { act.upd('predictions', p.id, { status: 'Watching' }); act.add('watches', { id: `W-${p.id}`, what: `${p.kind}: ${p.target}`, branchId: p.branchId, created: Date.now(), by: act.me() }); act.audit(`Watch created for ${p.id}`, p.id); act.toast('Watch created – alert if the trend crosses threshold'); };
   const approval = p => { const id = `APR-${2400 + Math.floor(Math.random() * 500)}`; act.add('approvals', { id, type: 'Prediction', title: `${p.suggest.replace(' (approval)', '')} – ${p.target}`, branchId: p.branchId, agent: 'prediction', conf: p.conf, risk: 'Low', created: Date.now(), status: 'Pending', why: ['Predictions never change anything directly – a human approves the action'], evidence: [p.signal], rollback: 'Cancel the request', verify: ['Trend returns to baseline'] }); act.upd('predictions', p.id, { status: 'Approval requested' }); act.audit(`Approval ${id} requested from ${p.id}`, p.id); act.toast(`${id} sent to Approvals`, 'info'); };
   const dismiss = p => { act.upd('predictions', p.id, { status: 'Dismissed (false positive)' }); act.audit(`${p.id} marked false positive – fed back to model`, p.id); };
+  const [why, setWhy] = useState(null);
+  const prevent = (p, x) => { const id = `APR-${2400 + Math.floor(Math.random() * 500)}`; act.add('approvals', { id, type: 'Prevention plan', title: `Prevent: ${p.kind.toLowerCase()} – ${p.target}`, branchId: p.branchId, agent: 'prediction', conf: p.conf, risk: 'Low', created: Date.now(), status: 'Pending', why: [x.why, `If nothing is done: ${x.ifNothing}`], evidence: [p.signal, ...x.sources.map(s => `${s.tool}: ${s.what} (${s.window})`)], steps: x.prevent.map(st => `${st.step} (${st.owner}, ${st.when.toLowerCase()})`), rollback: 'Cancel the plan; nothing has changed on the network yet', verify: [x.prevent[x.prevent.length - 1].step] }); act.upd('predictions', p.id, { status: 'Prevention started' }); if (!s.watches.some(w => w.id === `W-${p.id}`)) act.add('watches', { id: `W-${p.id}`, what: `${p.kind}: ${p.target}`, branchId: p.branchId, created: Date.now(), by: act.me() }); act.audit(`Prevention plan ${id} started from ${p.id}`, p.id); act.toast(`${id}: prevention plan sent to Approvals, watch kept on the trend`); setWhy(null); };
   const dal = s.predictions.find(p => p.id === 'PRD-505');
   const fc = [...dal.series, ...Array.from({ length: 4 }, (_, k) => +(dal.series[9] + (k + 1) * 3).toFixed(0))];
   return (
     <div>
-      <PageHead icon={I.TrendingUp} title="Predictive Watchlist" sub="Degrading circuits, AP and switch failure risk, capacity forecasts. Every prediction creates a watch or an approval – never a direct change." />
+      <PageHead icon={I.TrendingUp} title="Predictive Watchlist" sub="Degrading circuits, AP and switch failure risk, capacity forecasts. Each one shows the data it is based on and a plan to prevent it. Every prediction creates a watch or an approval, never a direct change." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label="Open predictions" icon={I.Telescope} onClick={() => act.drill({ t: 'predictions' })} value={s.predictions.filter(p => ['New', 'Watching'].includes(p.status)).length} />
         <Stat label="Predictive accuracy (KPI 38)" icon={I.Target} value="78%" sub="true positives, target 75%" tone="green" />
@@ -36,6 +40,8 @@ export function Predictive() {
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
+      <div className="mb-3"><PredictionPipelineCard /></div>
+      <div className="mb-3"><DataCollectedCard /></div>
       <div className="mb-3"><PreventiveCalendarCard /></div>
       <div className="flex items-center gap-2 mb-3"><Tabs size="sm" value={kind} onChange={setKind} tabs={['All', ...new Set(s.predictions.map(p => p.kind))].map(k => ({ id: k, label: k, count: k === 'All' ? s.predictions.length : s.predictions.filter(p => p.kind === k).length }))} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -46,9 +52,11 @@ export function Predictive() {
             {b && <button onClick={() => act.openBranch(b.id)} className="text-[12px] text-info hover:underline">{b.name}, {b.brand}</button>}
             <div className="text-[12.5px] text-ink2 mt-1">{p.signal}</div><div className="mt-1"><ForecastMini p={p} /></div>
             <div className="flex items-center gap-3 mt-2 flex-wrap"><Conf value={p.conf} /><span className="text-[12px] text-ink2">Suggests: <b className="text-ink">{p.suggest}</b></span></div>
-            {!done && <div className="flex gap-2 mt-3"><Btn op size="sm" icon={I.Eye} onClick={() => watch(p)} disabled={p.status === 'Watching'}>Create watch</Btn><Btn op size="sm" kind="brand" icon={I.Send} onClick={() => approval(p)}>Request approval</Btn><Btn op size="sm" kind="ghost" icon={I.ThumbsDown} onClick={() => dismiss(p)}>False positive</Btn></div>}
+            <div className="mt-2 text-[11.5px] text-ink3 flex items-start gap-1.5"><I.Database size={12} className="mt-[2px] shrink-0" /><span>Based on {basisLine(p)}</span></div>
+            <div className="flex gap-2 mt-3 flex-wrap"><Btn size="sm" kind="brand" icon={I.ShieldCheck} onClick={() => setWhy(p.id)}>Why, and how to prevent it</Btn>{!done && <><Btn op size="sm" icon={I.Eye} onClick={() => watch(p)} disabled={p.status === 'Watching'}>Create watch</Btn><Btn op size="sm" icon={I.Send} onClick={() => approval(p)}>Request approval</Btn><Btn op size="sm" kind="ghost" icon={I.ThumbsDown} onClick={() => dismiss(p)}>False positive</Btn></>}</div>
           </div></Card>); })}
       </div>
+      <PredictionBasisModal p={why && s.predictions.find(p => p.id === why)} onClose={() => setWhy(null)} onPrevent={prevent} onWatch={p => { watch(p); setWhy(null); }} onDismiss={p => { dismiss(p); setWhy(null); }} />
       <Card title={`Capacity forecast – ${D.BR[dal.branchId].name} (${D.BR[dal.branchId].brand}) primary WAN`} sub="p95 utilisation, 10 weeks actual + 4 weeks forecast. Hail season drives roofing demand and traffic." icon={I.LineChart} className="mt-3">
         <LineChart series={[{ name: 'p95 utilisation %', data: fc, color: C.info }]} labels={fc.map((_, k) => k < 10 ? `W-${10 - k}` : `+${k - 9}w`)} h={200} refLines={[{ v: 90, label: '90% upgrade threshold', color: C.bad }]} yFmt={v => `${Math.round(v)}%`} yMin={50} yMax={100} forecastFrom={9} />
       </Card>
