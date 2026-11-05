@@ -174,8 +174,8 @@ function AIAutomationCard({ P, onSel }) {
   const rows = P.sla.filter(x => x.ai);
   return (
     <Card title="AI and automation SLAs" icon={I.Sparkles} sub={`The ${P.n}-month average against the expected level, month by month. ${rows.filter(x => x.status === 'Meets ESL').length} of ${rows.length} meet ESL.`}>
-      <div className="divide-y divide-line">{rows.map(x => (
-        <button key={x.m.name} onClick={() => onSel(D.SLA.indexOf(x.m))} className="w-full grid grid-cols-[minmax(0,1fr)_70px_74px] gap-2 items-center py-1.5 text-left hover:bg-chip/60 rounded px-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6">{rows.map(x => (
+        <button key={x.m.name} onClick={() => onSel(D.SLA.indexOf(x.m))} className="w-full grid grid-cols-[minmax(0,1fr)_70px_96px] gap-2 items-center py-2 text-left hover:bg-chip/60 rounded px-1 border-b border-line">
           <span className="min-w-0"><span className="block text-[12.5px] font-semibold text-ink truncate">{x.m.name}</span><span className="block text-[11px] text-ink3">{x.m.line.replace('Network ', '')} · ESL {x.m.lower ? '≤ ' : ''}{slPct(x.m.esl, x.m)} · {x.met} of {P.n} months · this month {slPct(x.latest, x.m)}</span></span>
           <Spark data={x.series} w={70} h={22} color={x.status === 'Meets ESL' ? C.ok : C.warn} fill={false} />
           <span className="text-right"><b className={cx('text-[14px] tabular-nums', x.status === 'Meets ESL' ? 'text-ok' : 'text-warn')}>{slPct(x.avg, x.m)}</b><span className="block"><Badge tone={SL_TONE[x.status]}>{x.status}</Badge></span></span>
@@ -274,7 +274,7 @@ export function SLATracker() {
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{head}</div>
       <div className="mb-3"><SLAScorecard sel={LV.findIndex(x => x._i === selV)} onSel={onSelV} list={LV} when={when} /></div>
       {view === 'service' && <>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
@@ -288,12 +288,13 @@ export function SLATracker() {
       </>}
       {view === 'network' && <>
                 <div className="mb-3"><ErrorBudgets /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><CalendarHeat P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><CallDriversCard P={P} /></div>
       </>}
       {view === 'ai' && <>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><AIAutomationCard P={P} onSel={setSel} /><TicketsAutoCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch"><TicketsAutoCard P={P} /><MTTRTrendCard P={P} /></div>
       </>}
-      <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
+      {view === 'network' ? <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mb-3 items-stretch [&>*]:h-full"><CalendarHeat P={P} /><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
+        : <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
         <Card pad={false}><div className="p-3">{lines.filter(l => VIEW[view].lines(l)).map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
