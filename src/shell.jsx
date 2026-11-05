@@ -12,6 +12,7 @@ import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
 import { Catalogue, CatalogueTab } from './catalogue.jsx';
+import { Policies } from './mod_policies.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -37,6 +38,7 @@ export const MODULES = [
   { id: 'carriers', label: 'Carrier Management', icon: I.RadioTower, group: 'Manage', C: Carriers, badge: s => s.cases.filter(c => !c.closed).length },
   { id: 'dispatch', label: 'Field Dispatch', icon: I.Truck, group: 'Manage', C: Dispatch, badge: s => s.workOrders.filter(w => !w.tech).length, alertBadge: true },
   { id: 'changes', label: 'Approvals & Changes', icon: I.GitPullRequest, group: 'Manage', C: Changes, badge: s => s.approvals.filter(a => a.status === 'Pending').length, alertBadge: true },
+  { id: 'policies', label: 'Policies & Templates', icon: I.FileCog, group: 'Manage', C: Policies },
   { id: 'biab', label: 'Branch-in-a-Box', icon: I.PackageCheck, group: 'Grow', C: BiaB },
   { id: 'predict', label: 'Predictive Watchlist', icon: I.TrendingUp, group: 'Improve', C: Predictive },
   { id: 'knowledge', label: 'Knowledge', icon: I.BookOpen, group: 'Improve', C: Knowledge },
