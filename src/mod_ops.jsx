@@ -209,11 +209,8 @@ export function Readiness() {
       <div className="mt-3"><ReadinessSummary rows={R} active={rtab} onPick={t => { setRtab(t); setTimeout(() => document.getElementById('readiness-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
       <div className="mt-3 scroll-mt-36" id="readiness-table"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} tab={rtab} setTab={setRtab} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3 items-start">
-        <ReadinessTrendCard />
-        <OpeningRiskCard />
-      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-stretch [&>*]:h-full"><FixedOvernight rows={R} /><OpeningRiskCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-stretch [&>*]:h-full"><PreopenStream /><ReadinessTrendCard /></div>
       <Card title="Pass rate by region and check" sub="Click a cell to filter the console to that region" icon={I.Grid3x3} className="mt-3">
         <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="text-ink3 text-left"><th className="py-1.5 pr-2">Region</th>{COLS.map(c => <th key={c.id} className="px-1 py-1.5 font-semibold text-center">{c.label}</th>)}</tr></thead>
           <tbody>{D.REGIONS.map(rg => { const rs = R.filter(r => r.b.region === rg); if (!rs.length) return null; return <tr key={rg} className="border-t border-line/60"><td className="py-1.5 pr-2 font-semibold text-ink whitespace-nowrap">{rg} <span className="text-ink3 font-normal">({rs.length})</span></td>{COLS.map(c => { const v = rs.filter(r => r.c[c.id].st === 'pass').length / rs.length; return <td key={c.id} className="px-0.5 py-1"><button onClick={() => act.set(st => ({ filters: { ...st.filters, region: rg, city: 'All', branchId: null } }))} title={`${rg}, ${c.label}: ${(v * 100).toFixed(1)}% pass`} className={cx('w-full rounded px-1 py-1 font-bold text-center text-[11.5px]', v === 1 ? 'bg-ok/10 text-ok' : v >= 0.97 ? 'bg-warn/10 text-warn' : 'bg-bad/10 text-bad')}>{v === 1 ? '100' : (v * 100).toFixed(1)}</button></td>; })}</tr>; })}</tbody></table></div>

@@ -14,6 +14,7 @@ import * as HIST from './history.js';
 import { downloadSlaReport } from './slapdf.js';
 import { basisLine } from './predictbasis.js';
 import { PredictionPipelineCard, DataCollectedCard, PredictionBasisModal } from './predictui.jsx';
+import { AnomaliesCard } from './patterns.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -40,6 +41,7 @@ export function Predictive() {
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
+      <div className="mb-3"><AnomaliesCard /></div>
       <div className="mb-3"><PredictionPipelineCard /></div>
       <div className="mb-3"><DataCollectedCard /></div>
       <div className="mb-3"><PreventiveCalendarCard /></div>
@@ -295,7 +297,17 @@ export function SLATracker() {
       </>}
       {view === 'network' ? <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mb-3 items-stretch [&>*]:h-full"><CalendarHeat P={P} /><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
         : <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full">
+        <SLAProjectionCard m={mv} series={P.sla[selV].series} labels={P.months.map(x => x.m)} />
+        {(() => { const x = L.find(y => y.n === mv.n && y.name === mv.name), st = status(x), met = P.sla[selV].series.filter(v => HIST.slaStatusAt(mv, v) === 'Meets ESL').length; return (
+          <Card title={`#${mv.n} ${mv.name}`} sub={mv.line.replace('Network ', '')} right={<Badge tone={tone(st)}>{st}</Badge>}>
+            <div className="text-[12.5px] text-ink2 mb-3">{mv.def}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{[['Minimum (MSL)', mv.msl == null ? 'None (KPI)' : f(mv.msl, mv)], ['Expected (ESL)', `${mv.lower ? '≤ ' : ''}${f(mv.esl, mv)}`], [`Average, ${per} months`, f(x.act, mv)], ['This month', f(mv.act, mv)]].map(([k, v]) => <div key={k} className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[17px] font-bold text-ink tabular-nums">{v}</div></div>)}</div>
+            <div className="grid grid-cols-2 gap-2 mt-2 text-[12.5px]"><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Months at ESL</div><div className="text-[17px] font-bold tabular-nums" style={{ color: met === per ? 'rgb(var(--ok))' : 'rgb(var(--warn))' }}>{met} of {per}</div></div><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Class</div><div className="text-[14px] font-bold text-ink">{mv.cls}</div></div></div>
+            <div className="flex gap-2 mt-3"><Btn size="sm" icon={I.Layers} onClick={() => act.drill({ t: 'metric', i: selV, per })}>Open the detail</Btn>{mv.queue && <Btn size="sm" icon={I.Siren} onClick={() => act.drill({ t: 'incidents', k: 'open', pri: mv.queue })}>Open {mv.queue} incidents</Btn>}</div>
+          </Card>); })()}
+      </div>
+      <div>
         <Card pad={false}><div className="p-3">{lines.filter(l => VIEW[view].lines(l)).map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
@@ -306,7 +318,6 @@ export function SLATracker() {
             { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
           ]} /></div>)}</div></Card>
-        <div className="xl:sticky xl:top-3"><SLAProjectionCard m={mv} series={P.sla[selV].series} labels={P.months.map(x => x.m)} /></div>
       </div>
     </div>
   );

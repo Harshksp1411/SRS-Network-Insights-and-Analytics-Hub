@@ -87,13 +87,13 @@ export function SuppressionRulesCard() {
   const max = Math.max(...RULES.map(r => r.share));
   return (
     <Card title="Deduplication and suppression rules" sub={`${num(tc.suppressed)} of ${num(tc.events)} events held back today (${Math.round(tc.noise * 100)}%). Each one has a reason and stays visible on its parent alert, change or ticket.`} icon={I.Filter}>
-      <div className="space-y-2">{RULES.map(r => { const f = FATE[r.k]; const n = Math.round(tc.suppressed * r.share); return (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-2">{RULES.map(r => { const f = FATE[r.k]; const n = Math.round(tc.suppressed * r.share); return (
         <div key={r.k} className="grid grid-cols-[minmax(0,1fr)_92px] md:grid-cols-[170px_minmax(0,1fr)_120px] gap-x-3 gap-y-1 items-center border-b border-line/60 last:border-0 pb-2">
           <div className="flex items-center gap-1.5"><Badge tone={f.tone}>{r.name}</Badge></div>
           <div className="text-[12px] text-ink2 leading-snug md:order-none order-last col-span-2 md:col-span-1">{r.how}. <span className="text-ink3">For example: {r.ex}.</span></div>
           <div><div className="text-[15px] font-extrabold text-ink tabular-nums text-right">{num(n)}</div><div className="h-1.5 bg-chip rounded"><div className="h-full bg-brand rounded transition-all duration-700" style={{ width: `${r.share / max * 100}%` }} /></div></div>
         </div>); })}</div>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3 text-[12px]">{[['Cleared by itself', tc.auto, 'Recovered inside the hold-down, checked by ping and SNMP, no ticket'], ['Sent to the digest', tc.digest, 'Warnings bundled into the morning digest'], ['Correlated into incidents', tc.corr, `Grouped into ${tc.inc} incidents today`]].map(([k, v, d]) => <div key={k} className="border border-line rounded-lg px-3 py-2"><div className="text-[17px] font-extrabold text-ink tabular-nums">{num(v)}</div><div className="font-semibold text-ink">{k}</div><div className="text-[11.5px] text-ink3 leading-snug">{d}</div></div>)}</div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3 text-[12px]">{[['Cleared by itself', tc.auto, 'Recovered inside the hold-down, checked by ping and SNMP, no ticket'], ['Sent to the digest', tc.digest, 'Warnings bundled into the morning digest'], ['Correlated into incidents', tc.corr, `Grouped into ${tc.inc} incidents today`]].map(([k, v, d]) => <div key={k} className="border border-line rounded-lg px-3 py-2"><div className="text-[17px] font-extrabold text-ink tabular-nums">{num(v)}</div><div className="font-semibold text-ink">{k}</div><div className="text-[11.5px] text-ink3 leading-snug">{d}</div></div>)}</div>
     </Card>
   );
 }

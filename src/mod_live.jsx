@@ -11,6 +11,7 @@ import { todayCounts, LiveKpis, AreaTimeline, HeartbeatGrid, AreaHourHeat, Score
 import { AGENT_DEF } from './liveext.js';
 import { AgentMixCards } from './viz3.jsx';
 import { AlertStormReplay, SuppressionRulesCard, ServiceNowSyncCard } from './stormui.jsx';
+import { PatternsCard } from './patterns.jsx';
 import { num, hhmmss } from './util.js';
 
 export function LiveOps() {
@@ -62,7 +63,9 @@ export function Correlation() {
         { label: 'Open correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers, go: { t: 'incidents', k: 'open' } },
       ]} />
       <div className="mt-3"><AlertStormReplay /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-3 mt-3 items-start"><SuppressionRulesCard /><ServiceNowSyncCard /></div>
+      <div className="mt-3"><PatternsCard /></div>
+      <div className="mt-3"><SuppressionRulesCard /></div>
+      <div className="mt-3"><ServiceNowSyncCard /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
       <div className="mt-3"><GroupingSwimlane /></div>
       <div className="mt-3"><AlertFunnel /></div>
