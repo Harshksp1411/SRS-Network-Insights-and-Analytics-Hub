@@ -6,7 +6,7 @@ import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { Card, Badge, Btn, PageHead, Stat, Tabs, Pri, cx } from './ui.jsx';
-import { TEMPLATES, THRESHOLDS, PROFILES, ACCESS, ROLES, NET_POLICIES, CONFIGS, VENDORS, ONBOARD, POLICY_ORDER } from './policies.js';
+import { TEMPLATES, METRICS, VENDOR_SRC, PROFILES, ACCESS, ROLES, NET_POLICIES, CONFIGS, VENDORS, ONBOARD, POLICY_ORDER } from './policies.js';
 import { num, pct } from './util.js';
 
 const TABS = [{ id: 'templates', label: 'Monitoring templates' }, { id: 'policies', label: 'Alert policies' }, { id: 'access', label: 'Access' }, { id: 'network', label: 'Network policies and configs' }, { id: 'new', label: 'New make or model' }];
@@ -44,9 +44,10 @@ function Templates({ pilots }) {
   const [sel, setSel] = useState(TEMPLATES[1].id);
   const all = [...TEMPLATES, ...pilots];
   const t = all.find(x => x.id === sel) || TEMPLATES[0];
-  const th = THRESHOLDS.filter(x => x.tpl === (t.like || t.id));
-  return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 items-start">
+  const vs = VENDOR_SRC[t.vendor] || {};
+  const mets = (METRICS[t.like || t.id] || []).map(m => vs[m.k] ? { ...m, src: vs[m.k] } : m);
+  return (<>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 items-stretch [&>*]:h-full mb-3">
       <Card title="Monitoring templates" sub="Assigned automatically by a template-based alert definition, by resource type and store group">
         <div className="divide-y divide-line">{all.map(x => (
           <button key={x.id} onClick={() => setSel(x.id)} className={cx('w-full text-left py-2 px-2 rounded flex items-center gap-3', x.id === sel ? 'bg-chip' : 'hover:bg-chip/50')}>
@@ -63,12 +64,45 @@ function Templates({ pilots }) {
           <div><div className="text-[11px] font-bold uppercase text-ink3 mb-1">Parent for correlation</div><div className="text-ink">{t.parent}</div><div className="text-ink3 text-[11.5px]">When the parent is down, its children are suppressed and listed on it.</div></div>
           <div><div className="text-[11px] font-bold uppercase text-ink3 mb-1">ServiceNow mapping</div><div className="text-ink">{t.snow[0]}</div><div className="text-ink2">{t.snow[1]}</div><div className="text-ink3 text-[11.5px]">CI class: {t.snow[2]}</div></div>
         </div>
-        {th.length > 0 && <><div className="text-[11px] font-bold uppercase text-ink3 mt-3 mb-1">Thresholds by store profile (warning / critical)</div>
-          <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>Metric</Th>{PROFILES.map(p => <Th key={p.k} r>{p.label} ({num(p.n)})</Th>)}</tr></thead>
-            <tbody>{th.map(x => <tr key={x.m} className="border-b border-line/60 last:border-0"><td className="py-1 pr-3 text-ink">{x.m}</td>{PROFILES.map(p => <td key={p.k} className="py-1 pr-3 text-right tabular-nums"><span className="text-warn font-semibold">{x[p.k][0]}</span><span className="text-ink3"> / </span><span className="text-bad font-semibold">{x[p.k][1]}</span>{x.unit ? <span className="text-ink3"> {x.unit}</span> : null}</td>)}</tr>)}</tbody></table></div></>}
+        <div className="grid grid-cols-4 gap-2 mt-3 text-[12px]">{[['Metrics defined', mets.length], ['Levels by store profile', mets.filter(m => m.th && m.th.S).length], ['State checks', mets.filter(m => m.th && !Array.isArray(m.th) && !m.th.S).length], ['Fastest poll', mets.some(m => /1 min/.test(m.every)) ? '1 min' : mets.length ? '5 min' : '—']].map(([k, v]) => <div key={k} className="border border-line rounded px-2 py-1"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink tabular-nums">{v}</b></div>)}</div>
         <div className="flex gap-2 mt-3"><Btn size="sm" icon={I.Layers} onClick={() => act.drill(t.cls === 'Access link' ? { t: 'lines', k: 'all' } : { t: 'devices', k: 'all', ...(t.models.length === 1 && t.cls !== 'Application path' ? { model: t.models[0] } : {}) })}>See what uses it</Btn></div>
       </Card>
     </div>
+    <MetricDefs t={t} mets={mets} />
+  </>);
+}
+
+const fmtTh = (th, prof, i, unit) => { if (!th) return '—'; if (Array.isArray(th)) return `${th[i]}${unit && unit.length < 4 ? ' ' + unit : ''}`; if (th.S) return `${th[prof][i]}${unit && unit.length < 4 ? ' ' + unit : ''}`; return i ? th.c : th.w; };
+function MetricDefs({ t, mets }) {
+  const [prof, setProf] = useState('M');
+  const [open, setOpen] = useState(null);
+  if (!mets.length) return <Card title={`Metric definitions: ${t.name}`}><div className="text-[12.5px] text-ink2">Set when the template is built for this new class: metric, source, interval, levels and actions, reviewed by SRS and Movate before the pilot.</div></Card>;
+  return (
+    <Card title={`Metric definitions: ${t.name}`} sub={t.like ? `Levels from ${t.like}; sources for ${t.name.split(' ')[0]}` : `${mets.length} metrics; click one for the full rule`}
+      right={<div className="flex rounded-md border border-line overflow-hidden text-[12px]">{PROFILES.map(p => <button key={p.k} onClick={() => setProf(p.k)} className={cx('px-2.5 py-1', prof === p.k ? 'bg-ink text-white' : 'text-ink2 hover:bg-chip')}>{p.label}</button>)}</div>}>
+      <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
+        <thead><tr className="border-b border-line"><Th>Metric</Th><Th>Collected from</Th><Th>Every</Th><Th>Worked out as</Th><Th r>Warning</Th><Th r>Critical</Th><Th>Alert after</Th></tr></thead>
+        <tbody>{mets.map(m => { const o = open === m.k + m.m; return (<React.Fragment key={m.k + m.m}>
+          <tr onClick={() => setOpen(o ? null : m.k + m.m)} className={cx('border-b border-line/60 cursor-pointer align-top', o ? 'bg-chip' : 'hover:bg-chip/50')}>
+            <td className="py-1.5 pr-3"><span className="flex items-start gap-1"><I.ChevronRight size={13} className={cx('mt-[3px] shrink-0 text-ink3 transition-transform', o && 'rotate-90')} /><span><b className="text-ink font-semibold">{m.m}</b>{m.unit && <span className="text-ink3"> ({m.unit})</span>}{m.th && m.th.S && <span className="block text-[10.5px] text-brand">by store profile</span>}</span></span></td>
+            <td className="py-1.5 pr-3 text-ink2 max-w-[260px]">{m.src}</td>
+            <td className="py-1.5 pr-3 text-ink2 whitespace-nowrap">{m.every}</td>
+            <td className="py-1.5 pr-3 text-ink2 max-w-[280px]">{m.calc}</td>
+            <td className="py-1.5 pr-3 text-right text-warn font-semibold tabular-nums max-w-[150px]">{fmtTh(m.th, prof, 0, m.unit)}</td>
+            <td className="py-1.5 pr-3 text-right text-bad font-semibold tabular-nums max-w-[150px]">{fmtTh(m.th, prof, 1, m.unit)}</td>
+            <td className="py-1.5 text-ink2">{m.when}</td>
+          </tr>
+          {o && <tr className="border-b border-line/60 bg-chip/40"><td colSpan={7} className="px-3 py-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-[12px]">
+              <div><div className="text-[11px] font-bold uppercase text-ink3">OpsRamp metric</div><div className="font-mono text-ink">{t.like ? m.k.replace(/^\w+/, t.id.replace('TPL-', '').toLowerCase()) : m.k}</div><div className="text-[11px] font-bold uppercase text-ink3 mt-2">Clears after</div><div className="text-ink">{m.clear}</div></div>
+              <div><div className="text-[11px] font-bold uppercase text-warn">On warning</div><div className="text-ink">{m.warn}</div></div>
+              <div><div className="text-[11px] font-bold uppercase text-bad">On critical</div><div className="text-ink">{m.crit}</div></div>
+              <div><div className="text-[11px] font-bold uppercase text-ink3">Feeds</div><div className="text-ink">{m.feeds}</div>{m.th && m.th.S && <><div className="text-[11px] font-bold uppercase text-ink3 mt-2">All profiles (warning / critical)</div>{PROFILES.map(p => <div key={p.k} className="flex justify-between gap-2"><span className="text-ink2">{p.label}</span><span className="tabular-nums"><span className="text-warn font-semibold">{m.th[p.k][0]}</span> / <span className="text-bad font-semibold">{m.th[p.k][1]}</span></span></div>)}</>}</div>
+            </div>
+          </td></tr>}
+        </React.Fragment>); })}</tbody>
+      </table></div>
+    </Card>
   );
 }
 
