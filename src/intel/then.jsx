@@ -5,7 +5,8 @@ import * as I from 'lucide-react';
 import * as D from '../data.js';
 import { useApp, useNow } from '../store.jsx';
 import { Bars, LineChart, Spark, Legend, C } from '../charts.jsx';
-import { LensHead, Summary, Tile, BarRow, Box, Pill, T } from '../sites/shell.jsx';
+import { BarRow, Box, Pill, T } from '../sites/shell.jsx';
+import { PeriodBar, ExploreBtn, Headline, Kpis, Trio, ChartCards, Insight, SectionHead, COLORS } from '../sites/dash.jsx';
 import { thenModel, THEN_RANGES, REGIONS, CAUSES } from './model.js';
 import { num, dur, dateShort, hhmm, MIN, HR, DAY } from '../util.js';
 import { cx } from '../ui.jsx';
@@ -27,50 +28,64 @@ export function ThenLens({ region, setRegion }) {
   const mttrDelta = m.prevMttrP1 != null ? (m.mttrP1 - m.prevMttrP1) * 60 : (m.P.mttr.P1.at(-1) - m.P.mttr.P1[0]) * 60;
   const incDelta = m.prevTickets ? m.tickets / m.prevTickets - 1 : m.byMonth.at(-1).total / Math.max(1, m.byMonth[0].total) - 1;
   const credits = m.carriers.filter(c => c.credits > 0);
+  const slaM = m.P.months.map((_, i) => ['P1', 'P2', 'P3', 'P4'].reduce((acc, q) => acc + { P1: 0.02, P2: 0.08, P3: 0.45, P4: 0.45 }[q] * m.sla12.find(x => x.q === q).res.series[i], 0));
+  const R = region === 'All' ? {} : { region };
+  const go = n => act.drill(n);
+  const autoShare = m.byMonth.reduce((a, x) => a + x.auto, 0) / Math.max(1, m.tickets);
+  const metP = m.sla12.filter(x => x.res.avg >= x.res.m.esl).length;
+  const CAUSE_C = { isp: C.s1, hw: C.s4, cfg: C.s5, power: COLORS.warn, user: C.s3 };
+  const visuals = [
+    { id: 'inc', kind: 'cols', title: 'Incidents per month', go: { t: 'incidents', k: 'resolved7', ...R }, keys: ['Auto-resolved', 'By an engineer'], colors: [C.ok, C.s1], caption: `${pc(autoShare, 0)} resolved by automation with no engineer. ${m.byMonth.at(-1).total <= m.byMonth[0].total ? 'Down' : 'Up'} ${Math.abs(Math.round((m.byMonth.at(-1).total / Math.max(1, m.byMonth[0].total) - 1) * 100))}% since ${m.byMonth[0].label}.`,
+      data: m.byMonth.map(x => ({ label: x.label, 'Auto-resolved': x.auto, 'By an engineer': x.total - x.auto })), goes: m.byMonth.map(() => ({ t: 'incidents', k: 'resolved7', ...R })) },
+    { id: 'repeat', kind: 'hbars', title: `Repeat-offender stores, ${word}`, go: { t: 'set', k: 'trouble7', ...R }, fmt: 'n', caption: 'The branches with the most incidents, and their main cause. Decision: targeted remediation or a site survey.',
+      rows: m.repeatStores.slice(0, 8).map(x => ({ label: x.b.name, value: x.tickets, sub: x.driver, color: COLORS.warn, go: { t: 'branch', id: x.b.id } })) },
+    { id: 'cause', kind: 'donut', title: 'Where incidents come from', go: { t: 'incidents', k: 'resolved7', ...R }, center: pc(m.cause.isp / m.causeTot, 0), sub: 'carrier / ISP', caption: 'Root cause after AI-assisted classification of the ticket text. Decision: where to invest, in carriers, refresh or process.',
+      parts: CAUSES.map(([k, l]) => ({ label: l, value: Math.round(m.cause[k]), color: CAUSE_C[k], go: { t: 'incidents', k: 'resolved7', ...R } })) },
+    { id: 'carriers', kind: 'hbars', title: `Carrier outages, ${word}`, go: { t: 'lines', k: 'all', ...R }, fmt: 'n', caption: `Outages against contract; ${m.carriers.filter(c => c.credits > 0).length} carriers owe SLA credits ($${num(Math.round(m.carriers.reduce((a, c) => a + c.credits, 0)))}).`,
+      rows: m.carriers.map(c => ({ label: c.n, value: c.outages, sub: `${(c.avail * 100).toFixed(2)}% available · restore ${hm(c.restore)}`, color: c.avail >= c.contract ? C.s1 : COLORS.warn, go: { t: 'carrier', carrier: c.n } })) },
+    { id: 'mttr', kind: 'line', title: 'Time to restore by priority, month by month', go: { t: 'mttr' }, labels: m.P.months.map(x => x.m), fmt: 'h', yMin: 0, caption: `P1 ${hm(m.mttrP1)} on average over the period; targets P1 4 h, P2 8 h, P3 24 h.`,
+      series: [{ name: 'P1', color: C.bad, data: m.P.mttr.P1 }, { name: 'P2', color: COLORS.warn, data: m.P.mttr.P2 }, { name: 'P3', color: C.s1, data: m.P.mttr.P3 }] },
+    { id: 'volume', kind: 'line', title: 'Volume trends, 12 months', go: { t: 'incidents', k: 'opened7', ...R }, labels: m.months12.map(x => x.label), fmt: 'n', yMin: 0, caption: `Incidents, requests and changes by month. Peak season (spring roofing): ${m.months12.filter(x => x.season).map(x => x.label).join(', ')}.`,
+      series: [{ name: 'Incidents', color: C.s1, data: m.months12.map(x => x.incidents) }, { name: 'Requests', color: C.s4, data: m.months12.map(x => x.requests) }, { name: 'Changes', color: C.s5, data: m.months12.map(x => x.changes) }] },
+  ];
+  const insights = [
+    { kicker: 'SLA', title: `${metP} of 4 priorities met their resolution level on average`, line: `${m.breaches.length} priority-months fell short; each is explained.`, stats: m.sla12.map(x => ({ value: pc(x.res.avg), label: `${x.q} resolution`, tone: x.res.avg >= x.res.m.esl ? 'ok' : 'warn' })), points: m.breaches.slice(0, 3).map(b => ({ b: `${b.q}, ${b.month}`, t: `${pc(b.v)} vs ${pc(b.esl, 0)}; main driver: ${b.why}`, tone: 'warn' })), go: () => act.drill({ t: 'sla', per: m.n }) },
+    { kicker: 'Field dispatch', title: `${num(m.rolls)} truck rolls, about ${num(Math.round(m.avoidable))} avoidable`, line: 'By reason; the avoidable share is the case for remote fixes and depot sparing.', bars: m.rollReasons.slice(0, 4).map(r => ({ label: r.label, value: r.n, tone: 'info' })), go: () => act.drill({ t: 'incidents', k: 'resolved7' }) },
+    { kicker: 'Repeat offenders', title: `${m.repeatLines.length} circuits keep failing for the same reason`, line: 'Decision: replace, re-cable or escalate to the carrier.', points: m.repeatLines.slice(0, 4).map(c => ({ b: c.id, t: `${c.carrier} ${c.type}, ${c.tickets90} tickets in 90 days`, tone: 'warn' })), go: () => act.drill({ t: 'lines', k: 'repeat', ...R }) },
+    { kicker: 'Changes', title: `${pc(m.chg.ok / m.chg.total)} of ${m.chg.total} changes succeeded`, stats: [{ value: m.chg.ok, label: 'successful', tone: 'ok' }, { value: m.chg.failed, label: 'failed', tone: 'bad' }, { value: m.chg.emergency, label: 'emergency', tone: 'warn' }, { value: m.chg.inc, label: 'caused an incident' }], go: () => act.drill({ t: 'changes', k: 'next7' }) },
+  ];
+  const status = m.sla >= 0.95 ? { label: 'Service status', word: 'On target', kind: 'ok' } : { label: 'Service status', word: 'Below target', kind: 'warn' };
   return (
     <div>
-      <LensHead title="SRS Managed Network Services" src={`Service performance · source ServiceNow, enriched with OpsRamp events · ${word}`} ranges={THEN_RANGES} range={range} onRange={setRange} region={region} onRegion={setRegion} regions={REGIONS}
-        right={<button onClick={() => { execPdf(m, region, word); act.toast('Monthly executive summary downloaded'); }} className="h-8 px-3 rounded-full border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.FileDown size={13} />Executive summary PDF</button>} />
-      <Summary>SLA at {pc(m.sla)}, MTTR for P1 {mttrDelta <= 0 ? `down ${Math.round(-mttrDelta)} min` : `up ${Math.round(mttrDelta)} min`} {vs}. {topCarrier ? `${topCarrier.n} drives ${carrierShare > 0.3 ? 'a third' : `${Math.round(carrierShare * 100)}%`} of carrier outages${carrierShare > 0.25 ? '; raise at the QBR' : ''}.` : ''} {m.repeatStores[0] ? `${m.repeatStores[0].b.name} is the top repeat offender.` : ''}</Summary>
-      <div className="border border-t-0 border-line rounded-b-lg p-3 sm:p-4 bg-canvas">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-          <Tile label="SLA attainment" value={pc(m.sla)} sub={`${m.prevSla != null ? `${m.sla >= m.prevSla ? '▲' : '▼'} ${Math.abs((m.sla - m.prevSla) * 100).toFixed(1)} pts, ` : ''}target 95%`} tone={m.sla >= 0.95 ? 'ok' : 'warn'} onClick={() => act.drill({ t: 'sla', per: m.n === 1 ? 3 : m.n })} />
-          <Tile label="MTTR, P1" value={hm(m.mttrP1)} sub={`${mttrDelta <= 0 ? '▼' : '▲'} ${Math.abs(Math.round(mttrDelta))} min ${vs}`} tone="ok" onClick={() => act.drill({ t: 'mttr' })} />
-          <Tile label="Incidents" value={num(m.tickets)} sub={`${incDelta <= 0 ? '▼' : '▲'} ${Math.abs(Math.round(incDelta * 100))}% ${m.prevTickets ? vs : 'first to last month'}`} tone="ok" onClick={() => dr({ t: 'incidents', k: 'resolved7' })} />
-          <Tile label="Remote fix rate" value={pc(m.remote, 0)} sub={`target 80%; ${num(m.rolls)} truck rolls`} tone={m.remote >= 0.8 ? 'ok' : 'warn'} />
-          <Tile label="Change success" value={pc(m.chg.ok / m.chg.total)} sub={`${m.chg.failed} failed of ${m.chg.total}`} tone={m.chg.ok / m.chg.total >= 0.98 ? 'ok' : 'warn'} onClick={() => act.drill({ t: 'changes', k: 'next7' })} />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 mt-4 mb-2"><span className="text-[12px] font-bold uppercase tracking-wide text-ink3 mr-1">View for</span>{AUD.map(([k, l]) => <button key={k} onClick={() => setAud(k)} className={cx('h-8 px-3 rounded-full border text-[12.5px] font-semibold', aud === k ? 'bg-ink text-canvas border-ink' : 'bg-panel border-line text-ink2 hover:bg-chip')}>{l}</button>)}</div>
-        {aud === 'exec' && <ExecView m={m} act={act} dr={dr} word={word} />}
-        {aud === 'owner' && <OwnerView m={m} s={s} now={now} act={act} word={word} />}
-        {aud === 'vendor' && <VendorView m={m} act={act} word={word} credits={credits} />}
-        <HowThen m={m} />
-      </div>
+      <PeriodBar views={THEN_RANGES} value={range} onChange={setRange} note={`${m.P.from} to ${m.P.to} · source ServiceNow, enriched with OpsRamp events`} region={region} onRegion={setRegion} regions={REGIONS}
+        right={<ExploreBtn icon={I.FileDown} onClick={() => { execPdf(m, region, word); act.toast('Monthly executive summary downloaded'); }}>Executive summary PDF</ExploreBtn>} />
+      <Headline status={status} scope={`Managed services performance and trends · ${region === 'All' ? 'All regions' : region} · ${word}`} headline={`SLA at ${pc(m.sla)}, MTTR for P1 ${mttrDelta <= 0 ? `down ${Math.round(-mttrDelta)} min` : `up ${Math.round(mttrDelta)} min`} ${vs}`} deck={`${num(m.tickets)} incidents, ${pc(autoShare, 0)} resolved by automation. ${topCarrier ? `${topCarrier.n} drives ${Math.round(carrierShare * 100)}% of carrier outages${carrierShare > 0.25 ? '; raise it at the QBR' : ''}.` : ''}`} spotlight={m.repeatStores[0] && `${m.repeatStores[0].b.name} is the top repeat offender: ${m.repeatStores[0].tickets} incidents, main cause: ${m.repeatStores[0].driver}.`} onSpot={() => m.repeatStores[0] && act.drill({ t: 'branch', id: m.repeatStores[0].b.id })} />
+      <Kpis cols={5} items={[
+        { label: 'SLA attainment', value: pc(m.sla), tone: m.sla >= 0.95 ? 'ok' : 'warn', sub: `${m.prevSla != null ? `${m.sla >= m.prevSla ? '▲' : '▼'} ${Math.abs((m.sla - m.prevSla) * 100).toFixed(1)} pts, ` : ''}target 95%`, spark: slaM.length > 1 ? slaM : null, go: () => act.drill({ t: 'sla', per: m.n }) },
+        { label: 'MTTR, P1', value: hm(m.mttrP1), tone: 'ok', sub: `${mttrDelta <= 0 ? '▼' : '▲'} ${Math.abs(Math.round(mttrDelta))} min ${vs}`, spark: m.P.mttr.P1.length > 1 ? m.P.mttr.P1 : null, go: () => act.drill({ t: 'mttr' }) },
+        { label: 'Incidents', value: num(m.tickets), tone: 'info', sub: `${incDelta <= 0 ? '▼' : '▲'} ${Math.abs(Math.round(incDelta * 100))}% ${m.prevTickets ? vs : 'first to last month'}`, spark: m.byMonth.length > 1 ? m.byMonth.map(x => x.total) : null, go: () => dr({ t: 'incidents', k: 'resolved7' }) },
+        { label: 'Remote fix rate', value: pc(m.remote, 0), tone: m.remote >= 0.8 ? 'ok' : 'warn', sub: `target 80%; ${num(m.rolls)} truck rolls`, go: () => dr({ t: 'incidents', k: 'resolved7' }) },
+        { label: 'Change success', value: pc(m.chg.ok / m.chg.total), tone: m.chg.ok / m.chg.total >= 0.98 ? 'ok' : 'warn', sub: `${m.chg.failed} failed of ${m.chg.total}`, go: () => act.drill({ t: 'changes', k: 'next7' }) },
+      ]} />
+      <Trio
+        attention={[...m.breaches.slice(0, 2).map(b => ({ text: `${b.q} resolution ${b.month}: ${pc(b.v)} against ${pc(b.esl, 0)}.`, go: () => act.drill({ t: 'sla', per: m.n }) })), ...(topCarrier ? [{ text: `${topCarrier.n}: ${topCarrier.outages} outages, ${Math.round(carrierShare * 100)}% of carrier outages; restore ${hm(topCarrier.restore)}.`, go: () => act.drill({ t: 'carrier', carrier: topCarrier.n }) }] : []), { text: `${m.repeatLines.length} repeat-offender circuits to replace or escalate.`, go: () => act.drill({ t: 'lines', k: 'repeat', ...R }) }, { text: `About ${num(Math.round(m.avoidable))} truck rolls could have been avoided.`, go: () => dr({ t: 'incidents', k: 'resolved7' }) }].slice(0, 5)}
+        well={[{ text: `P1 time to restore ${mttrDelta <= 0 ? 'down' : 'up'} ${Math.abs(Math.round(mttrDelta))} min ${vs}, now ${hm(m.mttrP1)}.`, go: () => act.drill({ t: 'mttr' }) }, { text: `${pc(autoShare, 0)} of incidents resolved by automation with no engineer.`, go: () => dr({ t: 'incidents', k: 'auto7' }) }, { text: `${m.chg.ok} of ${m.chg.total} changes went in cleanly.`, go: () => act.drill({ t: 'changes', k: 'next7' }) }, { text: `${pc(m.remote, 0)} of issues fixed remotely, without a truck roll.`, go: () => dr({ t: 'incidents', k: 'resolved7' }) }]}
+        ahead={[{ when: 'Monthly', kind: 'Service review', what: `SLAs, trends, ${m.repeatStores.length} repeat offenders and improvements delivered`, go: () => setAud('exec') }, { when: 'Quarterly', kind: 'Business review', what: 'Availability outcomes, carrier performance and the refresh plan', go: () => setAud('vendor') }, ...s.problems.filter(p => p.state !== 'Closed').slice(0, 3).map(p => ({ when: p.id.slice(-4), kind: 'Problem record', what: p.title, go: () => setAud('owner') }))]} aheadTitle="Reviews and open problems" />
+      <div className="mt-4"><ChartCards visuals={visuals} go={go} /></div>
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-4">{insights.map(x => <Insight key={x.kicker} x={x} />)}</div>
+      <SectionHead sub="the same numbers, cut for each audience">Views by audience</SectionHead>
+      <div className="flex flex-wrap items-center gap-2 mb-3">{AUD.map(([k, l]) => <button key={k} onClick={() => setAud(k)} className={cx('h-9 px-3 rounded-md border text-[13px] font-semibold', aud === k ? 'bg-ink text-canvas border-ink' : 'bg-panel border-line text-ink2 hover:bg-chip')}>{l}</button>)}</div>
+      {aud === 'exec' && <ExecView m={m} act={act} dr={dr} word={word} />}
+      {aud === 'owner' && <OwnerView m={m} s={s} now={now} act={act} word={word} />}
+      {aud === 'vendor' && <VendorView m={m} act={act} word={word} credits={credits} />}
+      <HowThen m={m} />
     </div>
   );
 }
 
-function ExecView({ m, act, dr, word }) {
-  const first = m.byMonth[0].total, last = m.byMonth.at(-1).total;
+function ExecView({ m, act, word }) {
   return (<>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-      <Box title="Incidents per month" right={`${last <= first ? '▼' : '▲'} ${Math.abs(Math.round((last / Math.max(1, first) - 1) * 100))}% since ${m.byMonth[0].label}`} sub="Auto-resolved by automation and resolved by an engineer.">
-        <Bars data={m.byMonth.map(x => ({ label: x.label, 'Auto-resolved': x.auto, 'By an engineer': x.total - x.auto }))} keys={['Auto-resolved', 'By an engineer']} colors={[C.ok, C.s1]} h={190} />
-      </Box>
-      <Box title="Repeat-offender stores" right={`incidents, ${word}`} sub="The branches with the most incidents, and their main cause.">
-        {m.repeatStores.slice(0, 6).map(x => <BarRow key={x.b.id} label={x.b.name} sub={x.driver} value={num(x.tickets)} frac={x.tickets / m.repeatStores[0].tickets} tone="warn" onClick={() => act.drill({ t: 'branch', id: x.b.id })} />)}
-      </Box>
-      <Box title="Where incidents come from" right="share of incidents" sub="Root cause, after AI-assisted classification of the ticket text.">
-        {CAUSES.map(([k, l]) => <BarRow key={k} label={l} value={pc(m.cause[k] / m.causeTot, 0)} frac={m.cause[k] / m.causeTot / 0.5} tone={k === 'isp' ? 'info' : 'ink'} />)}
-      </Box>
-      <CarrierCard m={m} act={act} />
-    </div>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">
-      <SlaByPriority m={m} />
-      <Box title="Volume trends" sub="Incidents, service requests, changes and problems by month, 12 months. Shaded months are spring roofing season, the yearly peak.">
-        <VolumeChart m={m} />
-      </Box>
-    </div>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3"><SlaByPriority m={m} /><CarrierCard m={m} act={act} /></div>
     <Insights m={m} act={act} word={word} />
   </>);
 }

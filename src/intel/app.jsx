@@ -8,6 +8,7 @@ import { useLive } from '../live.jsx';
 import { todayCounts } from '../viz2.jsx';
 import { statusOf } from '../dash/drilldata.js';
 import { SiteShell, useHashTab, Box, Pill, T, DISPLAY } from '../sites/shell.jsx';
+import { Headline, Kpis, SectionHead } from '../sites/dash.jsx';
 import { NowLens } from './now.jsx';
 import { ThenLens } from './then.jsx';
 import { NextLens } from './next.jsx';
@@ -54,12 +55,15 @@ function Overview({ go }) {
   const tc = todayCounts(L, s);
   return (
     <div>
-      <section className="bg-panel border border-line rounded-lg p-5 border-l-4 border-l-brand">
-        <div className="text-[11px] font-bold tracking-[0.1em] uppercase text-brand">Network Intelligence layer for SRS Distribution</div>
-        <h1 className="text-[26px] font-bold text-ink leading-tight mt-1" style={DISPLAY}>How the store network is performing now, how it has performed, and where it will break next</h1>
-        <p className="text-[14px] text-ink2 mt-1.5 max-w-[980px]">Three purpose-built dashboards, fed from the tools SRS already runs, that move network operations from reactive firefighting to planned, evidence-based action. They share one data foundation, one store and device hierarchy and one set of KPI definitions, so a store's outage, its ticket history and its risk score all point to the same store record.</p>
-      </section>
-      <h2 className="text-[15px] font-bold text-ink mt-5 mb-2">One store view across past, present and future</h2>
+      <Headline status={{ label: 'Network status', word: nm.st.down ? 'Minor issues' : 'All trading', kind: nm.st.down ? 'minor' : 'ok' }} scope="Network Intelligence layer for SRS Distribution · Now, Then, Next" headline="How the store network is performing now, how it has performed, and where it will break next" deck="Three purpose-built dashboards, fed from the tools SRS already runs, sharing one data foundation, one store and device hierarchy and one set of KPI definitions. A store's outage, its ticket history and its risk score all point to the same store record." spotlight={`${nm.attention[0] ? nm.attention[0].b.name : 'Every store'}: follow it from now to then to next below.`} onSpot={() => document.getElementById('follow')?.scrollIntoView({ behavior: 'smooth' })} />
+      <Kpis items={[
+        { label: 'Now: stores trading', value: `${num(nm.trading)}/${num(nm.list.length)}`, tone: 'ok', sub: `${nm.st.down} down, ${nm.single.length} on a single circuit`, spark: L.series.online.slice(-30), go: () => go('now') },
+        { label: 'Then: SLA attainment, 90 days', value: pc(tm.sla, 1), tone: tm.sla >= 0.95 ? 'ok' : 'warn', sub: `P1 restore ${tm.mttrP1.toFixed(1)} h, ${num(tm.tickets)} incidents`, go: () => go('then') },
+        { label: 'Next: high-risk stores this week', value: xm.high.length, tone: xm.high.length ? 'bad' : 'ok', sub: `${xm.med.length} more on the watch list`, go: () => go('next') },
+        { label: 'Alert-to-incident ratio today', value: `${Math.round(tc.events / Math.max(1, tc.inc))} : 1`, tone: 'info', sub: `${num(tc.events)} events, ${tc.inc} incidents`, go: () => go('gov') },
+      ]} />
+      <SectionHead sub="three connected views of the same store network">One store view across past, present and future</SectionHead>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">{LENSES.map(l => (
         <button key={l.id} onClick={() => go(l.id)} className={cx('text-left bg-panel border rounded-lg p-4 hover:border-ink3 group', l.id === 'now' ? 'border-info ring-1 ring-info/40' : 'border-line')}>
           <div className="text-[11px] font-bold uppercase tracking-wide text-ink3">{l.when}</div>
@@ -117,18 +121,18 @@ function Overview({ go }) {
 // "from what is red right now, to has this happened before, to will it happen again, in three clicks"
 function FollowStore() {
   const { s, act } = useApp(); const now = useNow();
-  const cands = useMemo(() => D.BRANCHES.filter(b => statusOf(s, b) !== 'up').slice(0, 12), [s.branchHealth, s.incidents]);
+  const cands = useMemo(() => D.BRANCHES.filter(b => statusOf(s, b) !== 'up').sort((a, b) => ({ down: 0, backup: 1, degraded: 2 }[statusOf(s, a)] - { down: 0, backup: 1, degraded: 2 }[statusOf(s, b)]) || a.num - b.num).slice(0, 12), [s.branchHealth, s.incidents]);
   const [id, setId] = useState(null);
   const b = D.BR[id] || cands[0] || D.BRANCHES[72];
   const st = statusOf(s, b), r = riskOf(s, b, 30, now);
   const hist = [...s.incidents, ...s.resolved].filter(i => i.branchId === b.id).sort((a, c) => c.opened - a.opened);
   const tm = thenModel('90d', 'All'), rank = tm.repeatStores.findIndex(x => x.b.id === b.id);
-  const tickets = (tm.P.branches.find(x => x.b.id === b.id) || {}).tickets || 0;
+  const tickets = Math.max((tm.P.branches.find(x => x.b.id === b.id) || {}).tickets || 0, hist.length);
   return (
-    <Box className="mt-3" title="Follow one store: now, then, next" sub="From what is red right now, to has this happened before, to will it happen again, in three clicks." right={<select value={b.id} onChange={e => setId(e.target.value)} className="h-8 rounded-md border border-line bg-panel px-2 text-[12.5px] text-ink">{[...cands, ...(cands.includes(b) ? [] : [b])].map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>}>
+    <Box id="follow" className="mt-3" title="Follow one store: now, then, next" sub="From what is red right now, to has this happened before, to will it happen again, in three clicks." right={<select value={b.id} onChange={e => setId(e.target.value)} className="h-8 rounded-md border border-line bg-panel px-2 text-[12.5px] text-ink">{[...cands, ...(cands.includes(b) ? [] : [b])].map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12.5px]">
         <button onClick={() => act.drill({ t: 'branch', id: b.id })} className="text-left border border-line rounded-lg p-3 hover:bg-chip/40"><div className="text-[11px] font-bold uppercase text-ink3">1 · Now</div><div className="mt-1"><Pill tone={st === 'up' ? 'green' : st === 'down' ? 'red' : 'amber'}>{{ up: 'Trading', degraded: 'Degraded', backup: 'On backup', down: 'Down' }[st]}</Pill></div><div className="text-ink mt-1.5">{hist[0] && hist[0].state !== 'Resolved' ? hist[0].title : 'No open problem'}</div><div className="text-ink3">{hist[0] && hist[0].state !== 'Resolved' ? `${hist[0].id}, open ${dur(now - hist[0].opened)}` : 'live from OpsRamp'}</div></button>
-        <button onClick={() => hist[0] && act.drill({ t: 'incident', id: hist[0].id })} className="text-left border border-line rounded-lg p-3 hover:bg-chip/40"><div className="text-[11px] font-bold uppercase text-ink3">2 · Then</div><div className="text-[20px] font-bold text-ink tabular-nums">{tickets} <span className="text-[12px] font-normal text-ink3">tickets in 90 days</span></div><div className="text-ink">{rank >= 0 ? `#${rank + 1} repeat offender` : 'Not a repeat offender'}</div><div className="text-ink3">{hist.length} incidents in the last 7 days{hist.length ? `, last: ${hist[0].title.slice(0, 50)}` : ''}</div></button>
+        <button onClick={() => hist[0] && act.drill({ t: 'incident', id: hist[0].id })} className="text-left border border-line rounded-lg p-3 hover:bg-chip/40"><div className="text-[11px] font-bold uppercase text-ink3">2 · Then</div><div className="text-[20px] font-bold text-ink tabular-nums">{tickets} <span className="text-[12px] font-normal text-ink3">tickets in 90 days</span></div><div className="text-ink">{rank >= 0 ? `#${rank + 1} repeat offender` : 'Not a repeat offender'}</div><div className="text-ink3">{hist.length} incident{hist.length === 1 ? '' : 's'} in the last 7 days{hist.length ? `, last: ${hist[0].title.slice(0, 50)}` : ''}</div></button>
         <button onClick={() => act.drill({ t: 'branch', id: b.id })} className="text-left border border-line rounded-lg p-3 hover:bg-chip/40"><div className="text-[11px] font-bold uppercase text-ink3">3 · Next</div><div className="text-[20px] font-bold tabular-nums" style={{ color: r.score >= 70 ? 'rgb(var(--bad))' : undefined }}>{r.score} <span className="text-[12px] font-normal text-ink3">risk score, 30 days</span></div><div className="text-ink">{r.driver}</div><div className="text-ink3">Do: {r.action}</div></button>
       </div>
     </Box>
@@ -160,9 +164,15 @@ function Governance({ go }) {
   };
   return (
     <div>
-      <section className="bg-panel border border-line rounded-lg p-5 border-l-4 border-l-brand"><h1 className="text-[24px] font-bold text-ink" style={DISPLAY}>Governance, personas and reporting cadence</h1><p className="text-[14px] text-ink2 mt-1 max-w-[980px]">The dashboards become part of how SRS and Movate run the service together, with each audience getting the view and the rhythm it needs. Success is measured by fewer store outages, faster restoration and more planned work over unplanned work.</p></section>
+      <Headline status={{ label: 'Governance', word: 'daily, weekly, monthly, quarterly', kind: 'minor' }} scope="Governance, personas and reporting cadence" headline="Each audience gets the view and the rhythm it needs" deck="The dashboards become part of how SRS and Movate run the service together. Success is fewer store outages, faster restoration and more planned work over unplanned work." />
+      <Kpis items={[
+        { label: 'Personas', value: PERSONAS.length, tone: 'info', sub: 'each with a primary lens and cadence', go: () => document.getElementById('personas')?.scrollIntoView({ behavior: 'smooth' }) },
+        { label: 'KPIs in the dictionary', value: KPIS.length, tone: 'info', sub: 'baselined from SRS history', go: () => document.getElementById('kpis')?.scrollIntoView({ behavior: 'smooth' }) },
+        { label: 'Outages prevented this month', value: `${xm.acc.avoided} of ${xm.acc.flagged}`, tone: 'ok', sub: 'flagged risks acted on in time', go: () => go('next') },
+        { label: 'SLA attainment, 90 days', value: pc(tm.sla, 1), tone: tm.sla >= 0.95 ? 'ok' : 'warn', sub: 'resolution inside Annexure B time', go: () => go('then') },
+      ]} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mt-3">
-        <Box title="Personas" sub="Who uses which lens, for what, and how often. Click a lens to open it.">
+        <Box id="personas" title="Personas" sub="Who uses which lens, for what, and how often. Click a lens to open it.">
           <T cols={[{ k: 'p', l: 'Persona', f: r => <b className="text-ink">{r.p}</b> }, { k: 'lens', l: 'Primary lens', f: r => <div className="flex gap-1 flex-wrap">{r.lens.map(l => <button key={l} onClick={() => go(l)} className="text-[11.5px] font-semibold border border-line rounded px-1.5 py-0.5 hover:bg-chip capitalize">{l}</button>)}</div> }, { k: 'use', l: 'What they use it for', cls: 'text-ink2' }, { k: 'cad', l: 'Cadence', cls: 'text-ink2' }]} rows={PERSONAS} />
         </Box>
         <Box title="Governance rhythm" sub="What each meeting looks at, from today's data.">
@@ -174,7 +184,7 @@ function Governance({ go }) {
           ].map(([a, b, c, l]) => <li key={a}><button onClick={() => go(l)} className="w-full text-left flex gap-2.5 hover:bg-chip/50 rounded p-1"><Pill tone="blue">{a}</Pill><span><b className="text-ink">{b}.</b> <span className="text-ink2">{c}</span></span></button></li>)}</ol>
         </Box>
       </div>
-      <Box className="mt-3" title="Business outcomes and KPIs" sub="Each KPI is baselined from SRS's own OpsRamp and ServiceNow history in the first phase; targets are agreed jointly against that baseline. The definitions are the shared KPI dictionary.">
+      <Box id="kpis" className="mt-3" title="Business outcomes and KPIs" sub="Each KPI is baselined from SRS's own OpsRamp and ServiceNow history in the first phase; targets are agreed jointly against that baseline. The definitions are the shared KPI dictionary.">
         <T cols={[{ k: 'name', l: 'KPI', f: r => <b className="text-ink">{r.name}</b> }, { k: 'lens', l: 'Lens that drives it' }, { k: 'dir', l: 'Target direction', f: r => <Pill tone="green">{r.dir}</Pill> }, { k: 'base', l: 'Baseline today', f: r => <span><b className="text-ink">{base[r.k][0]}</b><span className="block text-[11px] text-ink3">{base[r.k][1]}</span></span> }, { k: 'def', l: 'Definition', cls: 'text-ink2 text-[12px]' }]} rows={KPIS} />
       </Box>
       <Box className="mt-3" title="Data governance and security" sub="How access, definitions and hosting are controlled.">

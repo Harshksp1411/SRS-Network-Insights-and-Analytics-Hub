@@ -8,19 +8,65 @@ import { todayCounts } from '../viz2.jsx';
 import { LineChart, Spark, C } from '../charts.jsx';
 import { Logo, SRC_LOGO, cx } from '../ui.jsx';
 import { Box, Pill, T, Tile, BarRow, DISPLAY } from '../sites/shell.jsx';
+import { Headline, Kpis, Trio, ChartCards, Insight, LiveActivity, SectionHead, COLORS } from '../sites/dash.jsx';
 import { SOURCES, PLATFORM, INTEGRATION_CAPS, PIPE, POLICIES, MODES, PRIORITY_MAP, CATEGORY_MAP, ESCALATION, DEMO, DRIFT, copilot } from './model.js';
 import { num, hhmm, hhmmss, dur, ago, MIN, HR } from '../util.js';
 
 const Src = ({ s }) => SRC_LOGO[s] ? <Logo k={SRC_LOGO[s]} h={10} /> : <b className="text-[11px] text-brand whitespace-nowrap">{s}</b>;
 const Hero = ({ kicker, title, children }) => <section className="bg-panel border border-line rounded-lg p-5 border-l-4 border-l-brand"><div className="text-[11px] font-bold tracking-[0.1em] uppercase text-brand">{kicker}</div><h1 className="text-[24px] font-bold text-ink leading-tight mt-1" style={DISPLAY}>{title}</h1><div className="text-[14px] text-ink2 mt-1.5 max-w-[1000px]">{children}</div></section>;
 
+
+// shared live numbers for every tab, in the dashboards' layout
+const SRCS = [['Orchestrator', 'EdgeConnect (Orchestrator)'], ['OpsRamp', 'Aruba switches and APs (gateway)'], ['Aruba Central', 'Aruba Central'], ['New Relic', 'New Relic'], ['Synthetic', 'Synthetic tests'], ['ServiceNow', 'ServiceNow'], ['Carrier portal', 'Carrier portals']];
+function useOps() {
+  const { s } = useApp(); const { L } = useLive(); const now = useNow();
+  const tc = todayCounts(L, s);
+  const feed = L.feed.filter(e => e.branchId);
+  const bySrc = SRCS.map(([k, l]) => { const n = feed.filter(e => e.src === k).length; return { k, l, share: n / Math.max(1, feed.length) }; }).filter(x => x.share > 0);
+  const open = s.incidents.filter(i => i.state !== 'Resolved');
+  const byPri = ['P1', 'P2', 'P3', 'P4'].map(p => ({ p, n: open.filter(i => i.pri === p).length }));
+  const byGroup = Object.entries(open.reduce((m, i) => { m[i.group] = (m[i.group] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]);
+  const recPolicies = POLICIES.filter(p => p.mode === 'Recommend' || p.mode === 'Observed');
+  return { s, L, now, tc, feed, bySrc, open, byPri, byGroup, recPolicies };
+}
+const PRI_C = { P1: COLORS.bad, P2: COLORS.warn, P3: C.s1, P4: C.s3 };
+function Top({ status, scope, headline, deck, spotlight, onSpot, kpis, cols, trio, visuals, insights, live }) {
+  const { act } = useApp();
+  return (<>
+    <Headline status={status} scope={scope} headline={headline} deck={deck} spotlight={spotlight} onSpot={onSpot} />
+    {kpis && <Kpis cols={cols || kpis.length} items={kpis} />}
+    {trio && <Trio {...trio} />}
+    {visuals && <div className="mt-4"><ChartCards visuals={visuals} go={n => act.drill(n)} /></div>}
+    {insights && <div className={live ? 'grid xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 mt-4' : 'mt-4'}><div className={live ? 'grid md:grid-cols-2 gap-4 content-start' : 'grid md:grid-cols-2 xl:grid-cols-4 gap-4'}>{insights.map(x => <Insight key={x.kicker} x={x} />)}</div>{live && <LiveActivity filter={live} note="streaming · into OpsRamp" />}</div>}
+  </>);
+}
+
 // ───────── overview ─────────
 export function Overview({ go }) {
-  const { s } = useApp(); const { L } = useLive(); const tc = todayCounts(L, s);
+  const { s, L, now, tc, bySrc, open, byPri, recPolicies } = useOps(); const { act } = useApp();
+  const status = byPri[0].n || byPri[1].n > 3 ? { label: 'Operations', word: 'Major incidents open', kind: 'warn' } : { label: 'Operations', word: 'Normal', kind: 'ok' };
+  const visuals = [
+    { id: 'flow', kind: 'line', title: 'Alarms in and alerts left, live', go: { t: 'incidents', k: 'today' }, labels: L.series.raw.slice(-40).map((_, i, a) => i === a.length - 1 ? 'now' : ''), fmt: 'n', yMin: 0, caption: `Events a minute into OpsRamp, and what is left after de-duplication, suppression and correlation. ${Math.round(tc.noise * 100)}% of the noise removed today.`, series: [{ name: 'Alarms in', color: C.s3, data: L.series.raw.slice(-40) }, { name: 'Alerts left', color: C.s1, data: L.series.corr.slice(-40) }] },
+    { id: 'outcome', kind: 'donut', title: 'What happened to today\'s events', go: { t: 'incidents', k: 'today' }, center: num(tc.events), sub: 'events today', caption: `${num(tc.inc)} incidents reached ServiceNow; everything else was merged, held back or cleared by itself.`, parts: [['Removed as noise', tc.suppressed, C.s3], ['Cleared by itself', tc.auto, COLORS.ok], ['Sent to the digest', tc.digest, C.s4], ['Correlated into incidents', tc.corr, C.s1]].map(([l, v, c]) => ({ label: l, value: v, color: c, go: { t: 'incidents', k: 'today' } })) },
+    { id: 'src', kind: 'hbars', title: 'Events today, by source', go: { t: 'incidents', k: 'today' }, fmt: 'n', caption: 'Every source in one stream, tagged by store and device.', rows: bySrc.map(x => ({ label: x.l, value: Math.round(tc.events * x.share), color: C.s1, go: { t: 'incidents', k: 'today' } })).sort((a, b) => b.value - a.value) },
+    { id: 'pri', kind: 'cols', title: 'Incidents open in ServiceNow, by priority', go: { t: 'incidents', k: 'open' }, keys: ['Open'], colors: [C.s1], caption: `${open.length} open; one ticket per problem, each with its correlated alerts.`, data: byPri.map(x => ({ label: x.p, Open: x.n })), goes: byPri.map(x => ({ t: 'incidents', k: 'open', pri: x.p })) },
+  ];
   return (
     <div>
-      <Hero kicker="Second demo · OpsRamp for SRS" title="One operations layer across the store network">OpsRamp connects to the Aruba and EdgeConnect estate SRS already runs, turns raw alarms into a short list of real problems, and hands those problems to ServiceNow with full context. Today: <b className="text-ink">{num(tc.events)} events in, {tc.inc} incidents out</b>, {Math.round(tc.noise * 100)}% of the noise removed before anyone looks.</Hero>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-3">{[
+      <Top status={status} scope="OpsRamp for SRS · second demo · live" headline={`${num(tc.events)} alarms in today, ${tc.inc} real incidents out`} deck={`OpsRamp connects to the Aruba and EdgeConnect estate SRS already runs, turns raw alarms into a short list of real problems, and hands them to ServiceNow with full context. ${Math.round(tc.noise * 100)}% of the noise removed before anyone looks.`} spotlight={`Walk one store outage from first alarm to closed ticket at ${DEMO.b.name}.`} onSpot={() => go('demo', 0)}
+        kpis={[
+          { label: 'Alarms in today', value: num(tc.events), tone: 'info', sub: `${Math.round(L.series.raw.at(-1) || 0)} a minute now`, spark: L.series.raw.slice(-30), go: () => go('events') },
+          { label: 'Noise removed', value: `${Math.round(tc.noise * 100)}%`, tone: 'ok', sub: 'de-duplicated, suppressed, correlated', go: () => go('events') },
+          { label: 'Incidents to ServiceNow', value: tc.inc, tone: 'ok', sub: 'one per problem, 0 duplicates', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Devices and circuits', value: num(D.DEVICES.length + D.CIRCUITS.length), tone: 'info', sub: `${num(D.BRANCHES.length)} stores, one view`, go: () => go('integration') },
+          { label: 'AI policies proving themselves', value: recPolicies.length, tone: 'warn', sub: 'in Observed or Recommend mode', go: () => go('events') },
+        ]}
+        trio={{ attention: [...open.filter(i => i.pri <= 'P2').slice(0, 3).map(i => ({ text: `${i.id} ${i.pri}: ${D.BR[i.branchId].name}, ${i.title}.`, go: () => act.drill({ t: 'incident', id: i.id }) })), ...recPolicies.slice(0, 2).map(p => ({ text: `${p.id} in ${p.mode} mode: ${p.name}. Approve to switch on.`, go: () => go('events') }))],
+          well: [{ text: `${Math.round(tc.noise * 100)}% of today's ${num(tc.events)} events removed as noise.`, go: () => go('events') }, { text: 'No duplicate tickets: Simplify and OpsRamp never ticket the same outage twice.', go: () => go('snow') }, { text: 'Both gateway collectors up; every store reporting.', go: () => go('integration') }, { text: `${num(tc.auto)} alerts cleared by themselves, with no ticket.`, go: () => go('events') }],
+          ahead: [...s.changes.filter(c => c.start > now).slice(0, 3).map(c => ({ when: c.window.split(' ')[0], kind: 'Maintenance window', what: `${c.title}: alarms suppressed`, go: () => act.drill({ t: 'change', id: c.id }) })), { when: 'Pilot', kind: 'Baseline', what: "SRS's own alert reduction measured against the 92% vendor figure", go: () => go('outcomes') }, { when: 'Future', kind: 'Integration', what: 'Cisco through the same SNMP and API templates', go: () => go('integration') }], aheadTitle: 'Coming up' }}
+        visuals={visuals} />
+      <SectionHead sub="what SRS will see in the demo, and why it matters">Three demo themes</SectionHead>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">{[
         ['integration', I.Plug, 'Integration', 'Aruba switches and APs, Aruba Central, Silver Peak EdgeConnect SD-WAN and New Relic in one console, with Cisco ready to add', 'One view of every store, regardless of tool or vendor'],
         ['events', I.Filter, 'Event management', 'Aggregation, de-duplication, suppression, correlation, pattern correlation, anomaly detection and AI false-positive reduction', 'Engineers work on a few real incidents, not thousands of alarms'],
         ['snow', I.Ticket, 'ServiceNow and AI', 'Two-way incident sync, CMDB updates, AI-assisted root cause and an operations copilot', 'Faster, better-routed tickets, and a path to autonomous operations'],
@@ -57,8 +103,20 @@ export function Integration() {
   };
   return (
     <div>
-      <Hero kicker="Integration with SRS's network estate" title="Every SRS network source feeds one OpsRamp platform">OpsRamp brings every part of the store network into one view without replacing any tool SRS already uses. Store devices are reached through an OpsRamp gateway; cloud platforms connect through their APIs.</Hero>
-      <Box className="mt-3" title="5 sources, 2 consumers" sub="Live: events a minute from each source right now.">
+      <Top status={{ label: 'Integration', word: '4 sources connected, Cisco ready', kind: 'ok' }} scope="Integration with SRS's network estate" headline="Every SRS network source feeds one OpsRamp platform" deck="Store devices are reached through an OpsRamp gateway; cloud platforms connect through their APIs. Nothing SRS already uses is replaced."
+        kpis={[
+          { label: 'Sources connected', value: '4 + 1', tone: 'ok', sub: 'Aruba, Central, EdgeConnect, New Relic; Cisco ready', go: () => document.getElementById('sources')?.scrollIntoView({ behavior: 'smooth' }) },
+          { label: 'Devices discovered', value: num(D.DEVICES.length), tone: 'info', sub: `${num(D.DEVICES.filter(d => d.type === 'AP').length)} APs, ${num(D.DEVICES.filter(d => d.type === 'Switch').length)} switches, ${num(D.DEVICES.filter(d => d.type === 'SD-WAN').length)} EdgeConnects`, go: () => act.drill({ t: 'devices', k: 'all' }) },
+          { label: 'Circuits monitored', value: num(D.CIRCUITS.length), tone: 'info', sub: 'dual ISP at every store', go: () => act.drill({ t: 'lines', k: 'all' }) },
+          { label: 'Events a minute', value: Math.round(L.series.raw.at(-1) || 0), tone: 'ok', sub: 'traps, syslog, API and webhook', spark: L.series.raw.slice(-30), go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Config backups', value: `${(L.series.backups.at(-1) || 99).toFixed(1)}%`, tone: 'ok', sub: `last night; ${D.DRIFT.length} differ from the template`, go: () => act.drill({ t: 'devices', k: 'drift' }) },
+        ]}
+        visuals={[
+          { id: 'dev', kind: 'donut', title: 'Devices discovered, by type', go: { t: 'devices', k: 'all' }, center: num(D.DEVICES.length), sub: 'devices', caption: 'Found by auto-discovery and mapped with LLDP/CDP, so correlation knows the parent of every alarm.', parts: [['Aruba AP', 'AP', C.s4], ['Aruba switch', 'Switch', C.s1], ['EdgeConnect SD-WAN', 'SD-WAN', C.s5]].map(([l, t, c]) => ({ label: l, value: D.DEVICES.filter(d => d.type === t).length, color: c, go: { t: 'devices', k: 'all' } })) },
+          { id: 'src', kind: 'hbars', title: 'Live events, by source', go: { t: 'incidents', k: 'today' }, fmt: 'n', caption: 'Share of the live stream from each source, scaled to today.', rows: SRCS.map(([k, l]) => ({ label: l, value: Math.round(L.counters.events * L.feed.filter(e => e.src === k).length / Math.max(1, L.feed.length)), color: C.s1, go: { t: 'incidents', k: 'today' } })).filter(r => r.value).sort((a, b) => b.value - a.value) },
+        ]} />
+      <SectionHead sub="live: events a minute from each source">5 sources, 2 consumers</SectionHead>
+      <Box id="sources" title="Every SRS network source feeds one OpsRamp platform" sub="Store devices through the gateway; cloud platforms through their APIs.">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_48px_minmax(0,0.9fr)_48px_minmax(0,0.8fr)] gap-2 items-center">
           <div className="space-y-2">{SOURCES.map(x => <div key={x.k} className={cx('border rounded-lg px-3 py-2', x.future ? 'border-dashed border-line text-ink3' : 'border-line bg-panel')}><div className="flex items-center gap-2"><b className="text-[13.5px] text-ink flex-1">{x.name}</b>{!x.future && <span className="text-[11.5px] text-ok font-bold tabular-nums">{perMin(x.src)}/min</span>}</div><div className="text-[12px] text-ink3">{x.how}</div><div className="text-[11.5px] text-ink2">{x.n()} · {x.via}</div></div>)}</div>
           <div className="hidden lg:flex flex-col items-center text-ink3"><I.ArrowRight size={22} /></div>
@@ -116,8 +174,22 @@ export function Events() {
   const policyHits = p => Math.round(tc.events * p.share);
   return (
     <div>
-      <Hero kicker="Event management" title="From alarm storm to one incident">The flood of alarms a store outage creates becomes one incident with a probable cause. Each stage removes noise or adds meaning. Live counts since midnight CT.</Hero>
-      <Box className="mt-3" title="Raw store alarms become one actionable incident per issue" sub="7 stages to one incident, today.">
+      <Top status={{ label: 'Event management', word: `${Math.round(tc.noise * 100)}% noise removed`, kind: 'ok' }} scope="Event management · live since 00:00 CT" headline="From alarm storm to one incident" deck="The flood of alarms a store outage creates becomes one incident with a probable cause. Each stage removes noise or adds meaning."
+        kpis={[
+          { label: 'Aggregated', value: num(stage[0][0]), tone: 'info', sub: 'events in, one alert model', spark: L.series.raw.slice(-30), go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'After de-duplication', value: num(stage[1][0]), tone: 'info', sub: 'repeats merged', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'After suppression', value: num(stage[2][0]), tone: 'info', sub: 'windows, known noise, learned', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Correlated', value: num(stage[3][0]), tone: 'info', sub: 'alerts grouped into inferences', spark: L.series.corr.slice(-30), go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Real incidents', value: tc.inc, tone: 'ok', sub: 'one ticket per store issue', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+        ]}
+        visuals={[
+          { id: 'funnel', kind: 'cols', title: 'Seven stages, today', go: { t: 'incidents', k: 'today' }, keys: ['Count'], colors: [C.s1], caption: 'Alerts left after stages 1 to 4; groups found, assets drifting and false positives screened in 5 to 7.', data: PIPE.map((p, i) => ({ label: p.name.replace('AI false positives', 'AI false pos.').replace('Pattern correlate', 'Pattern'), Count: stage[i][0] })), goes: PIPE.map(() => ({ t: 'incidents', k: 'today' })) },
+          { id: 'live', kind: 'line', title: 'Alarms in and alerts left, live', go: { t: 'incidents', k: 'today' }, labels: L.series.raw.slice(-40).map((_, i, a) => i === a.length - 1 ? 'now' : ''), fmt: 'n', yMin: 0, caption: 'Events a minute into OpsRamp and alerts left after the noise is removed.', series: [{ name: 'Alarms in', color: C.s3, data: L.series.raw.slice(-40) }, { name: 'Alerts left', color: C.s1, data: L.series.corr.slice(-40) }] },
+          { id: 'pol', kind: 'hbars', title: 'Alerts handled by each policy, today', go: { t: 'incidents', k: 'today' }, fmt: 'n', caption: `${POLICIES.filter(p => modes[p.id] === 'On').length} policies on; the rest run in shadow or recommend until SRS approves them.`, rows: POLICIES.map(p => ({ label: `${p.id} ${p.name.split(':')[0].slice(0, 38)}`, value: policyHits(p), sub: `${modes[p.id]} · ${p.by}`, color: modes[p.id] === 'On' ? COLORS.ok : modes[p.id] === 'Off' ? C.s3 : C.s1, go: { t: 'incidents', k: 'today' } })) },
+          { id: 'why', kind: 'donut', title: 'Why the noise was removed', go: { t: 'incidents', k: 'today' }, center: `${Math.round(tc.noise * 100)}%`, sub: 'removed', caption: 'Each held-back alert has a reason and stays visible on its parent alert, change or ticket.', parts: [['De-duplicated', 0.44, C.s3], ['Same fault, two tools', 0.12, C.s4], ['Child of a down parent', 0.16, C.s5], ['Maintenance window', 0.08, C.s1], ['Flapping', 0.05, COLORS.warn], ['Information only', 0.11, C.s7 || C.s2], ['Upstream ticketed (Simplify)', 0.04, COLORS.bad]].map(([l, f, c]) => ({ label: l, value: Math.round(tc.suppressed * f), color: c, go: { t: 'incidents', k: 'today' } })) },
+        ]} />
+      <SectionHead sub="every stage, with today's counts">The pipeline</SectionHead>
+      <Box title="Raw store alarms become one actionable incident per issue" sub="7 stages to one incident, today.">
         {['Reduce the noise', 'Find the cause'].map((g, gi) => <div key={g} className={gi ? 'mt-3' : ''}><div className="text-[12px] font-bold text-ink3 mb-1.5">{g}</div><div className="grid grid-cols-2 lg:grid-cols-4 gap-2">{PIPE.filter(p => p.group === g).map(p => <div key={p.k} className="border border-line rounded-lg p-3 bg-panel relative"><div className="flex items-center gap-1.5"><b className="text-[14px] text-ink">{p.n} {p.name}</b><span className="ml-auto text-[15px] font-extrabold tabular-nums text-ink">{num(stage[p.n - 1][0])}</span></div><div className="text-[12px] text-ink2 leading-snug mt-0.5">{p.short}</div><div className="text-[10.5px] text-ink3 mt-0.5">{stage[p.n - 1][1]}</div></div>)}{gi === 1 && <div className="border-2 border-info rounded-lg p-3 bg-info/5"><div className="flex items-center"><b className="text-[14px] text-ink">Real incident</b><span className="ml-auto text-[15px] font-extrabold tabular-nums">{tc.inc}</span></div><div className="text-[12px] text-ink2 mt-0.5">One ticket per store issue, with probable cause, to ServiceNow</div></div>}</div></div>)}
       </Box>
       <Box className="mt-3" title="OpsRamp event management capabilities" sub="How each stage works, with an SRS example.">
@@ -179,14 +251,19 @@ export function SnowAI() {
   const log = useMemo(() => [...open.slice(0, 6).flatMap(i => [{ t: i.opened + 30e3, dir: 'out', w: 'Incident created', i }, ...(i.acked ? [{ t: i.acked, dir: 'in', w: `Assigned to ${i.assignee || i.group}`, i }] : [])]), ...s.resolved.slice(-4).map(i => ({ t: i.resolved, dir: 'in', w: 'Closed in ServiceNow, OpsRamp incident closed', i }))].filter(x => x.t <= now).sort((a, b) => b.t - a.t).slice(0, 10), [open.length, s.resolved.length, Math.floor(now / 20000)]);
   return (
     <div>
-      <Hero kicker="ServiceNow integration and AI" title="Every real network problem becomes a well-formed, correctly routed ticket">OpsRamp connects to SRS's ServiceNow through a certified ServiceNow Store app, and stays in sync both ways. Only correlated, non-suppressed inferences reach ServiceNow, not raw alarms.</Hero>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-        <Tile label="Incidents sent today" value={num(sent)} sub={`from ${num(tc.events)} alarms, one per problem`} tone="ok" onClick={() => act.drill({ t: 'incidents', k: 'today' })} />
-        <Tile label="Updates both ways" value={num(upd)} sub={`${num(recv)} came back from ServiceNow`} tone="info" />
-        <Tile label="CIs kept current" value={num(D.DEVICES.length + D.CIRCUITS.length)} sub="devices and circuits pushed to the CMDB, nightly and on change" tone="ok" />
-        <Tile label="Integration health" value="OK" sub="0 failed calls in 24 h; OAuth 2.0 token valid" tone="ok" />
-      </div>
-      <Box className="mt-3" title="Integration" sub="What each part of the ServiceNow connection does for SRS.">
+      <Top status={{ label: 'Integration health', word: 'OK', kind: 'ok' }} scope="ServiceNow integration and AI · certified ServiceNow Store app" headline="Every real network problem becomes a well-formed, correctly routed ticket" deck="Only correlated, non-suppressed inferences reach ServiceNow, not raw alarms, and the two systems stay in sync both ways."
+        kpis={[
+          { label: 'Incidents sent today', value: num(sent), tone: 'ok', sub: `from ${num(tc.events)} alarms, one per problem`, go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Updates both ways', value: num(upd), tone: 'info', sub: `${num(recv)} came back from ServiceNow`, go: () => act.drill({ t: 'incidents', k: 'open' }) },
+          { label: 'CIs kept current', value: num(D.DEVICES.length + D.CIRCUITS.length), tone: 'ok', sub: 'pushed to the CMDB', go: () => act.drill({ t: 'devices', k: 'all' }) },
+          { label: 'Integration health', value: 'OK', tone: 'ok', sub: '0 failed calls in 24 h; OAuth 2.0 valid', go: () => act.drill({ t: 'incidents', k: 'open' }) },
+        ]}
+        visuals={[
+          { id: 'pri', kind: 'donut', title: 'Open tickets, by priority', go: { t: 'incidents', k: 'open' }, center: open.length, sub: 'open', caption: 'Priority set from OpsRamp severity, store and category through the field mapping below.', parts: ['P1', 'P2', 'P3', 'P4'].map(p => ({ label: p, value: open.filter(i => i.pri === p).length, color: { P1: COLORS.bad, P2: COLORS.warn, P3: C.s1, P4: C.s3 }[p], go: { t: 'incidents', k: 'open', pri: p } })) },
+          { id: 'grp', kind: 'hbars', title: 'Open tickets, by assignment group', go: { t: 'incidents', k: 'open' }, fmt: 'n', caption: 'Assignment looked up in ServiceNow from the category and store.', rows: Object.entries(open.reduce((m, i) => { m[i.group] = (m[i.group] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]).map(([g, n]) => ({ label: g, value: n, color: C.s1, go: { t: 'incidents', k: 'open' } })) },
+        ]} />
+      <SectionHead sub="incident, CMDB, navigation and security">The integration</SectionHead>
+      <Box title="Integration" sub="What each part of the ServiceNow connection does for SRS.">
         <T cols={[{ k: 'a', l: 'Integration', f: r => <b className="text-ink">{r.a}</b> }, { k: 'b', l: 'Direction', f: r => <Pill tone="blue">{r.b}</Pill> }, { k: 'c', l: 'What it does for SRS', cls: 'text-ink2' }, { k: 'd', l: 'Now', cls: 'text-ink text-[12px]' }]} rows={[
           { a: 'Incident', b: 'Two-way', c: 'OpsRamp opens the ServiceNow incident from an escalation policy, with the correlated alerts, store, device and probable cause attached. Updates flow both ways, and closing in either system closes the other.', d: `${open.length} open incidents in sync; last update ${hhmmss(now - 7000)}` },
           { a: 'CMDB', b: 'OpsRamp to ServiceNow', c: 'Store devices that OpsRamp discovers are pushed into the ServiceNow CMDB as configuration items, keeping the store asset record current.', d: `${num(D.DEVICES.length)} devices, ${num(D.CIRCUITS.length)} circuits; ${Math.max(1, Math.round(D.DEVICES.length * 0.002))} changed last night` },
@@ -238,11 +315,20 @@ export function SnowAI() {
 
 // ───────── outcomes ─────────
 export function Outcomes() {
-  const { s } = useApp(); const { L } = useLive(); const tc = todayCounts(L, s);
+  const { s, act } = useApp(); const { L } = useLive(); const tc = todayCounts(L, s);
   return (
     <div>
-      <Hero kicker="What SRS gains" title="Outcomes, and how OpsRamp delivers them">Measured on SRS's own data during the pilot. Today's live figures from this console are shown alongside.</Hero>
-      <Box className="mt-3" title="Outcome for SRS">
+      <Top status={{ label: 'Pilot', word: 'baselining on SRS data', kind: 'minor' }} scope="What SRS gains" headline="Outcomes, and how OpsRamp delivers them" deck="Measured on SRS's own data during the pilot; today's live figures from this hub are shown alongside."
+        kpis={[
+          { label: 'Alert volume removed today', value: `${Math.round(tc.noise * 100)}%`, tone: 'ok', sub: 'vendor upper bound 92%', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'P1 time to restore', value: `${D.MTTR_MONTHS.P1.at(-1)} h`, tone: 'ok', sub: `from ${D.MTTR_MONTHS.P1[0]} h in ${D.MTTR_MONTHS.months[0]}`, spark: D.MTTR_MONTHS.P1, go: () => act.drill({ t: 'mttr' }) },
+          { label: 'Duplicate tickets', value: 0, tone: 'ok', sub: 'only real incidents ticketed', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+          { label: 'Policies proven first', value: `${POLICIES.filter(p => p.mode !== 'On').length} of ${POLICIES.length}`, tone: 'warn', sub: 'still in shadow or recommend', go: () => act.drill({ t: 'incidents', k: 'today' }) },
+        ]}
+        visuals={[{ id: 'mttr', kind: 'line', title: 'Time to restore by priority, six months', go: { t: 'mttr' }, labels: D.MTTR_MONTHS.months, fmt: 'h', yMin: 0, caption: 'Faster restoration: one correlated incident with probable cause, routed to the right team first time.', series: [{ name: 'P1', color: COLORS.bad, data: D.MTTR_MONTHS.P1 }, { name: 'P2', color: COLORS.warn, data: D.MTTR_MONTHS.P2 }, { name: 'P3', color: C.s1, data: D.MTTR_MONTHS.P3 }] },
+          { id: 'noise', kind: 'stack', title: "Today's events: noise against real incidents", go: { t: 'incidents', k: 'today' }, caption: 'Far fewer alarms to triage. The 92% figure is a vendor-measured upper bound; SRS\'s own reduction is baselined in the pilot.', parts: [['Removed as noise', tc.suppressed, C.s3], ['Cleared or digest', tc.auto + tc.digest, COLORS.ok], ['Correlated into incidents', tc.corr, C.s1]].map(([l, v, c]) => ({ label: l, value: v, color: c, go: { t: 'incidents', k: 'today' } })) }]} />
+      <SectionHead sub="from the solution response">Outcome for SRS</SectionHead>
+      <Box title="Outcome for SRS">
         <T cols={[{ k: 'a', l: 'Outcome', f: r => <b className="text-ink">{r.a}</b> }, { k: 'b', l: 'How OpsRamp delivers it', cls: 'text-ink2' }, { k: 'c', l: 'Measured here today', f: r => <b className="text-ink">{r.c}</b> }]} rows={[
           { a: 'Far fewer alarms to triage', b: "De-duplication plus ML correlation. OpsRamp's own analysis across 100+ customer environments found up to 92% alert-volume reduction.", c: `${Math.round(tc.noise * 100)}% of ${num(tc.events)} events removed; ${tc.inc} incidents` },
           { a: 'Faster restoration', b: 'One correlated incident with probable cause, routed to the right team first time.', c: `${D.MTTR_MONTHS.P1.at(-1)} h P1 restore, down from ${D.MTTR_MONTHS.P1[0]} h in ${D.MTTR_MONTHS.months[0]}` },

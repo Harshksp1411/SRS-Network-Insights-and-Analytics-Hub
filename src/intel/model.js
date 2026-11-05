@@ -92,7 +92,8 @@ export function nowModel(s, now, range, region) {
       link: [['Bandwidth at peak (95th percentile)', `${Math.round(avg(caps.map(c => c.wanP95)))}% on average`], ['Headroom per circuit', `${caps.filter(c => c.wanP95 >= 80).length} circuits under 20% headroom`], ['Need more capacity within 90 days', `${caps.filter(c => c.wanDays <= 90).length} circuits`]],
     },
   };
-  return { list, st, trading, single, avail, regions, attention, layers, majors, dims, open, failovers };
+  const winMins = range === 'today' ? Math.max(1, (now - midnight(now)) / MIN) : (range === '7d' ? 7 : 30) * 1440;
+  return { list, st, trading, single, avail, regions, attention, layers, majors, dims, open, failovers, winMins };
 }
 
 // thresholds are tuned to the store profile, so a busy yard is not judged against a small branch

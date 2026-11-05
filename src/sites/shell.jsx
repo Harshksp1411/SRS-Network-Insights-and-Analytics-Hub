@@ -92,8 +92,8 @@ export function BarRow({ label, sub, value, frac, tone = 'info', right, onClick,
 // a section box with a title row, for every card on the solution pages
 export function Box({ title, right, sub, children, className, id, icon: Ic }) {
   return (
-    <section id={id} className={cx('bg-panel border border-line rounded-lg min-w-0 flex flex-col', className)}>
-      {title && <div className="flex items-start gap-2 px-4 pt-3 pb-2"><div className="flex-1 min-w-0"><h3 className="text-[14.5px] font-bold text-ink flex items-center gap-1.5">{Ic && <Ic size={15} className="text-ink3" />}{title}</h3>{sub && <div className="text-[12px] text-ink3 leading-snug mt-0.5">{sub}</div>}</div>{right && <div className="text-[12px] text-ink3 shrink-0">{right}</div>}</div>}
+    <section id={id} className={cx('bg-panel border border-line rounded-md min-w-0 flex flex-col', className)}>
+      {title && <div className="flex items-start gap-2 px-4 pt-4 pb-2"><div className="flex-1 min-w-0"><h3 className="text-[15px] font-bold text-ink flex items-center gap-1.5 leading-snug" style={DISPLAY}>{Ic && <Ic size={15} className="text-ink3" />}{title}</h3>{sub && <div className="text-[12px] text-ink3 leading-snug mt-0.5">{sub}</div>}</div>{right && <div className="text-[12px] text-ink3 shrink-0">{right}</div>}</div>}
       <div className="px-4 pb-4 pt-1 flex-1 min-h-0">{children}</div>
     </section>
   );

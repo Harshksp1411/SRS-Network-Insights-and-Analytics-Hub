@@ -5,7 +5,8 @@ import * as I from 'lucide-react';
 import * as D from '../data.js';
 import { useApp, useNow } from '../store.jsx';
 import { Heatmap, LineChart, C } from '../charts.jsx';
-import { LensHead, Summary, Tile, BarRow, Box, Pill, T } from '../sites/shell.jsx';
+import { BarRow, Box, Pill, T } from '../sites/shell.jsx';
+import { PeriodBar, ExploreBtn, Headline, Kpis, Trio, ChartCards, Insight, SectionHead, COLORS } from '../sites/dash.jsx';
 import { nextModel, NEXT_RANGES, REGIONS, SIGNALS } from './model.js';
 import { modelAccuracy } from '../predict.js';
 import { num, dateShort, DAY } from '../util.js';
@@ -36,19 +37,50 @@ export function NextLens({ region, setRegion }) {
   };
   const acc = m.acc, ma = modelAccuracy();
   const sp = sel ? m.caps.find(c => c.b.id === sel) : m.upgrades[0] || m.caps.slice().sort((a, b) => b.d90 - a.d90)[0];
+  const R = region === 'All' ? {} : { region };
+  const bands = [['High (70 to 100)', m.high.length, COLORS.bad], ['Medium (45 to 69)', m.med.length, COLORS.warn], ['Low (under 45)', m.risks.length - m.high.length - m.med.length, COLORS.ok]];
+  const fcLine = m.caps.slice().sort((a, b) => b.d90 - a.d90).slice(0, 4);
+  const visuals = [
+    { id: 'band', kind: 'stack', title: `Every store's risk score, ${word}`, go: { t: 'predictions' }, caption: `Scored 0 to 100 each day from OpsRamp performance and ServiceNow history. ${m.high.length} high, ${m.med.length} medium.`,
+      parts: bands.map(([l, v, c]) => ({ label: l, value: v, color: c, go: { t: 'predictions' } })).reverse(), top: m.high.slice(0, 4).map(r => ({ label: `${r.b.name} (${r.score})`, why: r.driver, color: COLORS.bad, go: { t: 'branch', id: r.b.id } })), topTitle: 'Highest risk' },
+    { id: 'map', kind: 'map', title: 'Where the risk is', go: { t: 'predictions' }, focus: region !== 'All', caption: 'Stores at medium or high risk, in colour. Guides field and depot planning.',
+      points: m.risks.map(r => ({ id: r.b.id, x: r.b.x, y: r.b.y, st: r.score >= 70 ? 'down' : r.score >= 45 ? 'degraded' : 'up', color: r.score >= 70 ? COLORS.bad : r.score >= 45 ? COLORS.warn : COLORS.ok, label: `${r.b.name} · risk ${r.score}` })) },
+    { id: 'drivers', kind: 'hbars', title: 'What is driving risk', go: { t: 'predictions' }, fmt: 'n', caption: 'Stores at medium or high risk where the signal is a real contributor.',
+      rows: m.driving.map(g => ({ label: g.label, value: g.n, sub: g.warn, color: g.k === 'circuit' ? C.s1 : C.s3, go: { t: 'predictions' } })).sort((a, b) => b.value - a.value) },
+    { id: 'regions', kind: 'hbars', title: 'Risk by region', go: { t: 'predictions' }, fmt: 'n', caption: 'Average risk score per region, with the number of high-risk stores.',
+      rows: m.heat.map(h => ({ label: h.r, value: Math.round(h.avg), sub: `${h.high} high risk · ${h.n} stores`, color: h.high ? COLORS.warn : C.s1, go: { t: 'set', k: 'all', region: h.r } })).sort((a, b) => b.value - a.value) },
+    { id: 'cap', kind: 'line', title: 'Capacity forecast: peak use, next 90 days', go: { t: 'set', k: 'capacity', ...R }, labels: ['Now', '+30 d', '+60 d', '+90 d'], fmt: 'n', refLines: [{ v: 90, label: 'Upgrade at 90%', color: C.bad }], caption: `${m.fc.map(f => `${f.n} circuits reach 90% within ${f.d} days`).join('; ')}.`,
+      series: fcLine.map((c, i) => ({ name: c.b.name.split(' – ')[1], color: [C.s1, C.s4, C.s5, COLORS.warn][i], data: [c.now, c.d30, c.d60, c.d90].map(Math.round) })) },
+    { id: 'acc', kind: 'cols', title: 'Did predictions hold this month?', go: { t: 'predictions' }, keys: ['Count'], colors: [C.ok], caption: `${acc.falseAlarm} false alarm · ${acc.became} flagged risk${acc.became === 1 ? '' : 's'} became incidents. Precision ${Math.round(ma.precision.at(-1) * 100)}%, recall ${Math.round(ma.recall.at(-1) * 100)}%.`,
+      data: [['Risks flagged', acc.flagged], ['Acted on in time', acc.acted], ['Outages avoided', acc.avoided], ['Visits avoided', acc.visits]].map(([l, v]) => ({ label: l, Count: v })), goes: [0, 1, 2, 3].map(() => ({ t: 'predictions' })) },
+  ];
+  const insights = [
+    { kicker: 'Proactive records', title: `${m.high.length} high-risk stores, each with a planned action`, line: 'Each becomes a ServiceNow problem record, planned change or field-visit request, assigned to the right team.', stats: ['Problem record', 'Planned change', 'Field visit request'].map(r => ({ value: m.high.filter(x => x.record === r).length, label: r.toLowerCase() })), points: m.high.slice(0, 3).map(r => ({ b: r.b.name, t: r.action, tone: 'bad' })), go: () => document.getElementById('atrisk')?.scrollIntoView({ behavior: 'smooth' }) },
+    { kicker: 'Lifecycle', title: `${num(m.eos.length)} devices reach end of support within 12 months`, line: `${num(m.warrantyEnd.length)} warranties also end; this feeds the refresh plan.`, bars: m.failProne.map(([k, n]) => ({ label: `${k}: incidents, last 7 days`, value: n, tone: 'warn' })), go: () => dr({ t: 'devices', k: 'eos' }) },
+    { kicker: 'Capacity', title: `${m.upgrades.length} circuit upgrade${m.upgrades.length === 1 ? '' : 's'} due ${word}`, line: 'Bandwidth trending towards the circuit limit at peak.', points: (m.upgrades.length ? m.upgrades : fcLine).slice(0, 4).map(c => ({ b: c.b.name, t: `${Math.round(c.now)}% now, ${Math.round(c.d90)}% in 90 days`, tone: 'warn' })), go: () => dr({ t: 'set', k: 'capacity' }) },
+    { kicker: 'Field and depot', title: `${m.high.filter(r => r.kind === 'visit').length + m.med.filter(r => r.kind === 'visit').length} planned visits to book in quiet hours`, line: 'Spares pre-positioned at the nearest depot; technicians after branch close, not in a hurry.', points: s.depots.slice(0, 3).map(d => ({ b: d.city, t: `${d.spares['AP-635'] || 0} APs, ${d.spares['EC-XS'] || 0} EdgeConnects, ${d.spares['LTE router'] || 0} LTE routers`, tone: 'info' })), go: () => act.drill({ t: 'set', k: 'all' }) },
+  ];
+  const status = m.high.length > 15 ? { label: 'Risk', word: 'Elevated', kind: 'warn' } : m.high.length ? { label: 'Risk', word: 'Watch', kind: 'minor' } : { label: 'Risk', word: 'Low', kind: 'ok' };
   return (
     <div>
-      <LensHead title="SRS Predictive Network Risk" src="Scored daily from OpsRamp performance history and ServiceNow incident history" ranges={NEXT_RANGES} range={range} onRange={setRange} region={region} onRegion={setRegion} regions={REGIONS} />
-      <Summary>{m.high.length} store{m.high.length === 1 ? '' : 's'} at high risk {word}, mostly {mainSig ? mainSig.label.toLowerCase() : 'circuit'}-driven. {acc.avoided} of {acc.flagged} flagged outages avoided month to date.</Summary>
-      <div className="border border-t-0 border-line rounded-b-lg p-3 sm:p-4 bg-canvas">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-          <Tile label="High-risk stores" value={m.high.length} sub={`risk score 70 or more, ${word}`} tone="bad" onClick={() => m.high[0] && act.drill({ t: 'branch', id: m.high[0].b.id })} />
-          <Tile label="Medium risk" value={m.med.length} sub="on the watch list (45 to 69)" tone="warn" onClick={() => dr({ t: 'predictions' })} />
-          <Tile label="Upgrades due" value={m.upgrades.length} sub={`circuits reaching 90% at peak, ${range === '7d' ? '7' : range === '30d' ? '30' : '90'} days`} tone={m.upgrades.length ? 'warn' : 'ok'} onClick={() => dr({ t: 'set', k: 'capacity' })} />
-          <Tile label="End of support" value={num(m.eos.length)} sub={`devices, 12 months; ${num(m.warrantyEnd.length)} warranties end`} tone="warn" onClick={() => dr({ t: 'devices', k: 'eos' })} />
-          <Tile label="Prevented MTD" value={acc.avoided} sub={`outages, of ${acc.flagged} flagged`} tone="ok" />
-        </div>
-        <Box className="mt-3" title={`Stores at risk ${word}`} right="ranked by risk score, 0 to 100" sub="Each score comes with the reason behind it and a recommended action. Raise the proactive ServiceNow record from here.">
+      <PeriodBar views={NEXT_RANGES} value={range} onChange={setRange} note="Scored daily from OpsRamp performance history and ServiceNow incident history" region={region} onRegion={setRegion} regions={REGIONS} right={<ExploreBtn icon={I.Telescope} onClick={() => dr({ t: 'predictions' })}>All predictions</ExploreBtn>} />
+      <Headline status={status} scope={`Predictive risk and proactive operations · ${region === 'All' ? 'All regions' : region}`} headline={`${m.high.length} store${m.high.length === 1 ? '' : 's'} likely to fail without action ${word}`} deck={`Mostly ${mainSig ? mainSig.label.toLowerCase() : 'circuit degradation'}. ${acc.avoided} of ${acc.flagged} flagged outages avoided month to date.`} spotlight={m.high[0] && `${m.high[0].b.name}, risk ${m.high[0].score}: ${m.high[0].driver}. Do: ${m.high[0].action}, by ${dueOf(m.high[0].due, now)}.`} onSpot={() => m.high[0] && act.drill({ t: 'branch', id: m.high[0].b.id })} />
+      <Kpis cols={5} items={[
+        { label: 'High-risk stores', value: m.high.length, tone: 'bad', sub: `risk 70 or more, ${word}`, go: () => m.high[0] && act.drill({ t: 'branch', id: m.high[0].b.id }) },
+        { label: 'Medium risk', value: m.med.length, tone: 'warn', sub: 'on the watch list', go: () => dr({ t: 'predictions' }) },
+        { label: 'Upgrades due', value: m.upgrades.length, tone: m.upgrades.length ? 'warn' : 'ok', sub: `circuits at 90% within ${m.horizon} days`, go: () => dr({ t: 'set', k: 'capacity' }) },
+        { label: 'End of support', value: num(m.eos.length), tone: 'warn', sub: 'devices, 12 months', go: () => dr({ t: 'devices', k: 'eos' }) },
+        { label: 'Prevented MTD', value: acc.avoided, tone: 'ok', sub: `outages, of ${acc.flagged} flagged`, go: () => dr({ t: 'predictions' }) },
+      ]} />
+      <Trio
+        attention={m.high.slice(0, 5).map(r => ({ text: `${r.b.name}, risk ${r.score}: ${r.action}.`, go: () => act.drill({ t: 'branch', id: r.b.id }) }))}
+        well={[{ text: `${acc.avoided} of ${acc.flagged} flagged outages avoided this month.`, go: () => dr({ t: 'predictions' }) }, { text: `${acc.visits} unplanned visits turned into planned work.`, go: () => dr({ t: 'predictions' }) }, { text: `Precision ${Math.round(ma.precision.at(-1) * 100)}% and recall ${Math.round(ma.recall.at(-1) * 100)}%, both rising for 6 months.`, go: () => dr({ t: 'predictions' }) }, { text: `${num(m.risks.length - m.high.length - m.med.length)} stores at low risk.`, go: () => dr({ t: 'set', k: 'healthy' }) }]}
+        ahead={m.high.slice().sort((a, b) => a.due - b.due).slice(0, 5).map(r => ({ when: dueOf(r.due, now), kind: r.record, what: `${r.b.name}: ${r.action}`, go: () => act.drill({ t: 'branch', id: r.b.id }) }))} aheadTitle="Due next" />
+      <div className="mt-4"><ChartCards visuals={visuals} go={n => act.drill(n)} /></div>
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mt-4">{insights.map(x => <Insight key={x.kicker} x={x} />)}</div>
+      <SectionHead sub="the worklist, forecasts and how the model works">Stores at risk and the detail</SectionHead>
+      <div id="atrisk">
+        <Box title={`Stores at risk ${word}`} right="ranked by risk score, 0 to 100" sub="Each score comes with the reason behind it and a recommended action. Raise the proactive ServiceNow record from here.">
           <T cols={[
             { k: 'store', l: 'Store', f: r => <button onClick={() => act.drill({ t: 'branch', id: r.b.id })} className="font-bold text-ink hover:underline text-left">{r.b.name.replace('Branch ', '#')}</button> },
             { k: 'risk', l: 'Risk', f: r => <div className="flex items-center gap-2 min-w-[120px]"><span className="relative h-2.5 bg-chip rounded-full w-[80px]"><span className={cx('absolute inset-y-0 left-0 rounded-full', r.score >= 70 ? 'bg-bad' : 'bg-warn')} style={{ width: `${r.score}%` }} /></span><b className="tabular-nums">{r.score}</b></div> },
@@ -58,15 +90,6 @@ export function NextLens({ region, setRegion }) {
             { k: 'rec', l: 'ServiceNow', f: r => created[r.b.id] ? <Pill tone="green">{created[r.b.id]}</Pill> : <button onClick={() => createRecord(r)} className="h-7 px-2 rounded border border-line hover:bg-chip text-[11.5px] font-semibold text-ink whitespace-nowrap inline-flex items-center gap-1"><I.Plus size={12} />{r.record}</button> },
           ]} rows={m.risks.filter(r => r.score >= 45).slice(0, 12)} />
         </Box>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3">
-          <Box title="What is driving risk" right="stores affected" sub="Stores at medium or high risk where the signal is a real contributor.">
-            {m.driving.map(g => <BarRow key={g.k} label={g.label} sub={g.warn} value={g.n} frac={g.n / Math.max(1, ...m.driving.map(x => x.n))} tone={g.k === 'circuit' ? 'info' : 'ink'} />)}
-          </Box>
-          <Box title="Did predictions hold this month?" sub="How many flagged risks became incidents and how many were prevented, so SRS can see the model earning its keep.">
-            {[['Risks flagged', acc.flagged], ['Acted on in time', acc.acted], ['Outages avoided', acc.avoided], ['Unplanned visits avoided', acc.visits]].map(([l, v]) => <BarRow key={l} label={l} value={v} frac={v / acc.flagged} tone="ok" />)}
-            <div className="text-[12px] text-ink3 mt-1">{acc.falseAlarm} false alarm · {acc.became} flagged risk{acc.became === 1 ? '' : 's'} became incidents. Precision {Math.round(ma.precision.at(-1) * 100)}%, recall {Math.round(ma.recall.at(-1) * 100)}%, both rising for 6 months.</div>
-          </Box>
-        </div>
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mt-3">
           <Box title="Risk heat map" sub="Regions by aggregate risk, and the signals behind it. Guides field and depot planning. Click a region to focus.">
             <Heatmap rows={m.heat.map(h => `${h.r} (${h.high} high)`)} cols={SIGNALS.map(g => g.label.split(' ')[0])} values={m.heat.map(h => h.by)} cell={26} rowW={210} onCell={(r) => setRegion(m.heat[r].r)} />
