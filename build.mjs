@@ -6,6 +6,8 @@ import fs from 'fs';
 //   dist/site/index.html        the operations console
 //   dist/site/demos/index.html  the live demos
 //   dist/site/dashboards/index.html the real-time role-based (RBAC) dashboards, with PDF export
+//   dist/site/intelligence/index.html Network Intelligence: the Now, Then and Next dashboards
+//   dist/site/opsramp/index.html  the OpsRamp platform capabilities walk-through
 //   dist/site/briefs/index.html  forwards the old link to the dashboards
 const NAME = 'SRS Network Insights and Analytics Hub';
 fs.mkdirSync('dist', { recursive: true });
@@ -16,6 +18,8 @@ const icon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3
 const PAGES = [
   { out: 'dist/site/index.html', edition: 'console', entry: 'src/main.jsx', title: NAME, desc: 'SRS Distribution managed network operations console – operated by Movate. Sample data; items marked illustrative are not SRS facts.' },
   { out: 'dist/site/demos/index.html', edition: 'demos', entry: 'src/main.jsx', title: `${NAME} – Live demos`, desc: 'Scripted SRS branch situations, each played on one screen with every system involved – operated by Movate. Sample data.' },
+  { out: 'dist/site/intelligence/index.html', edition: 'intelligence', entry: 'src/intel/main.jsx', title: `${NAME} – Network Intelligence`, desc: 'Now, Then and Next: near real-time store network health from OpsRamp, managed-service performance and trends from ServiceNow, and predictive risk with proactive actions. Sample data.' },
+  { out: 'dist/site/opsramp/index.html', edition: 'opsramp', entry: 'src/ops/main.jsx', title: `${NAME} – OpsRamp platform`, desc: 'OpsRamp for SRS: integration with the Aruba and EdgeConnect estate, event management from alarm storm to one incident, ServiceNow auto-ticketing and AI, and a nine-step demo of one store outage. Sample data.' },
   { out: 'dist/site/dashboards/index.html', edition: 'dashboards', entry: 'src/dash/main.jsx', title: `${NAME} – Role dashboards`, desc: 'Real-time, role-based dashboards for the CIO and the network, stores, IT service, security and regional leaders, with drill-down to every branch, line, device and incident. Sample data.' },
 ];
 // jsPDF can render HTML through optional libraries the dashboards never use; leave them out of the page
