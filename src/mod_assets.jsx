@@ -110,7 +110,7 @@ export function Inventory() {
       </div></Card>}
       {tab === 'recon' && <Recon />}
       <Modal open={!!dev} onClose={() => setDev(null)} title={dev && <span className="font-mono">{dev.id}</span>} sub={dev && `${dev.model}, ${dev.type}, ${D.BR[dev.branchId].name}, ${D.BR[dev.branchId].brand}`} wide
-        footer={dev && <><Btn op icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open branch</Btn><Btn icon={I.Network} onClick={() => { setDev(null); act.set({ module: 'graph', graphBranch: dev.branchId }); }}>Show in graph</Btn></>}>
+        footer={dev && <><Btn op icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open branch</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open in Branch 360</Btn></>}>
         {dev && <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div><KV k="Model" v={dev.model} /><KV k="Role / zone" v={dev.role} /><KV k="Managed by" v={dev.type === 'SD-WAN' ? 'EdgeConnect Orchestrator' : dev.mode === 'Central' ? 'Aruba Central' : 'Standalone (polled by OpsRamp; not yet in Aruba Central)'} /><KV k="Firmware" v={<span className="flex items-center gap-1.5">{dev.fw}{fwBadge(dev)}</span>} /><KV k="Target (N)" v={D.FW_TARGET[dev.type === 'AP' ? 'AP' : dev.model][0]} /><KV k="Serial / MAC" v={<span className="font-mono">{dev.serial}</span>} /><KV k={D.warrantyKind(dev)} v={D.warrantyText(dev)} /><KV k="CMDB CI" v={`cmdb_ci_netgear, ${dev.id}`} /></div>
           <div>
@@ -273,9 +273,9 @@ export function Dispatch() {
     <div>
       <PageHead icon={I.Truck} title="Field Dispatch" sub="Work orders matched to technician skills, depot spares, branch hours and ETA. Visits during branch hours only for P1/P2 or when the device is already down." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Unassigned" icon={I.CircleDashed} value={wos.filter(w => !w.tech).length} tone={wos.filter(w => !w.tech).length ? 'amber' : 'green'} />
-        <Stat label="En route / on site" icon={I.Navigation} value={wos.filter(w => ['Assigned', 'En route', 'On site', 'Dispatched'].includes(w.status)).length} />
-        <Stat label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length}`} />
+        <Stat onClick={() => setTab('orders')} label="Unassigned" icon={I.CircleDashed} value={wos.filter(w => !w.tech).length} tone={wos.filter(w => !w.tech).length ? 'amber' : 'green'} />
+        <Stat onClick={() => setTab('orders')} label="En route / on site" icon={I.Navigation} value={wos.filter(w => ['Assigned', 'En route', 'On site', 'Dispatched'].includes(w.status)).length} />
+        <Stat onClick={() => setTab('techs')} label="Technicians available" icon={I.HardHat} value={s.techs.filter(t => t.status === 'Available').length} sub={`of ${s.techs.length}`} />
         <Stat label="Low-stock depot lines" icon={I.PackageX} value={s.depots.reduce((a, d) => a + Object.values(d.spares).filter(v => v <= 1).length, 0)} tone="amber" onClick={() => setTab('depots')} />
       </div>
       {s.role === 'tech' && <MyJobs />}

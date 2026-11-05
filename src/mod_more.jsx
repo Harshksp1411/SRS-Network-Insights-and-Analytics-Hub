@@ -34,9 +34,9 @@ export function Predictive() {
       <PageHead icon={I.TrendingUp} title="Predictive Watchlist" sub="Degrading circuits, AP and switch failure risk, capacity forecasts. Each one shows the data it is based on and a plan to prevent it. Every prediction creates a watch or an approval, never a direct change." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label="Open predictions" icon={I.Telescope} onClick={() => act.drill({ t: 'predictions' })} value={s.predictions.filter(p => ['New', 'Watching'].includes(p.status)).length} />
-        <Stat label="Predictive accuracy (KPI 38)" icon={I.Target} value="78%" sub="true positives, target 75%" tone="green" />
+        <Stat onClick={() => act.drill({ t: 'predictions' })} label="Predictive accuracy (KPI 38)" icon={I.Target} value="78%" sub="true positives, target 75%" tone="green" />
         <Stat label="Active watches" icon={I.Eye} onClick={() => act.drill({ t: 'predictions' })} value={s.watches.length + s.predictions.filter(p => p.status === 'Watching').length} />
-        <Stat label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
+        <Stat onClick={() => act.drill({ t: 'predictions' })} label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
@@ -78,9 +78,9 @@ export function Knowledge() {
     <div>
       <PageHead icon={I.BookOpen} title="Knowledge" sub="KB search, similar past incidents, problem records, and articles the Knowledge Agent wrote from resolved incidents – waiting for an engineer to review." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Published articles" icon={I.FileText} value={s.kb.length} />
+        <Stat onClick={() => setTab('search')} label="Published articles" icon={I.FileText} value={s.kb.length} />
         <Stat label="Drafts awaiting review" icon={I.FilePen} value={s.kbDrafts.filter(d => d.status === 'Awaiting review').length} tone="amber" onClick={() => setTab('drafts')} />
-        <Stat label="Recommendation accuracy" icon={I.Target} value="83%" sub="KPI 39 target 80%" tone="green" />
+        <Stat onClick={() => setTab('search')} label="Recommendation accuracy" icon={I.Target} value="83%" sub="KPI 39 target 80%" tone="green" />
         <Stat label="Problem records open" icon={I.Bug} value={s.problems.filter(p => p.state !== 'Closed').length} onClick={() => setTab('problems')} />
       </div>
       <LivePanel kind="knowledge" className="mb-3 mt-3" />
@@ -127,10 +127,10 @@ export function Automation() {
     <div>
       <PageHead icon={I.Workflow} title="Automation Library" sub="Runbooks with run history, success rate and autonomy level. Autonomy is capped by the gates: below 80% confidence, branch hours and freeze windows always need a human." />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Runbooks" icon={I.BookMarked} value={s.runbooks.length} />
-        <Stat label="Runs (30 days)" icon={I.Play} value={num(s.runbooks.reduce((a, r) => a + r.runs30, 0))} />
+        <Stat onClick={() => act.go('catalogue')} label="Runbooks" icon={I.BookMarked} value={s.runbooks.length} />
+        <Stat onClick={() => act.drill({ t: 'incidents', k: 'auto7' })} label="Runs (30 days)" icon={I.Play} value={num(s.runbooks.reduce((a, r) => a + r.runs30, 0))} />
         <Stat label="Auto-resolution rate" icon={I.Bot} onClick={() => act.drill({ t: 'incidents', k: 'auto7' })} value="23.1%" sub="KPI 37 target 25% – trending up" tone="amber" />
-        <Stat label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
+        <Stat onClick={() => act.go('catalogue')} label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
       </div>
       <LivePanel kind="automation" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>

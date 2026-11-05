@@ -11,6 +11,7 @@ import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
+import { Catalogue } from './catalogue.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -18,7 +19,6 @@ import LOGOS from './logos.js';
 import { hhmmss, hhmm, ago, dt, num, MIN } from './util.js';
 import { Overview, Readiness } from './mod_ops.jsx';
 import { Incidents } from './mod_incidents.jsx';
-import { NetGraph } from './mod_graph.jsx';
 import { Inventory, Carriers, Dispatch } from './mod_assets.jsx';
 import { Changes } from './mod_changes.jsx';
 import { BiaB } from './mod_biab.jsx';
@@ -32,7 +32,6 @@ export const MODULES = [
   { id: 'b360', label: 'Branch 360', icon: I.Store, group: 'Operate', C: Branch360 },
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
-  { id: 'graph', label: 'Network Graph', icon: I.Network, group: 'Operate', C: NetGraph },
   { id: 'inventory', label: 'Device & Circuit Inventory', icon: I.Boxes, group: 'Manage', C: Inventory },
   { id: 'vuln', label: 'Lifecycle & Vulnerabilities', icon: I.ShieldAlert, group: 'Manage', C: Vulns, badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length, alertBadge: true },
   { id: 'carriers', label: 'Carrier Management', icon: I.RadioTower, group: 'Manage', C: Carriers, badge: s => s.cases.filter(c => !c.closed).length },
@@ -43,6 +42,7 @@ export const MODULES = [
   { id: 'knowledge', label: 'Knowledge', icon: I.BookOpen, group: 'Improve', C: Knowledge },
   { id: 'agents', label: 'Mova iO Agents', icon: I.Bot, group: 'Improve', C: Agents },
   { id: 'automation', label: 'Automation Library', icon: I.Workflow, group: 'Improve', C: Automation },
+  { id: 'catalogue', label: 'AI & Automation Catalogue', icon: I.LibraryBig, group: 'Improve', C: Catalogue },
   { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
 ];
@@ -149,6 +149,12 @@ function FilterBar() {
   const cities = Object.keys(cityCounts).sort();
   const inCity = inRegion.filter(b => !f.city || f.city === 'All' || cityKey(b) === f.city);
   const pickBranch = id => { if (!id) { setF({ branchId: null }); return; } const b = D.BR[id]; setF({ branchId: id, city: cityKey(b) }); if (s.module === 'overview' || s.module === 'b360') act.set({ module: 'b360', b360: id }); };
+  // the device level: with a branch picked, its lines and devices; otherwise device and line sets for the scope
+  const devOptions = f.branchId ? [{ value: '', label: `Device: any (${D.devicesOf(f.branchId).length + D.BR[f.branchId].wan.length})` },
+    ...D.BR[f.branchId].wan.map((id, k) => { const c = D.CIR[id]; return { value: `c:${id}`, label: `ISP-${k + 1}: ${c.carrier} ${c.type} (${id})` }; }),
+    ...D.devicesOf(f.branchId).map(d => ({ value: `d:${d.id}`, label: `${d.id} · ${d.model}${d.role ? ` · ${d.role}` : ''}` }))]
+    : [{ value: '', label: 'Device: any' }, { value: 's:devices:all', label: `All devices in view (${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))})` }, { value: 's:devices:down', label: 'Devices down now' }, { value: 's:devices:crit', label: 'Devices with a critical flaw' }, { value: 's:devices:eos', label: 'Switches reaching end of support' }, { value: 's:lines:all', label: `All lines in view (${num(list.length * 2)})` }, { value: 's:lines:problem', label: 'Lines down or degraded now' }];
+  const pickDevice = v => { if (!v) return; const [k, a, b] = v.split(':'); act.drill(k === 'c' ? { t: 'circuit', id: a } : k === 'd' ? { t: 'device', id: a } : { t: a, k: b }); };
   return (
     <div className="bg-panel border-b border-line px-5 py-2 flex items-center gap-1.5 flex-wrap">
       <span className="text-[12px] font-bold text-ink3 mr-1">Showing</span>
@@ -160,6 +166,9 @@ function FilterBar() {
         <Select icon={I.Building2} value={f.city || 'All'} onChange={v => setF({ city: v, branchId: null })} options={[{ value: 'All', label: `City: all (${cities.length})` }, ...cities.map(c => ({ value: c, label: `${c} (${cityCounts[c]})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: `${b.name}, ${b.brand}` }))]} />
+        <I.ChevronRight size={14} className="text-ink3" />
+        <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
+        <button onClick={() => act.drill(f.branchId ? { t: 'branch', id: f.branchId } : { t: 'set', k: 'all' })} title="Drill down from here to a store, a device or a line" className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Layers size={14} />Drill down</button>
         <Select icon={I.Tag} value={f.brand} onChange={v => setF({ brand: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Brand: all' }, ...D.BRANDS.map(b => ({ value: b, label: b }))]} />
         <div className="relative">
           <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-44" />
@@ -281,7 +290,7 @@ export function BranchDrawer() {
   const close = () => act.set({ selBranch: null });
   return (
     <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}, {b.brand}</span>} sub={`${b.id}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
-      footer={<><Btn icon={I.Sunrise} onClick={() => { close(); act.set(st => ({ module: 'readiness', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Readiness checks</Btn><Btn icon={I.Network} onClick={() => { close(); act.set({ module: 'graph', graphBranch: b.id }); }}>Show in network graph</Btn><Btn icon={I.Boxes} onClick={() => { close(); act.set(st => ({ module: 'inventory', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Devices</Btn><div className="flex-1" /><Btn kind="brand" icon={I.Filter} onClick={() => { close(); act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } }); }}>Filter console to this branch</Btn></>}>
+      footer={<><Btn icon={I.Sunrise} onClick={() => { close(); act.set(st => ({ module: 'readiness', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Readiness checks</Btn><Btn icon={I.Boxes} onClick={() => { close(); act.set(st => ({ module: 'inventory', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Devices</Btn><div className="flex-1" /><Btn kind="brand" icon={I.Filter} onClick={() => { close(); act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } }); }}>Filter console to this branch</Btn></>}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <div className="text-[12px] font-bold text-ink3 mb-1">Branch</div>
