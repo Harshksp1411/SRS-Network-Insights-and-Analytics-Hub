@@ -13,8 +13,8 @@ const stCol = st => ({ 'Meets ESL': COL.green, 'Above MSL': COL.amber, 'Below ta
 const pc = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
 
 // ── Scorecard at a glance: one bullet bar per metric ─────────────────
-export function SLAScorecard({ onSel, sel }) {
-  const lines = [...new Set(D.SLA.map(x => x.line))];
+export function SLAScorecard({ onSel, sel, list = D.SLA, when = 'this month' }) {
+  const lines = [...new Set(list.map(x => x.line))];
   const Row = ({ m, k }) => {
     const lo = m.lower ? 0 : Math.max(0, Math.min(m.msl ?? m.esl, m.act, ...m.trend) - (m.esl > 0.9 ? 0.02 : 0.08));
     const hi = m.lower ? Math.max(m.esl * 1.6, m.act * 1.3) : m.esl > 0.99 ? 1 : Math.min(1, Math.max(m.esl, m.act) + (m.esl > 0.9 ? 0.01 : 0.08));
@@ -34,32 +34,32 @@ export function SLAScorecard({ onSel, sel }) {
     );
   };
   return (
-    <Card title="Scorecard at a glance" sub="Every Annexure B metric this month. The bar is the actual; the black tick is the expected level (ESL); the pale red zone is below the minimum (MSL), where a service credit applies" right={<Legend items={[['Meets ESL', COL.green], ['Between MSL and ESL', COL.amber], ['Below MSL', COL.red]]} />}>
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-x-6">{lines.map(l => <div key={l} className="mb-2 break-inside-avoid"><div className="text-[11.5px] font-bold text-ink3 uppercase tracking-wide px-1.5 mb-0.5">{l.replace('Network ', '')}</div>{D.SLA.map((m, k) => m.line === l ? <Row key={k} m={m} k={k} /> : null)}</div>)}</div>
+    <Card title="Scorecard at a glance" sub={`Every Annexure B metric, ${when}. The bar is the actual; the black tick is the expected level (ESL); the pale red zone is below the minimum (MSL), where a service credit applies`} right={<Legend items={[['Meets ESL', COL.green], ['Between MSL and ESL', COL.amber], ['Below MSL', COL.red]]} />}>
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-x-6">{lines.map(l => <div key={l} className="mb-2 break-inside-avoid"><div className="text-[11.5px] font-bold text-ink3 uppercase tracking-wide px-1.5 mb-0.5">{l.replace('Network ', '')}</div>{list.map((m, k) => m.line === l ? <Row key={k} m={m} k={k} /> : null)}</div>)}</div>
     </Card>
   );
 }
 
 // ── Status mix and attainment by service line ───────────────────────
-export function SLAStatusCard() {
-  const counts = ['Meets ESL', 'Above MSL', 'Below target', 'Below MSL'].map(st => ({ label: st === 'Above MSL' ? 'Between MSL and ESL' : st === 'Below target' ? 'Below target (KPI)' : st, value: D.SLA.filter(m => slaStatus(m) === st).length, color: st === 'Below target' ? '#F0B35A' : stCol(st) })).filter(x => x.value);
-  const lines = [...new Set(D.SLA.map(x => x.line))].map(l => { const ms = D.SLA.filter(m => m.line === l); return { l: l.replace('Network ', ''), n: ms.length, ok: ms.filter(m => slaStatus(m) === 'Meets ESL').length }; });
+export function SLAStatusCard({ list = D.SLA, when = 'this month' }) {
+  const counts = ['Meets ESL', 'Above MSL', 'Below target', 'Below MSL'].map(st => ({ label: st === 'Above MSL' ? 'Between MSL and ESL' : st === 'Below target' ? 'Below target (KPI)' : st, value: list.filter(m => slaStatus(m) === st).length, color: st === 'Below target' ? '#F0B35A' : stCol(st) })).filter(x => x.value);
+  const lines = [...new Set(list.map(x => x.line))].map(l => { const ms = list.filter(m => m.line === l); return { l: l.replace('Network ', ''), n: ms.length, ok: ms.filter(m => slaStatus(m) === 'Meets ESL').length }; });
   return (
-    <Card title="Where the service stands" sub="Status of all 26 metrics, and the share meeting the expected level in each service line">
-      <Donut data={counts} center={`${D.SLA.filter(m => slaStatus(m) === 'Meets ESL').length}/${D.SLA.length}`} sub="meet ESL" />
+    <Card title="Where the service stands" sub={`Status of all ${list.length} metrics, ${when}, and the share meeting the expected level in each service line`}>
+      <Donut data={counts} center={`${list.filter(m => slaStatus(m) === 'Meets ESL').length}/${list.length}`} sub="meet ESL" />
       <div className="mt-3 space-y-1.5">{lines.map(x => <div key={x.l} className="grid grid-cols-[minmax(0,1fr)_120px_34px] gap-2 items-center text-[12px]"><span className="text-ink truncate" title={x.l}>{x.l}</span><span className="h-[10px] rounded-[2px] overflow-hidden flex" style={{ background: COL.light }}><span style={{ width: `${x.ok / x.n * 100}%`, background: COL.green }} /><span style={{ width: `${(x.n - x.ok) / x.n * 100}%`, background: COL.amber }} /></span><span className="text-right text-ink3 tabular-nums">{x.ok}/{x.n}</span></div>)}</div>
     </Card>
   );
 }
 
 // ── Respond and resolve by priority: dumbbell against MSL and ESL ────
-export function SLAPriorityCard() {
+export function SLAPriorityCard({ list = D.SLA, when = 'this month' }) {
   const [ref, W] = useWidth(520);
-  const rows = ['P1', 'P2', 'P3', 'P4'].map(p => ({ p, resp: D.SLA.find(m => m.queue === p && /response/.test(m.name)), res: D.SLA.find(m => m.queue === p && /resolution/.test(m.name)) }));
+  const rows = ['P1', 'P2', 'P3', 'P4'].map(p => ({ p, resp: list.find(m => m.queue === p && /response/.test(m.name)), res: list.find(m => m.queue === p && /resolution/.test(m.name)) }));
   const lo = 0.88, hi = 1, L = 40, R = 16, H = 40 * rows.length + 30;
   const X = v => L + (v - lo) / (hi - lo) * (W - L - R);
   return (
-    <Card title="Respond and resolve on time, by priority" sub="Share of incidents inside their SLA this month. Circle: response; diamond: resolution; grey tick: MSL; black tick: ESL" right={<Legend items={[['Response', COL.blue], ['Resolution', COL.navy]]} />}>
+    <Card title="Respond and resolve on time, by priority" sub={`Share of incidents inside their SLA, ${when}. Circle: response; diamond: resolution; grey tick: MSL; black tick: ESL`} right={<Legend items={[['Response', COL.blue], ['Resolution', COL.navy]]} />}>
       <div ref={ref}><svg width={W} height={H} className="block">
         {[0.88, 0.9, 0.92, 0.94, 0.96, 0.98, 1].map(v => <g key={v}><line x1={X(v)} x2={X(v)} y1={8} y2={H - 20} stroke={COL.light} /><text x={X(v)} y={H - 6} fontSize="10.5" textAnchor="middle" fill={COL.ink3}>{Math.round(v * 100)}%</text></g>)}
         {rows.map((r, i) => { const y = 24 + i * 40; return <g key={r.p}>
@@ -76,21 +76,22 @@ export function SLAPriorityCard() {
 }
 
 // ── Six months of status, one cell per metric per month ─────────────
-export function SLAHeatCard({ onSel }) {
+export function SLAHeatCard({ onSel, list = D.SLA, months = MONTHS6 }) {
+  const NUM = { 3: 'Three', 6: 'Six', 9: 'Nine', 12: 'Twelve' };
   return (
-    <Card title="Six months at a glance" sub="Each cell is one metric in one month, coloured by its status that month. A column turning amber shows where the service slipped">
-      <div className="overflow-x-auto"><table className="border-separate text-[11.5px]" style={{ borderSpacing: 2 }}><thead><tr><th className="text-left font-semibold text-ink3 pr-2">Metric</th>{MONTHS6.map(m => <th key={m} className="font-semibold text-ink3 w-[46px]">{m}</th>)}</tr></thead><tbody>
-        {D.SLA.map((m, k) => <tr key={k} className="cursor-pointer" onClick={() => onSel && onSel(k)}><td className="pr-2 text-ink whitespace-nowrap max-w-[260px] truncate" title={m.name}><span className="text-ink3">#{m.n}</span> {m.name}</td>{m.trend.map((v, i) => { const st = statusOf(m, v); return <td key={i} title={`${m.name}, ${MONTHS6[i]}: ${pc(v, m.esl > 0.999 ? 3 : 1)} – ${st}`} className="h-[18px] rounded-[2px] text-center text-white font-semibold" style={{ background: stCol(st), opacity: st === 'Meets ESL' ? 0.85 : 1 }}>{st === 'Below MSL' ? '!' : ''}</td>; })}</tr>)}
+    <Card title={`${NUM[months.length] || months.length} months at a glance`} sub="Each cell is one metric in one month, coloured by its status that month. A column turning amber shows where the service slipped">
+      <div className="overflow-x-auto"><table className="border-separate text-[11.5px]" style={{ borderSpacing: 2 }}><thead><tr><th className="text-left font-semibold text-ink3 pr-2">Metric</th>{months.map((m, i) => <th key={i} className="font-semibold text-ink3 w-[46px]">{m}</th>)}</tr></thead><tbody>
+        {list.map((m, k) => <tr key={k} className="cursor-pointer" onClick={() => onSel && onSel(k)}><td className="pr-2 text-ink whitespace-nowrap max-w-[260px] truncate" title={m.name}><span className="text-ink3">#{m.n}</span> {m.name}</td>{m.trend.map((v, i) => { const st = statusOf(m, v); return <td key={i} title={`${m.name}, ${months[i]}: ${pc(v, m.esl > 0.999 ? 3 : 1)} – ${st}`} className="h-[18px] rounded-[2px] text-center text-white font-semibold" style={{ background: stCol(st), opacity: st === 'Meets ESL' ? 0.85 : 1 }}>{st === 'Below MSL' ? '!' : ''}</td>; })}</tr>)}
       </tbody></table></div>
     </Card>
   );
 }
 
 // ── Headroom above MSL for the risk-reward SLAs (service credit exposure)
-export function CreditHeadroomCard() {
-  const rr = D.SLA.filter(m => m.cls === 'Risk Reward SLA');
+export function CreditHeadroomCard({ list = D.SLA, when = 'this month' }) {
+  const rr = list.filter(m => m.cls === 'Risk Reward SLA');
   return (
-    <Card title="Service credit exposure" sub="Risk-reward SLAs: where this month's actual sits between the minimum (credit applies below it) and the expected level">
+    <Card title="Service credit exposure" sub={`Risk-reward SLAs: where the actual (${when}) sits between the minimum (credit applies below it) and the expected level`}>
       <div className="space-y-2">{rr.map((m, k) => { const pos = Math.max(0, Math.min(1.15, (m.act - m.msl) / (m.esl - m.msl))); const c = pos >= 1 ? COL.green : pos >= 0.4 ? COL.amber : COL.red; return (
         <div key={k} className="text-[12px]"><div className="flex justify-between gap-2"><span className="text-ink truncate"><span className="text-ink3">#{m.n}</span> {m.name}</span><span className="tabular-nums font-semibold" style={{ color: c }}>{pos >= 1 ? 'at ESL' : `${Math.round(pos * 100)}% of the way to ESL`}</span></div>
           <div className="relative h-[10px] mt-1 rounded-[2px]" style={{ background: 'linear-gradient(90deg,#F4D3D0 0,#F6E3C8 50%,#D5EBD9 100%)' }}><span className="absolute top-[-2px] bottom-[-2px] w-[4px] rounded-sm" style={{ left: `calc(${Math.min(100, pos / 1.15 * 100)}% - 2px)`, background: c }} /><span className="absolute inset-y-0 w-[1px]" style={{ left: `${1 / 1.15 * 100}%`, background: COL.ink }} /></div>

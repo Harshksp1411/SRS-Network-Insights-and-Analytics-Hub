@@ -54,7 +54,7 @@ export function slaReportPdf(n, s, healthOf) {
   const tw = (CW - 5 * 8) / 6;
   tiles.forEach(([l, v, c], i) => { const x = M + i * (tw + 8); doc.setDrawColor(...LINE); doc.setLineWidth(0.6); doc.roundedRect(x, y, tw, 46, 3, 3); font('bold', 14, c); doc.text(clean(v), x + 7, y + 22); font('normal', 7, INK3); doc.text(doc.splitTextToSize(clean(l), tw - 12), x + 7, y + 34); });
   y += 58;
-  font('normal', 7.5, INK3); doc.text('Service levels met and AI and automation met count the latest month against the expected level (ESL). Time to restore is the period average.', M, y); y += 12;
+  font('normal', 7.5, INK3); doc.text('Service levels met and AI and automation met compare the period average with the expected level (ESL), the same as the console. Time to restore is the period average.', M, y); y += 12;
 
   // tickets per month
   section('Tickets per month', 'Network tickets from monitoring and from store calls, split into auto-resolved (zero touch) and resolved by an engineer.');
