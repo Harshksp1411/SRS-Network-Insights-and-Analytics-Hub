@@ -184,11 +184,8 @@ export function Carriers() {
         <Stat label="NTF share (6 months)" icon={I.SearchX} value={pct(875 / 3773, 0)} sub="875 of 3,773 tickets" onClick={() => setTab('ntf')} />
       </div>
       <LivePanel kind="carriers" className="mb-3 mt-3" />
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><CarrierNetworks /><TopBranches /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3">
-        <CarrierForecastCard />
-        <CarrierTrendCard />
-      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><CarrierNetworks /><div className="space-y-3"><TopBranches /><CarrierTrendCard /></div></div>
+      <div className="mb-3"><CarrierForecastCard /></div>
       <Tabs value={tab} onChange={t => { setTab(t); act.setTab('carriers', t); }} className="mb-3" tabs={[{ id: 'cases', label: 'Open cases', count: open.length }, { id: 'closed', label: 'Closed (7 d)', count: closed.length }, { id: 'scorecard', label: 'Scorecard' }, { id: 'repeat', label: 'Repeat offenders', count: repeat.length }, { id: 'ntf', label: 'NTF tracking' }]} />
       {(tab === 'cases' || tab === 'closed') && <Card pad={false}><div className="p-3"><Table rows={tab === 'cases' ? open : closed} cols={[
         { key: 'id', label: 'Carrier ticket', render: c => <span className="font-mono text-[12px] font-semibold">{c.id}{c.master && <Badge tone="purple" className="ml-1">master</Badge>}</span> },
