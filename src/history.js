@@ -84,7 +84,7 @@ export function period(n) {
     .sort((a, b) => b.tickets - a.tickets || a.b.num - b.b.num);
   const sla = SLA12.map(({ m, series }) => {
     const s = idx.map(i => series[i]), avg = s.reduce((a, v) => a + v, 0) / s.length;
-    return { m, series: s, avg, latest: s[s.length - 1], status: slaStatusAt(m, s[s.length - 1]), met: s.filter(v => slaStatusAt(m, v) === 'Meets ESL').length, ai: AI_LINE.test(m.line) };
+    return { m, series: s, avg, latest: s[s.length - 1], status: slaStatusAt(m, avg), latestStatus: slaStatusAt(m, s[s.length - 1]), met: s.filter(v => slaStatusAt(m, v) === 'Meets ESL').length, ai: AI_LINE.test(m.line) };
   });
   const mttr = Object.fromEntries(Object.entries(MTTR12).map(([p, s]) => [p, idx.map(i => s[i])]));
   return { n, months, from: months[0].label, to: months[months.length - 1].label, byMonth, tickets, auto, autoShare: auto / Math.max(1, tickets), drivers, branches, sla, mttr,

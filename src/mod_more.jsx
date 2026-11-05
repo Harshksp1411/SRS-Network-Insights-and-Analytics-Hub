@@ -173,12 +173,12 @@ const slPct = (v, m) => v == null ? '—' : `${(v * 100).toFixed(m.fmt || (m.esl
 function AIAutomationCard({ P, onSel }) {
   const rows = P.sla.filter(x => x.ai);
   return (
-    <Card title="AI and automation SLAs" icon={I.Sparkles} sub={`Latest month against the expected level, and the last ${P.n} months. ${rows.filter(x => x.status === 'Meets ESL').length} of ${rows.length} meet ESL.`}>
+    <Card title="AI and automation SLAs" icon={I.Sparkles} sub={`The ${P.n}-month average against the expected level, month by month. ${rows.filter(x => x.status === 'Meets ESL').length} of ${rows.length} meet ESL.`}>
       <div className="divide-y divide-line">{rows.map(x => (
         <button key={x.m.name} onClick={() => onSel(D.SLA.indexOf(x.m))} className="w-full grid grid-cols-[minmax(0,1fr)_70px_74px] gap-2 items-center py-1.5 text-left hover:bg-chip/60 rounded px-1">
-          <span className="min-w-0"><span className="block text-[12.5px] font-semibold text-ink truncate">{x.m.name}</span><span className="block text-[11px] text-ink3">{x.m.line.replace('Network ', '')} · ESL {x.m.lower ? '≤ ' : ''}{slPct(x.m.esl, x.m)} · {x.met} of {P.n} months</span></span>
+          <span className="min-w-0"><span className="block text-[12.5px] font-semibold text-ink truncate">{x.m.name}</span><span className="block text-[11px] text-ink3">{x.m.line.replace('Network ', '')} · ESL {x.m.lower ? '≤ ' : ''}{slPct(x.m.esl, x.m)} · {x.met} of {P.n} months · this month {slPct(x.latest, x.m)}</span></span>
           <Spark data={x.series} w={70} h={22} color={x.status === 'Meets ESL' ? C.ok : C.warn} fill={false} />
-          <span className="text-right"><b className={cx('text-[14px] tabular-nums', x.status === 'Meets ESL' ? 'text-ok' : 'text-warn')}>{slPct(x.latest, x.m)}</b><span className="block"><Badge tone={SL_TONE[x.status]}>{x.status}</Badge></span></span>
+          <span className="text-right"><b className={cx('text-[14px] tabular-nums', x.status === 'Meets ESL' ? 'text-ok' : 'text-warn')}>{slPct(x.avg, x.m)}</b><span className="block"><Badge tone={SL_TONE[x.status]}>{x.status}</Badge></span></span>
         </button>))}</div>
     </Card>
   );
@@ -228,22 +228,31 @@ export function SLATracker() {
   const queues = ['P1', 'P2', 'P3', 'P4'].map(p => { const l = open.filter(i => i.pri === p).map(i => ({ i, c: slaClock(i, now) })); return { p, n: l.length, risk: l.filter(x => clockState(x.i, now) === 'atRisk').length, breached: l.filter(x => x.c.resLeft <= 0).length, respRisk: l.filter(x => !x.i.acked && x.c.respLeft < 5 * MIN).length, list: l }; });
   const m = D.SLA[sel];
   const lines = [...new Set(D.SLA.map(x => x.line))];
+  // every SLA figure on this page is for the period picked: the average of its months (the current month is shown alongside)
+  const when = `average of the last ${per} months`;
+  const L = useMemo(() => D.SLA.map((x, k) => ({ ...x, act: P.sla[k].avg, trend: P.sla[k].series, month: x.act })), [P]);
+  const meets = L.filter(x => status(x) === 'Meets ESL').length, meetsNow = D.SLA.filter(x => status(x) === 'Meets ESL').length;
+  const dipped = P.sla.filter(x => x.series.some(v => HIST.slaStatusAt(x.m, v) === 'Below MSL'));
+  const dipMonths = P.sla.reduce((a, x) => a + x.series.filter(v => HIST.slaStatusAt(x.m, v) === 'Below MSL').length, 0);
+  const SHARE = { P1: 0.02, P2: 0.08, P3: 0.45, P4: 0.45 };
+  const late = Math.round(P.byMonth.reduce((a, mo, i) => a + mo.total * ['P1', 'P2', 'P3', 'P4'].reduce((b, q) => { const r = P.sla.find(x => x.m.queue === q && /resolution/.test(x.m.name)); return b + SHARE[q] * (1 - r.series[i]); }, 0), 0));
+  const avail = L.find(x => x.n === 29), availNow = D.SLA.find(x => x.n === 29);
   return (
     <div>
-      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels, the AI and automation SLAs and KPIs: minimum (MSL), expected (ESL) and actual for the current month, the trend over the period you pick, the top call drivers and the branches with the most problems, and breach risk by queue." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV('srs-annexure-b-sla.csv', D.SLA, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: 'Actual', key: 'act' }, { label: 'Class', key: 'cls' }, { label: 'Status', get: status }])} /></>} />
+      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels, the AI and automation SLAs and KPIs: minimum (MSL), expected (ESL) and actual, averaged over the 3, 6, 9 or 12 months you pick (with this month alongside), the trend, the top call drivers and the branches with the most problems, and breach risk by queue." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV('srs-annexure-b-sla.csv', D.SLA, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: 'Actual', key: 'act' }, { label: 'Class', key: 'cls' }, { label: 'Status', get: status }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Metrics meeting ESL" icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla' })} value={`${D.SLA.filter(x => status(x) === 'Meets ESL').length}/${D.SLA.length}`} tone="green" />
-        <Stat label="Below MSL" icon={I.XCircle} onClick={() => act.drill({ t: 'sla' })} value={D.SLA.filter(x => status(x) === 'Below MSL').length} tone={D.SLA.some(x => status(x) === 'Below MSL') ? 'red' : 'green'} />
-        <Stat label="Open incidents at breach risk" icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={queues.reduce((a, q) => a + q.risk, 0)} tone="amber" sub="> 75% of resolution clock used" />
-        <Stat label="Critical availability (#29)" icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29) })} value={f(0.99962, { fmt: 3 })} sub="MSL 99%, ESL 99.99%" tone="amber" />
+        <Stat label={`Metrics meeting ESL, ${per} months`} icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla' })} value={`${meets}/${D.SLA.length}`} tone={meets >= D.SLA.length * 0.75 ? 'green' : 'amber'} sub={`on the ${per}-month average; this month ${meetsNow}/${D.SLA.length}`} />
+        <Stat label={`Below MSL, ${per} months`} icon={I.XCircle} onClick={() => act.drill({ t: 'sla' })} value={dipped.length} tone={dipped.length ? 'red' : 'green'} sub={dipped.length ? `${dipped.length > 1 ? 'metrics' : 'metric'} below MSL in at least one month (${dipMonths} month${dipMonths > 1 ? 's' : ''} in all)` : `no metric below MSL in any of the last ${per} months`} />
+        <Stat label={`Tickets resolved outside SLA, ${per} months`} icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={num(late)} tone="amber" sub={`${pct(late / Math.max(1, P.tickets), 1)} of ${num(P.tickets)} tickets; ${queues.reduce((a, q) => a + q.risk, 0)} open now at breach risk`} />
+        <Stat label={`Critical availability (#29), ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29) })} value={f(avail.act, { fmt: 3 })} sub={`this month ${f(availNow.act, { fmt: 3 })}; MSL 99%, ESL 99.99%`} tone={tone(status(avail))} />
       </div>
       <LivePanel kind="sla" className="mb-3 mt-3" />
-      <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} /></div>
+      <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} list={L} when={when} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AIAutomationCard P={P} onSel={setSel} /><CallDriversCard P={P} /><ProblemBranchesCard P={P} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><SLAStatusCard /><SLAPriorityCard /><CreditHeadroomCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><SLAStatusCard list={L} when={when} /><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={L} when={when} /></div>
       <div className="mb-3"><ErrorBudgets /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><SLAHeatCard onSel={setSel} /><CalendarHeat /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><SLAHeatCard onSel={setSel} list={L} months={P.months.map(x => x.m)} /><CalendarHeat /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
@@ -254,11 +263,11 @@ export function SLATracker() {
       </Card>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
         <Card pad={false}><div className="p-3">{lines.map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
-          <Table dense sortable={false} rows={D.SLA.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
+          <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
             { key: 'name', label: 'Metric', render: x => <div><div className="font-semibold">{x.name}</div><div className="text-[11px] text-ink3">{x.def}</div></div> },
             { key: 'msl', label: 'MSL', right: true, render: x => f(x.msl, x) }, { key: 'esl', label: 'ESL', right: true, render: x => x.lower ? `≤ ${f(x.esl, x)}` : f(x.esl, x) },
-            { key: 'act', label: 'Actual', right: true, render: x => <b>{f(x.act, x)}</b> },
+            { key: 'act', label: `Actual, ${per} mo avg`, right: true, render: x => <div><b>{f(x.act, x)}</b><div className="text-[10.5px] text-ink3">this month {f(x.month, x)}</div></div> },
             { key: 'trend', label: `${per} mo`, render: x => <Spark data={HIST.SLA12[x.id].series.slice(-per)} w={70} h={20} color={tone(status(x)) === 'green' ? C.ok : C.warn} fill={false} /> },
             { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
