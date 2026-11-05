@@ -78,11 +78,20 @@ export function SLAPriorityCard({ list = D.SLA, when = 'this month' }) {
 // ── Six months of status, one cell per metric per month ─────────────
 export function SLAHeatCard({ onSel, list = D.SLA, months = MONTHS6 }) {
   const NUM = { 3: 'Three', 6: 'Six', 9: 'Nine', 12: 'Twelve' };
+  const LEG = [['Meets ESL', COL.green], ['Between MSL and ESL', COL.amber], ['Below MSL', COL.red]];
+  const d = m => m.esl > 0.999 ? 2 : 1;
+  const bg = st => ({ 'Meets ESL': 'rgba(46,133,64,.14)', 'Above MSL': 'rgba(224,123,0,.16)', 'Below target': 'rgba(224,123,0,.16)', 'Below MSL': 'rgba(214,45,32,.16)' }[st]);
   return (
-    <Card title={`${NUM[months.length] || months.length} months at a glance`} sub="Each cell is one metric in one month, coloured by its status that month. A column turning amber shows where the service slipped">
-      <div className="overflow-x-auto"><table className="border-separate text-[11.5px]" style={{ borderSpacing: 2 }}><thead><tr><th className="text-left font-semibold text-ink3 pr-2">Metric</th>{months.map((m, i) => <th key={i} className="font-semibold text-ink3 w-[46px]">{m}</th>)}</tr></thead><tbody>
-        {list.map((m, k) => <tr key={k} className="cursor-pointer" onClick={() => onSel && onSel(k)}><td className="pr-2 text-ink whitespace-nowrap max-w-[260px] truncate" title={m.name}><span className="text-ink3">#{m.n}</span> {m.name}</td>{m.trend.map((v, i) => { const st = statusOf(m, v); return <td key={i} title={`${m.name}, ${months[i]}: ${pc(v, m.esl > 0.999 ? 3 : 1)} – ${st}`} className="h-[18px] rounded-[2px] text-center text-white font-semibold" style={{ background: stCol(st), opacity: st === 'Meets ESL' ? 0.85 : 1 }}>{st === 'Below MSL' ? '!' : ''}</td>; })}</tr>)}
-      </tbody></table></div>
+    <Card title={`${NUM[months.length] || months.length} months at a glance`} sub="Monthly value of every metric, coloured by its status that month" right={<Legend items={LEG} />}>
+      <div className="overflow-x-auto"><table className="w-full border-separate text-[12px]" style={{ borderSpacing: '0 3px' }}>
+        <thead><tr className="text-ink3"><th className="text-left font-semibold pr-3 py-1">Metric</th><th className="font-semibold px-2 text-right">ESL</th>{months.map((m, i) => <th key={i} className="font-semibold px-1 text-center">{m}</th>)}<th className="font-semibold px-2 text-center">Met</th></tr></thead>
+        <tbody>{list.map((m, k) => { const met = m.trend.filter(v => statusOf(m, v) === 'Meets ESL').length; return (
+          <tr key={k} className="cursor-pointer hover:opacity-90" onClick={() => onSel && onSel(k)}>
+            <td className="pr-3 text-ink whitespace-nowrap max-w-[300px] truncate" title={m.name}><span className="text-ink3">#{m.n}</span> {m.name}</td>
+            <td className="px-2 text-right text-ink3 tabular-nums whitespace-nowrap">{m.lower ? '≤ ' : ''}{pc(m.esl, d(m))}</td>
+            {m.trend.map((v, i) => { const st = statusOf(m, v); return <td key={i} title={`${m.name}, ${months[i]}: ${pc(v, m.esl > 0.999 ? 3 : 1)} – ${st}`} className="px-1 py-1 text-center tabular-nums font-semibold rounded-[3px]" style={{ background: bg(st), color: stCol(st) }}>{pc(v, d(m))}</td>; })}
+            <td className="px-2 text-center tabular-nums font-bold" style={{ color: met === m.trend.length ? COL.green : COL.amber }}>{met}/{m.trend.length}</td>
+          </tr>); })}</tbody></table></div>
     </Card>
   );
 }
