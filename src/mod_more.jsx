@@ -111,10 +111,10 @@ export function Knowledge() {
 }
 
 // ───────────────────────── Automation library ─────────────────────────
-export function Automation() {
+export function Automation({ embedded }) {
   const { s, act } = useApp();
   const now = useNow();
-  const [sel, setSel] = useState('RB-101');
+  const [sel, setSel] = useState(s.autoSel && s.runbooks.some(r => r.id === s.autoSel) ? s.autoSel : 'RB-101');
   const [target, setTarget] = useState(D.BRANCHES[10].id);
   const [prog, setProg] = useState(-1);
   const rb = s.runbooks.find(r => r.id === sel);
@@ -125,12 +125,12 @@ export function Automation() {
   const run = approved => { setProg(0); rb.steps.forEach((_, k) => setTimeout(() => setProg(k + 1), 600 * (k + 1))); setTimeout(() => { setProg(-1); act.add('runs', { id: Date.now(), rb: sel, t: Date.now(), branchId: b.id, branch: `${b.name}, ${b.brand}`, by: approved ? act.me() : 'Agent (auto)', res: 'Success', dur: `${(rb.steps.length * 0.6).toFixed(1)} s` }); act.audit(`${approved ? 'Approved and ran' : 'Ran'} ${sel} on ${b.name}`, sel); act.toast(`${sel} completed on ${b.name}`); }, 600 * (rb.steps.length + 1)); };
   return (
     <div>
-      <PageHead icon={I.Workflow} title="Automation Library" sub="Runbooks with run history, success rate and autonomy level. Autonomy is capped by the gates: below 80% confidence, branch hours and freeze windows always need a human." />
+      {!embedded && <PageHead icon={I.Workflow} title="Automation Library" sub="Runbooks with run history, success rate and autonomy level. Autonomy is capped by the gates: below 80% confidence, branch hours and freeze windows always need a human." />}
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat onClick={() => act.go('catalogue')} label="Runbooks" icon={I.BookMarked} value={s.runbooks.length} />
+        <Stat onClick={() => act.setTab('catalogue', 'list')} label="Runbooks" icon={I.BookMarked} value={s.runbooks.length} />
         <Stat onClick={() => act.drill({ t: 'incidents', k: 'auto7' })} label="Runs (30 days)" icon={I.Play} value={num(s.runbooks.reduce((a, r) => a + r.runs30, 0))} />
         <Stat label="Auto-resolution rate" icon={I.Bot} onClick={() => act.drill({ t: 'incidents', k: 'auto7' })} value="23.1%" sub="KPI 37 target 25% – trending up" tone="amber" />
-        <Stat onClick={() => act.go('catalogue')} label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
+        <Stat onClick={() => act.setTab('catalogue', 'list')} label="Automation coverage" icon={I.Layers} value="42%" sub="KPI 37 target 40%" tone="green" />
       </div>
       <LivePanel kind="automation" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AutomationRunsCard /><HoursSavedCard /><CandidatesCard /></div>
@@ -215,9 +215,15 @@ function ProblemBranchesCard({ P }) {
   );
 }
 
+const VIEW = {
+  service: { label: 'Service SLAs and KPIs', icon: I.Headset, sub: 'Response, resolution, alerts, credits', lines: l => /Operations & Incident|Monitoring & Event/.test(l) },
+  network: { label: 'Network performance', icon: I.Network, sub: 'Availability, firmware, backups', lines: l => /Device Management/.test(l) },
+  ai: { label: 'AI and automation', icon: I.Sparkles, sub: 'Triage, auto-resolution, AIOps, knowledge', lines: l => HIST.AI_LINE.test(l) },
+};
 export function SLATracker() {
   const { s, act } = useApp();
   const now = useNow();
+  const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'service');
   const [sel, setSel] = useState(0);
   const [per, setPer] = useState(6);
   const P = useMemo(() => HIST.period(per), [per]);
@@ -237,23 +243,38 @@ export function SLATracker() {
   const SHARE = { P1: 0.02, P2: 0.08, P3: 0.45, P4: 0.45 };
   const late = Math.round(P.byMonth.reduce((a, mo, i) => a + mo.total * ['P1', 'P2', 'P3', 'P4'].reduce((b, q) => { const r = P.sla.find(x => x.m.queue === q && /resolution/.test(x.m.name)); return b + SHARE[q] * (1 - r.series[i]); }, 0), 0));
   const avail = L.find(x => x.n === 29), availNow = D.SLA.find(x => x.n === 29);
+  // three views of the same service levels; each shows only its own metrics and the cards that matter for it
+  const vcount = k => L.filter(x => VIEW[k].lines(x.line));
+  const LV = vcount(view).map(x => ({ ...x, _i: D.SLA.findIndex(y => y.n === x.n && y.name === x.name) }));
+  const selV = LV.findIndex(x => x._i === sel) >= 0 ? sel : LV[0]._i;
+  const onSelV = k => setSel(LV[k]._i);
+  const mv = D.SLA[selV];
+  const vMeets = LV.filter(x => status(x) === 'Meets ESL').length, vDipped = dipped.filter(x => VIEW[view].lines(x.m.line));
+  const tileOf = (n, name, label) => { const x = L.find(y => y.n === n && (!name || name.test(y.name))); if (!x) return null; const st = status(x); return <Stat key={label} label={`${label}, ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.indexOf(D.SLA.find(y => y.n === x.n && y.name === x.name)), per })} value={f(x.act, x)} sub={`${x.lower ? '≤ ' : ''}ESL ${f(x.esl, x)}; this month ${f(x.month, x)}`} tone={tone(st)} />; };
+  const head = [
+    <Stat key="meet" label={`Meeting ESL, ${per} months`} icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla', per })} value={`${vMeets}/${LV.length}`} tone={vMeets >= LV.length * 0.75 ? 'green' : 'amber'} sub={`of the ${LV.length} ${view === "ai" ? "AI and automation" : view === "network" ? "network" : "service"} metrics, on the ${per}-month average`} />,
+    ...(view === 'service' ? [
+      <Stat key="late" label={`Tickets resolved outside SLA, ${per} months`} icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={num(late)} tone="amber" sub={`${pct(late / Math.max(1, P.tickets), 1)} of ${num(P.tickets)} tickets; ${queues.reduce((a, q) => a + q.risk, 0)} open now at breach risk`} />,
+      <Stat key="mttr" label={`Time to restore P1, ${per} months`} icon={I.Timer} onClick={() => act.drill({ t: 'mttr' })} value={`${(P.mttr.P1.reduce((a, v) => a + v, 0) / P.mttr.P1.length).toFixed(1)} h`} sub="target 4 h" tone="green" />,
+      <Stat key="dip" label={`Below MSL, ${per} months`} icon={I.XCircle} onClick={() => act.drill({ t: 'sla', per })} value={vDipped.length} tone={vDipped.length ? 'red' : 'green'} sub={vDipped.length ? 'metrics below MSL in at least one month' : `none in the last ${per} months`} />,
+    ] : view === 'network' ? [
+      <Stat key="av" label={`Critical availability (#29), ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29), per })} value={f(avail.act, { fmt: 3 })} sub={`this month ${f(availNow.act, { fmt: 3 })}; MSL 99%, ESL 99.99%`} tone={tone(status(avail))} />,
+      tileOf(32, null, 'Firmware compliance (#32)'), tileOf(33, null, 'Config backup success (#33)'),
+    ] : [
+      tileOf(37, /Auto-resolution/, 'Auto-resolution rate'), tileOf(38, /noise/, 'Alert noise reduction'), tileOf(38, /Predictive/, 'Predictive alert accuracy'),
+    ])].filter(Boolean);
   return (
     <div>
-      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Annexure B service levels, the AI and automation SLAs and KPIs: minimum (MSL), expected (ESL) and actual, averaged over the 3, 6, 9 or 12 months you pick (with this month alongside), the trend, the top call drivers and the branches with the most problems, and breach risk by queue." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label={`Metrics meeting ESL, ${per} months`} icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla', per })} value={`${meets}/${D.SLA.length}`} tone={meets >= D.SLA.length * 0.75 ? 'green' : 'amber'} sub={`on the ${per}-month average; this month ${meetsNow}/${D.SLA.length}`} />
-        <Stat label={`Below MSL, ${per} months`} icon={I.XCircle} onClick={() => act.drill({ t: 'sla', per })} value={dipped.length} tone={dipped.length ? 'red' : 'green'} sub={dipped.length ? `${dipped.length > 1 ? 'metrics' : 'metric'} below MSL in at least one month (${dipMonths} month${dipMonths > 1 ? 's' : ''} in all)` : `no metric below MSL in any of the last ${per} months`} />
-        <Stat label={`Tickets resolved outside SLA, ${per} months`} icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={num(late)} tone="amber" sub={`${pct(late / Math.max(1, P.tickets), 1)} of ${num(P.tickets)} tickets; ${queues.reduce((a, q) => a + q.risk, 0)} open now at breach risk`} />
-        <Stat label={`Critical availability (#29), ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29), per })} value={f(avail.act, { fmt: 3 })} sub={`this month ${f(availNow.act, { fmt: 3 })}; MSL 99%, ESL 99.99%`} tone={tone(status(avail))} />
-      </div>
-      <LivePanel kind="sla" className="mb-3 mt-3" />
-      <div className="mb-3"><SLAScorecard sel={sel} onSel={setSel} list={L} when={when} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><AIAutomationCard P={P} onSel={setSel} /><CallDriversCard P={P} /><ProblemBranchesCard P={P} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3 items-start"><SLAStatusCard list={L} when={when} /><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={L} when={when} /></div>
-      <div className="text-[12px] text-ink3 mb-1.5 flex items-center gap-1.5"><I.Radio size={12} />Error budgets are live and always cover the last 30 days, whatever period is picked above.</div>
-      <div className="mb-3"><ErrorBudgets /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3 items-start"><SLAHeatCard onSel={setSel} list={L} months={P.months.map(x => x.m)} /><CalendarHeat P={P} /></div>
+      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Pick what to look at: the service SLAs and KPIs, network performance, or the AI and automation SLAs. Every figure is the average of the 3, 6, 9 or 12 months you pick, with this month alongside." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{Object.entries(VIEW).map(([k, v]) => { const xs = vcount(k), met = xs.filter(x => status(x) === 'Meets ESL').length, on = view === k; return (
+        <button key={k} onClick={() => { setView(k); act.setTab('sla', k); }} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
+          <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{met}/{xs.length} meet ESL</span></div>
+          <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{v.sub}</div>
+        </button>); })}</div>
+      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{head}</div>
+      <div className="mb-3"><SLAScorecard sel={LV.findIndex(x => x._i === selV)} onSel={onSelV} list={LV} when={when} /></div>
+      {view === 'service' && <>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
           <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
@@ -262,8 +283,19 @@ export function SLATracker() {
           <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{x.c.resLeft < 0 ? 'breached' : dur(x.c.resLeft)}</span></button>)}</div>
         </div>)}</div>
       </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><CallDriversCard P={P} /><ProblemBranchesCard P={P} /></div>
+      </>}
+      {view === 'network' && <>
+                <div className="mb-3"><ErrorBudgets /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><CalendarHeat P={P} /></div>
+      </>}
+      {view === 'ai' && <>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><AIAutomationCard P={P} onSel={setSel} /><TicketsAutoCard P={P} /></div>
+      </>}
+      <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
-        <Card pad={false}><div className="p-3">{lines.map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
+        <Card pad={false}><div className="p-3">{lines.filter(l => VIEW[view].lines(l)).map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
           <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
             { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
             { key: 'name', label: 'Metric', render: x => <div><div className="font-semibold">{x.name}</div><div className="text-[11px] text-ink3">{x.def}</div></div> },
@@ -273,7 +305,7 @@ export function SLATracker() {
             { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
           ]} /></div>)}</div></Card>
-        <div className="xl:sticky xl:top-3"><SLAProjectionCard m={m} series={P.sla[sel].series} labels={P.months.map(x => x.m)} /></div>
+        <div className="xl:sticky xl:top-3"><SLAProjectionCard m={mv} series={P.sla[selV].series} labels={P.months.map(x => x.m)} /></div>
       </div>
     </div>
   );

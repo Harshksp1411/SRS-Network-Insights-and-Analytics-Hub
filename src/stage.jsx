@@ -548,55 +548,65 @@ export function ModeRules({ className }) {
   return <div className={cx('space-y-1.5', className)}>{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; return <div key={n} className="flex gap-2 text-[12px] leading-[16px]"><Ic size={14} className={cx('shrink-0 mt-px', k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn')} /><span><b>{n}:</b> {t}</span></div>; })}</div>;
 }
 
-// ── this run against the ideal, and against the same job done by hand without automation ──
-// Minutes in real life (the stage plays them compressed). Ideal: the best the service is designed for, with
-// policy allowing it; by hand: the typical path today, a store call, triage and a manual fix.
-const PHASES = [['detect', 'Detect', '#6B7C93'], ['ticket', 'Ticket', '#2F6DB5'], ['diag', 'Root cause', '#7A5AF8'], ['decide', 'Decide', '#C46A00'], ['act', 'Fix', '#2E8540'], ['partner', 'Carrier or field', '#B42318'], ['verify', 'Verify and record', '#16A0A0']];
-export function idealOf(demo, sp) {
-  const kind = gateOf(demo), N = sp.tasks.length, K = sp.checks.length, E = sp.evidence.length, n = sp.n || 1;
-  const carrier = sp.systems.includes('carrier'), field = sp.systems.includes('field');
-  const run = { detect: sp.m.early ? 0.5 : 1, ticket: 1.5, diag: 1 + E * 0.4, decide: kind === 'auto' ? 0 : kind === 'stop' ? 5 : 12, act: N * 1.2, partner: (carrier ? 95 : 0) + (field ? 150 : 0), verify: K * 1.5 + 1 };
-  const ideal = { detect: sp.m.early ? 0.5 : 1, ticket: 1, diag: 1 + E * 0.3, decide: kind === 'approve' ? 3 : 0, act: N * 1, partner: (carrier ? 60 : 0) + (field ? 120 : 0), verify: K * 1 + 0.5 };
-  const hand = { detect: 18, ticket: 10, diag: 35 + E * 4, decide: 20, act: N * 6, partner: (carrier ? 240 : 0) + (field ? 360 : 0), verify: 20 + K * 3 };
-  const total = o => Object.values(o).reduce((a, v) => a + v, 0);
-  const people = { run: kind === 'approve' ? 1 : 0, ideal: kind === 'approve' ? 1 : 0, hand: 3 + (carrier ? 1 : 0) + (field ? 1 : 0) };
-  const alarms = { run: 1, ideal: 1, hand: n };
-  const gaps = PHASES.map(([k, l]) => ({ k, l, gap: run[k] - ideal[k] })).filter(g => Math.round(g.gap) >= 1).sort((a, b) => b.gap - a.gap);
-  const close = { decide: kind === 'approve' ? `Pre-approve ${sp.rb} as a standard change after 20 clean runs, or move it to human-on-the-loop: saves about ${Math.round(run.decide - ideal.decide)} min.` : `Shorten the ${R_STOP} stop window to 2 minutes for this runbook once it has a clean record: saves about ${Math.round(run.decide - ideal.decide)} min.`, partner: carrier && field ? 'Agree a 1-hour carrier escalation and keep spares pre-positioned at the nearest depot.' : carrier ? `Agree a 1-hour response with ${sp.carrier || 'the carrier'} for repeat lines, with the evidence pack sent automatically.` : 'Pre-position the spare at the nearest depot and book the technician in quiet hours.', verify: 'Run the verification checks in parallel rather than one after another.', act: 'Run the runbook steps in parallel where they do not depend on each other.', diag: 'Add the missing evidence source to the correlation so the cause is confirmed sooner.', ticket: 'Raise the ticket from the first correlated alert, not after the group settles.' };
-  return { kind, run, ideal, hand, t: { run: total(run), ideal: total(ideal), hand: total(hand) }, people, alarms, gaps, close };
+// ── against the ideal: how the branch and the network look when everything is running as it should ──
+// Ideal is the healthy, normal reading (the baseline). Where the problem had been there all along (base equals the
+// problem reading), ideal is the healthy target: zero for counts that should be zero, otherwise the fixed reading.
+export function idealOf(sp) {
+  const m = sp.m, lowerBetter = m.after < m.bad || (m.thr != null && m.bad > m.thr && m.base <= m.thr);
+  const ideal = m.base !== m.bad ? m.base : (lowerBetter && m.unit === '' ? 0 : m.after);
+  const span = v => Math.abs(v - ideal);
+  const worst = span(m.bad), left = span(m.after);
+  const back = left <= Math.max(Math.abs(ideal) * 0.05, (m.dec ? 10 ** -m.dec : 1) * 0.5) || (lowerBetter ? m.after <= ideal : m.after >= ideal);
+  const rec = worst ? Math.max(0, Math.min(1, 1 - left / worst)) : 1;
+  const healthySide = m.thr == null || (lowerBetter ? m.after < m.thr : m.after > m.thr);
+  const state = back ? 'at' : rec >= 0.9 && healthySide ? 'near' : 'gap';
+  return { ideal, lowerBetter, worst, left, back: state !== 'gap', state, rec };
 }
-const mins = v => v >= 120 ? `${(v / 60).toFixed(1)} h` : `${Math.round(v)} min`;
+const minsTxt = v => v >= 120 ? `${(v / 60).toFixed(1)} h` : `${Math.round(v)} min`;
+function awayTime(demo, sp) {
+  const kind = gateOf(demo), N = sp.tasks.length, K = sp.checks.length, E = sp.evidence.length;
+  const carrier = sp.systems.includes('carrier'), field = sp.systems.includes('field');
+  const run = (sp.m.early ? 0.5 : 1) + 1.5 + 1 + E * 0.4 + (kind === 'auto' ? 0 : kind === 'stop' ? 5 : 12) + N * 1.2 + (carrier ? 95 : 0) + (field ? 150 : 0) + K * 1.5 + 1;
+  const hand = 18 + 10 + 35 + E * 4 + 20 + N * 6 + (carrier ? 240 : 0) + (field ? 360 : 0) + 20 + K * 3;
+  return { run, hand };
+}
+function Scale({ sp, x }) {
+  const m = sp.m, vals = [x.ideal, m.bad, m.after, ...(m.thr != null ? [m.thr] : [])], lo = Math.min(0, ...vals), hi = Math.max(...vals) * 1.08 || 1;
+  const X = v => `${((v - lo) / (hi - lo)) * 100}%`;
+  const dots = [['Ideal', x.ideal, '#2E8540'], ['During the problem', m.bad, '#C62A1E'], ['After the fix', m.after, '#2F6DB5']];
+  return (
+    <div className="mt-2">
+      <div className="relative h-9">
+        <div className="absolute left-0 right-0 top-4 h-1.5 rounded-full bg-chip" />
+        <div className="absolute top-4 h-1.5 rounded-full bg-bad/30" style={{ left: X(Math.min(x.ideal, m.bad)), width: `calc(${X(Math.max(x.ideal, m.bad))} - ${X(Math.min(x.ideal, m.bad))})` }} />
+        {m.thr != null && <div className="absolute top-1 bottom-1 border-l-2 border-dashed border-warn" style={{ left: X(m.thr) }} title={`Alert threshold ${fmtV(m.thr, m)}`} />}
+        {dots.map(([l, v, c]) => <div key={l} title={`${l}: ${fmtV(v, m)}`} className="absolute top-[11px] w-3.5 h-3.5 -ml-[7px] rounded-full border-2 border-panel" style={{ left: X(v), background: c }} />)}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink2">{dots.map(([l, v, c]) => <span key={l} className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{ background: c }} />{l} <b className="text-ink">{fmtV(v, m)}</b></span>)}{m.thr != null && <span className="inline-flex items-center gap-1"><span className="w-3 border-t-2 border-dashed border-warn" />alert level {Number(m.thr).toFixed(Number.isInteger(m.thr) ? 0 : Math.max(1, m.dec || 0))}{m.unit}</span>}</div>
+    </div>
+  );
+}
 function CompareIdeal({ demo, sp }) {
-  const x = idealOf(demo, sp), max = x.t.hand;
-  const rows = [['run', 'This run (Mova iO)'], ['ideal', 'Ideal'], ['hand', 'By hand, without automation']];
-  const vsIdeal = x.t.run - x.t.ideal, pctIdeal = x.t.ideal / x.t.run;
+  const x = idealOf(sp), m = sp.m, t = awayTime(demo, sp);
+  const rows = [[sp.mLabel, fmtV(x.ideal, m), fmtV(m.bad, m), fmtV(m.after, m), x.back], ...sp.checks.map(([n, during, after]) => [n, after, during, after, true])];
   return (
     <div className="text-ink">
-      <div className={cx('rounded-md border p-3 text-[12.5px] leading-[18px]', vsIdeal < 2 ? 'border-ok/40 bg-ok/5' : 'border-warn/40 bg-warn/5')}>
-        <b>{vsIdeal < 2 ? 'This run matches the ideal.' : `This run is ${mins(vsIdeal)} behind the ideal (${Math.round(pctIdeal * 100)}% of ideal speed).`}</b> {`It restores the service in ${mins(x.t.run)}, against ${mins(x.t.ideal)} ideal and ${mins(x.t.hand)} by hand: ${Math.round((1 - x.t.run / x.t.hand) * 100)}% faster than doing it by hand.`}
+      <div className={cx('rounded-md border p-3 text-[12.5px] leading-[18px]', x.back ? 'border-ok/40 bg-ok/5' : 'border-warn/40 bg-warn/5')}>
+        <b>{x.state === 'at' ? 'Back to ideal.' : x.state === 'near' ? `Back within the normal range, ${fmtV(x.left, m)} from ideal.` : `Better, not yet at ideal: ${Math.round(x.rec * 100)}% of the way back.`}</b> {`${sp.mLabel}: ideal ${fmtV(x.ideal, m)} when everything runs normally. During the problem it reached ${fmtV(m.bad, m)}${m.thr != null ? ' and raised an alert' : ''}; after the fix it is ${fmtV(m.after, m)}.`}
       </div>
-      <H5>Time to restore, phase by phase</H5>
-      <div className="space-y-2.5">{rows.map(([k, l]) => <div key={k}>
-        <div className="flex items-center justify-between text-[12px] mb-0.5"><b className={k === 'run' ? 'text-ink' : 'text-ink2'}>{l}</b><span className="tabular-nums font-bold">{mins(x.t[k])}</span></div>
-        <div className="flex h-4 rounded overflow-hidden bg-chip" style={{ width: `${Math.max(8, x.t[k] / max * 100)}%` }}>{PHASES.map(([p, pl, col]) => x[k][p] > 0 && <span key={p} title={`${pl}: ${mins(x[k][p])}`} style={{ width: `${x[k][p] / x.t[k] * 100}%`, background: col }} />)}</div>
-      </div>)}</div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">{PHASES.filter(([p]) => x.hand[p] > 0).map(([p, l, col]) => <span key={p} className="inline-flex items-center gap-1 text-[11px] text-ink2"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: col }} />{l}</span>)}</div>
-      <H5>Side by side</H5>
-      <div className="overflow-x-auto"><table className="w-full text-[12px]"><thead><tr className="text-left text-ink3 border-b border-line"><th className="py-1 pr-2 font-semibold">Measure</th><th className="py-1 pr-2 font-semibold text-right">This run</th><th className="py-1 pr-2 font-semibold text-right">Ideal</th><th className="py-1 pr-2 font-semibold text-right">By hand</th><th className="py-1 font-semibold">vs ideal</th></tr></thead>
-        <tbody>{[
-          ['Time to detect', mins(x.run.detect), mins(x.ideal.detect), mins(x.hand.detect), x.run.detect - x.ideal.detect],
-          ['Time to the ticket', mins(x.run.detect + x.run.ticket), mins(x.ideal.detect + x.ideal.ticket), mins(x.hand.detect + x.hand.ticket), (x.run.detect + x.run.ticket) - (x.ideal.detect + x.ideal.ticket)],
-          ['Time to the root cause', mins(x.run.detect + x.run.ticket + x.run.diag), mins(x.ideal.detect + x.ideal.ticket + x.ideal.diag), mins(x.hand.detect + x.hand.ticket + x.hand.diag), (x.run.detect + x.run.ticket + x.run.diag) - (x.ideal.detect + x.ideal.ticket + x.ideal.diag)],
-          ['Waiting for a decision', mins(x.run.decide), mins(x.ideal.decide), mins(x.hand.decide), x.run.decide - x.ideal.decide],
-          ['Time to restore', mins(x.t.run), mins(x.t.ideal), mins(x.t.hand), vsIdeal],
-          ['Alarms the NOC handles', x.alarms.run, x.alarms.ideal, x.alarms.hand, 0],
-          ['People involved', x.people.run, x.people.ideal, x.people.hand, x.people.run - x.people.ideal],
-          ['Service level', fmtV(sp.m.after, sp.m), fmtV(sp.m.base, sp.m), fmtV(sp.m.bad, sp.m), 0],
-          ['Records complete', 'Yes', 'Yes', 'Often partial', 0],
-        ].map(([l, a, b, c, g]) => <tr key={l} className="border-b border-line/60 last:border-0"><td className="py-1 pr-2 text-ink2">{l}</td><td className="py-1 pr-2 text-right font-bold tabular-nums">{a}</td><td className="py-1 pr-2 text-right tabular-nums">{b}</td><td className="py-1 pr-2 text-right tabular-nums text-ink3">{c}</td><td className="py-1">{(typeof a === 'number' ? g > 0 : Math.round(g) >= 1) ? <span className="text-warn font-semibold">+{typeof a === 'number' ? g : mins(g)}</span> : <span className="text-ok font-semibold">at ideal</span>}</td></tr>)}</tbody></table></div>
-      <H5>Where the gap is, and how to close it</H5>
-      {x.gaps.length ? <ul className="space-y-1">{x.gaps.slice(0, 3).map(g => <Li key={g.k}><b>{g.l}: +{mins(g.gap)}.</b> {x.close[g.k]}</Li>)}</ul> : <div className="text-[12.5px] text-ink2">No gap: the run is already at the ideal for this situation.</div>}
-      <div className="text-[11.5px] text-ink3 mt-3">Minutes are real-world times; the stage plays them compressed. Ideal is the best the service is designed for, with policy allowing it. By hand is the typical path today: a store call, triage, a manual fix and a written-up ticket.</div>
+      <H5>{sp.mLabel}: ideal, during the problem, after the fix</H5>
+      <Scale sp={sp} x={x} />
+      <H5>Ideal against what happened</H5>
+      <div className="overflow-x-auto"><table className="w-full text-[12px]"><thead><tr className="text-left text-ink3 border-b border-line"><th className="py-1 pr-2 font-semibold">Measure</th><th className="py-1 pr-2 font-semibold text-right">Ideal</th><th className="py-1 pr-2 font-semibold text-right">During the problem</th><th className="py-1 pr-2 font-semibold text-right">After the fix</th><th className="py-1 font-semibold">vs ideal</th></tr></thead>
+        <tbody>{rows.map(([l, a, b, c, ok], i) => <tr key={i} className="border-b border-line/60 last:border-0"><td className="py-1 pr-2 text-ink2">{l}</td><td className="py-1 pr-2 text-right font-semibold text-ok tabular-nums">{a}</td><td className="py-1 pr-2 text-right text-bad tabular-nums">{b}</td><td className="py-1 pr-2 text-right font-bold tabular-nums">{c}</td><td className="py-1">{i === 0 && x.state === 'near' ? <span className="text-ok font-semibold">normal range ({fmtV(x.left, m)} off)</span> : ok ? <span className="text-ok font-semibold">at ideal</span> : <span className="text-warn font-semibold">{fmtV(x.left, m)} off</span>}</td></tr>)}</tbody></table></div>
+      <H5>What being away from ideal cost</H5>
+      <ul className="space-y-1">
+        <Li><b>Services affected:</b> {sp.services.join(', ')}.</Li>
+        <Li><b>At risk while it lasted:</b> {sp.risk}</Li>
+        <Li><b>Time away from ideal:</b> about {minsTxt(t.run)} with Mova iO, against about {minsTxt(t.hand)} by hand (detect from a store call, triage, manual fix).</Li>
+        {x.state === 'gap' && <Li><b>Still to close:</b> {fmtV(x.left, m)} between the reading after the fix and ideal. {demo.story.resolution}</Li>}
+      </ul>
+      
     </div>
   );
 }

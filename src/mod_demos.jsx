@@ -29,14 +29,14 @@ export function LiveDemos() {
   return (
     <div>
       <div className="flex items-end gap-3 mb-4 flex-wrap border-b border-line pb-3">
-        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1><p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch]">{DEMOS.length} SRS branch situations. {DEMOS_ONLY ? 'Each one plays on one screen with every system involved: detect, correlate, decide, act, verify and record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.' : 'Each one replays into the live console: incidents, agents, approvals, carrier cases and work orders appear where an engineer would see them.'}</p></div>
+        <div className="flex-1 min-w-[280px]"><h1 className="text-[26px] font-bold text-ink leading-none">Live demos</h1></div>
         <Btn kind="brand" icon={I.PlayCircle} onClick={playAll}>Start guided demo</Btn>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; const cnt = DEMOS.filter(x => x.who === n).length; const on = who === n; return (
         <button key={n} onClick={() => setWho(on ? 'Anyone' : n)} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
           <div className="flex items-center gap-2"><Ic size={16} className={k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn'} /><span className="font-bold text-[14px] text-ink flex-1">{n}</span><span className="text-[12px] font-bold text-ink2 bg-chip rounded px-1.5">{cnt} demos</span></div>
           <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{{ auto: 'Mova iO fixes it on its own and records what it did.', stop: 'Mova iO takes the action and notifies a person of what it did.', approve: 'Mova iO prepares the fix and waits. Nothing changes until a person approves.' }[k]}</div>
-          <div className="text-[11.5px] text-ink3 mt-1.5 leading-[15px]">For example: {t}</div>
+          
         </button>); })}</div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {['All', ...AREAS].map(a => { const n = a === 'All' ? DEMOS.length : DEMOS.filter(x => x.area === a).length; return <button key={a} onClick={() => setArea(a)} className={cx('h-9 px-3 rounded-md border text-[13px] font-bold inline-flex items-center gap-2', area === a ? 'bg-ink text-canvas border-ink' : 'bg-panel text-ink border-line hover:bg-chip')}>{a}<span className={cx('text-[11px] font-bold rounded px-1.5', area === a ? 'bg-canvas/20' : 'bg-chip text-ink2')}>{n}</span></button>; })}
@@ -67,7 +67,7 @@ export function LiveDemos() {
           </div>
           <div className="text-[12px] text-ink3 mt-3 mb-1">On one screen while it plays</div>
           <div className="flex flex-wrap gap-1.5">{sp.systems.map(k => <span key={k} className="inline-flex items-center gap-1.5 text-[12px] text-ink border border-line rounded px-1.5 py-1">{SYS[k].logo ? <Logo k={SYS[k].logo} h={11} className="!p-0 !border-0" /> : null}{k === 'carrier' && sp.carrier ? `${sp.carrier} portal` : SYS[k].n}</span>)}</div>
-          <div className="text-[12px] text-ink3 mt-2">Detect → Correlate → Decide → Act → Verify → Record, with the live chart, the runbook running, every Mova iO decision and the ServiceNow ticket.</div>
+          
           <div className="mt-4 mb-2"><ViewToggle view={view} setView={setView} /></div>
           <div className="max-h-[420px] overflow-y-auto pr-1 stage-col"><div className="pb-5"><ExplainBody demo={d} sp={sp} c={pc} view={view} /></div><div className="sticky bottom-0 h-7 -mt-7 bg-gradient-to-t from-[rgb(var(--panel))] to-transparent pointer-events-none" /></div>
           <div className="flex gap-2 mt-4"><Btn kind="brand" icon={I.Play} onClick={() => play(d.id)}>Play live</Btn>{!DEMOS_ONLY && <Btn icon={I.ArrowRight} onClick={() => act.go(MOD_OF[d.area][0])}>Open {MOD_OF[d.area][1]}</Btn>}</div>

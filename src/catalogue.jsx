@@ -2,7 +2,7 @@
 // automation runbooks, AI event policies (correlation, suppression, de-duplication), predictive models, the copilot
 // and knowledge, and the ServiceNow auto-ticketing rules. Each shows what it does, what sets it off, how much control a
 // person keeps (its mode or autonomy level and the gate), how often it ran and how often it was right.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
@@ -12,10 +12,12 @@ import { RULES } from './storm.js';
 import { todayCounts } from './viz2.jsx';
 import { Card, Badge, PageHead, Stat, Tabs, SearchBox, Select, Btn, cx, ExportBtn } from './ui.jsx';
 import { num, exportCSV } from './util.js';
+import { Agents } from './mod_live.jsx';
+import { Automation } from './mod_more.jsx';
 
 export const TYPES = [
-  { id: 'agent', one: 'AI agent', label: 'AI agents', icon: I.Bot, go: 'agents' },
-  { id: 'runbook', one: 'Runbook', label: 'Automation runbooks', icon: I.Workflow, go: 'automation' },
+  { id: 'agent', one: 'AI agent', label: 'AI agents', icon: I.Bot, tab: 'agents' },
+  { id: 'runbook', one: 'Runbook', label: 'Automation runbooks', icon: I.Workflow, tab: 'runbooks' },
   { id: 'policy', one: 'AI event policy', label: 'AI event policies', icon: I.Filter, go: 'correlation' },
   { id: 'model', one: 'Predictive model', label: 'Predictive models', icon: I.TrendingUp, go: 'predict' },
   { id: 'copilot', one: 'Copilot', label: 'Copilot and knowledge', icon: I.Sparkles, go: 'knowledge' },
@@ -74,18 +76,30 @@ function useItems() {
   }, [s.catModes, s.predictions, Math.floor(tc.events / 50)]);
 }
 
+// old links to Mova iO Agents and the Automation Library open the matching catalogue tab
+export function CatalogueTab({ tab }) {
+  const { act } = useApp();
+  useEffect(() => { act.setTab('catalogue', tab); act.go('catalogue'); }, []);
+  return null;
+}
+const CTABS = [{ id: 'list', label: 'Catalogue' }, { id: 'agents', label: 'Agents at work' }, { id: 'runbooks', label: 'Runbooks and runs' }];
 export function Catalogue() {
   const { s, act } = useApp();
   const items = useItems();
+  const ctab = s.tab.catalogue || 'list', setCtab = t => act.setTab('catalogue', t);
   const [type, setType] = useState('all'), [mode, setMode] = useState('All'), [q, setQ] = useState(''), [open, setOpen] = useState(null);
   const list = items.filter(x => (type === 'all' || x.type === type) && (mode === 'All' || x.mode === mode) && (!q || `${x.id} ${x.name} ${x.does}`.toLowerCase().includes(q.toLowerCase())));
   const setItemMode = (x, m) => { act.set(st => ({ catModes: { ...(st.catModes || {}), [x.id]: m } })); act.audit(`${x.id} ${x.name}: mode ${x.mode} → ${m}`, x.id); act.toast(`${x.id} set to ${m}: ${MODE_TEXT[m]}`, 'info'); };
-  const goTo = x => x.go === 'ask' ? act.set({ askOpen: true }) : act.go(x.go || TYPES.find(t => t.id === x.type).go);
+  const goTo = x => { const T = TYPES.find(t => t.id === x.type); if (x.go === 'ask') act.set({ askOpen: true }); else if (!x.go && T.tab) { setCtab(T.tab); if (T.tab === 'runbooks') act.set({ autoSel: x.id }); window.scrollTo({ top: 0 }); } else act.go(x.go || T.go); };
   const runs = items.reduce((a, x) => a + (x.runs || 0), 0);
   const shadow = items.filter(x => x.mode === 'Observed' || x.mode === 'Recommend');
   return (
     <div>
       <PageHead icon={I.LibraryBig} title="AI & Automation Catalogue" sub="Everything in the service that decides or acts on its own, in one list: what it does, what sets it off, how much control a person keeps, how often it ran and how often it was right. Every policy can run Off, Observed, Recommend or On." right={<ExportBtn onClick={() => exportCSV('srs-ai-automation-catalogue.csv', items, [{ label: 'ID', key: 'id' }, { label: 'Type', get: x => TYPES.find(t => t.id === x.type).label }, { label: 'Name', key: 'name' }, { label: 'What it does', key: 'does' }, { label: 'Trigger', key: 'trigger' }, { label: 'Mode', key: 'mode' }, { label: 'Autonomy', get: x => x.level || '' }, { label: 'Gate', key: 'gate' }, { label: 'Runs, 30 days', key: 'runs' }, { label: 'Right', get: x => Math.round(x.ok * 100) + '%' }, { label: 'Owner', key: 'owner' }])} />} />
+      <Tabs value={ctab} onChange={setCtab} className="mb-3" tabs={CTABS.map(t => ({ ...t, count: t.id === 'list' ? items.length : t.id === 'agents' ? items.filter(x => x.type === 'agent').length : items.filter(x => x.type === 'runbook').length }))} />
+      {ctab === 'agents' && <Agents embedded />}
+      {ctab === 'runbooks' && <Automation embedded />}
+      {ctab === 'list' && <>
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat onClick={() => { setType('all'); setMode('All'); setQ(''); }} label="In the catalogue" icon={I.LibraryBig} value={items.length} sub={`${TYPES.length} kinds`} />
         <Stat label="Running (On)" icon={I.Play} value={items.filter(x => x.mode === 'On').length} tone="green" onClick={() => setMode('On')} />
@@ -114,13 +128,14 @@ export function Catalogue() {
               <div><div className="text-[11px] font-bold uppercase text-ink3">Control and gate</div><div className="text-ink">{x.gate}</div>{x.undo && <div className="text-ink3 mt-1">Undo: {x.undo}</div>}<div className="text-ink3 mt-1">Owner: {x.owner}. Mode {x.mode}: {MODE_TEXT[x.mode]}.</div></div>
               <div className="flex flex-col gap-2 items-start">
                 {x.type !== 'agent' && <div className="inline-flex rounded-md border border-line overflow-hidden">{MODES.map(m => <Btn key={m} op size="sm" kind={x.mode === m ? 'brand' : 'ghost'} className="!rounded-none !h-7 !px-2" onClick={() => x.mode !== m && setItemMode(x, m)}>{m}</Btn>)}</div>}
-                <Btn size="sm" icon={I.ArrowRight} onClick={() => goTo(x)}>Open in {x.go === 'ask' ? 'Ask Mova iO' : x.go === 'knowledge' ? 'Knowledge' : x.go === 'incidents' ? 'Live Incidents' : { agent: 'Mova iO Agents', runbook: 'Automation Library', policy: 'Correlation', model: 'Predictive Watchlist', copilot: 'Knowledge', ticket: 'Correlation' }[x.type]}</Btn>
+                <Btn size="sm" icon={I.ArrowRight} onClick={() => goTo(x)}>Open {x.go === 'ask' ? 'Ask Mova iO' : x.go === 'knowledge' ? 'Knowledge' : x.go === 'incidents' ? 'Live Incidents' : { agent: 'Agents at work', runbook: 'Runbooks and runs', policy: 'Correlation', model: 'Predictive Watchlist', copilot: 'Knowledge', ticket: 'Correlation' }[x.type]}</Btn>
               </div>
             </div>}
           </div>); })}
           {!list.length && <div className="p-6 text-[13px] text-ink3">Nothing matches. Clear the search or pick another kind.</div>}
         </div>
       </Card>
+      </>}
     </div>
   );
 }
