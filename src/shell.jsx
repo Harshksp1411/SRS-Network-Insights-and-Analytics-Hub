@@ -168,7 +168,6 @@ function FilterBar() {
         <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
-        <button onClick={() => act.drill(f.branchId ? { t: 'branch', id: f.branchId } : { t: 'set', k: 'all' })} title="Drill down from here to a store, a device or a line" className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Layers size={14} />Drill down</button>
         <div className="relative">
           <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-44" />
           {matches.length > 0 && (
