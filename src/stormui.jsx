@@ -48,7 +48,7 @@ export function AlertStormReplay() {
           <span className="col-span-2 md:col-span-1 md:text-right">{out ? <Badge tone={f.tone} title={f.note(r.n)}>{f.label}</Badge> : f.stage === 9 && st >= 2 ? <Badge tone={f.tone}>{f.label}</Badge> : <span className="text-[11px] text-ink3">{st === 0 ? 'arrived' : 'still open'}</span>}</span>
           <span className="md:hidden col-span-2 text-ink2 truncate">{r.msg}</span>
         </div>); })}</div>}
-      {st === 2 && <div className="text-[11.5px] text-ink3 mt-1.5">Nothing is thrown away: held-back alarms stay on the parent alert or the change, and show up in the incident's timeline.</div>}
+
       {st === 3 && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="border border-line rounded-lg p-3"><div className="text-[12px] font-bold text-ink mb-1.5 flex items-center gap-1.5"><I.GitMerge size={13} className="text-brand" />Why these belong together</div><ul className="space-y-1">{sc.corr.map(c => <li key={c} className="flex gap-1.5 text-[12.5px] text-ink2"><I.Check size={13} className="text-ok mt-[2px] shrink-0" />{c}</li>)}</ul></div>
         <div className="border border-line rounded-lg p-3"><div className="text-[12px] font-bold text-ink mb-1.5">What is left</div>{sc.rows.filter(r => FATE[r.fate].stage > 2).map((r, i) => <div key={i} className="flex items-center gap-2 text-[12.5px] py-0.5"><Badge tone={FATE[r.fate].tone}>{FATE[r.fate].label}</Badge><span className="text-ink truncate">{r.msg}</span></div>)}

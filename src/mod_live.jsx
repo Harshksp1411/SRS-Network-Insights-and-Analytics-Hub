@@ -76,13 +76,13 @@ export function Correlation() {
   );
 }
 
-export function Agents() {
+export function Agents({ embedded }) {
   const { L } = useLive();
   const today = Object.values(L.x.agents).reduce((a, g) => a + g.today, 0);
   const working = Object.values(L.x.agents).filter(g => Date.now() - g.lastT < 4000).length;
   return (
     <div>
-      <PageHead icon={I.Bot} title="Mova iO Agents" sub="Thirteen agents: what each one is doing now, how often it acts and how often it gets it right. Every action follows the gate rules and lands in the audit log." right={<span className="inline-flex items-center gap-3 text-[12.5px]"><Badge tone="brand"><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />{working} working now</Badge><span className="text-ink2"><b className="text-ink tabular-nums">{num(today)}</b> actions today</span></span>} />
+      {!embedded && <PageHead icon={I.Bot} title="Mova iO Agents" sub="Thirteen agents: what each one is doing now, how often it acts and how often it gets it right. Every action follows the gate rules and lands in the audit log." right={<span className="inline-flex items-center gap-3 text-[12.5px]"><Badge tone="brand"><span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />{working} working now</Badge><span className="text-ink2"><b className="text-ink tabular-nums">{num(today)}</b> actions today</span></span>}  />}
       <AgentActivity />
       <AgentMixCards L={L} defs={AGENT_DEF} />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-3 mt-3 items-start"><AgentCards /><AgentStream /></div>

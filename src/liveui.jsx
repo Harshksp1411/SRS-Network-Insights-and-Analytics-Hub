@@ -87,7 +87,7 @@ export function ExperienceCard() {
     <Card title="WAN quality – live" sub="Path statistics from all 933 EdgeConnects, averaged over the lines in use" icon={I.Activity}>
       <div className="grid grid-cols-2 gap-2 mb-2">{tiles.map(([l, v, ser, c]) => <div key={l} className="border border-line rounded-md p-2"><div className="text-[11.5px] text-ink3 font-semibold leading-tight">{l}</div><div className="flex items-end justify-between gap-2"><div className="text-[17px] font-extrabold text-ink leading-tight tabular-nums"><TweenNum value={v} /></div><Spark data={ser.slice(-40)} color={c} w={70} h={22} /></div></div>)}</div>
       <LineChart series={[{ name: 'Average latency (ms)', data: S.wan, color: C.s1 }]} labels={L.ts.map(t => hhmmss(t))} h={110} yFmt={v => Math.round(v)} refLines={[{ v: D.AVG_LAT + 25, label: `slow for ERP above ${D.AVG_LAT + 25} ms`, color: C.warn }]} yMin={0} />
-      <div className="text-[11.5px] text-ink3 mt-1.5 leading-snug">Latency is how long a request takes to reach the data centre and back. Loss is data that never arrives and has to be sent again. Jitter is how much the delay varies. Together they decide how fast ERP, pricing and card payments feel at the counter.</div>
+      
     </Card>
   );
 }

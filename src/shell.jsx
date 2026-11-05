@@ -11,7 +11,7 @@ import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
-import { Catalogue } from './catalogue.jsx';
+import { Catalogue, CatalogueTab } from './catalogue.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -40,8 +40,8 @@ export const MODULES = [
   { id: 'biab', label: 'Branch-in-a-Box', icon: I.PackageCheck, group: 'Grow', C: BiaB },
   { id: 'predict', label: 'Predictive Watchlist', icon: I.TrendingUp, group: 'Improve', C: Predictive },
   { id: 'knowledge', label: 'Knowledge', icon: I.BookOpen, group: 'Improve', C: Knowledge },
-  { id: 'agents', label: 'Mova iO Agents', icon: I.Bot, group: 'Improve', C: Agents },
-  { id: 'automation', label: 'Automation Library', icon: I.Workflow, group: 'Improve', C: Automation },
+  { id: 'agents', label: 'AI & Automation Catalogue', icon: I.Bot, group: 'Improve', C: () => <CatalogueTab tab="agents" />, hidden: true },
+  { id: 'automation', label: 'AI & Automation Catalogue', icon: I.Workflow, group: 'Improve', C: () => <CatalogueTab tab="runbooks" />, hidden: true },
   { id: 'catalogue', label: 'AI & Automation Catalogue', icon: I.LibraryBig, group: 'Improve', C: Catalogue },
   { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
@@ -112,7 +112,7 @@ function Sidebar() {
       {groups.map(g => (
         <div key={g} className="mt-2">
           {!collapsed && <div className="px-4 py-1.5 text-[10.5px] text-white/45 font-bold">{g}</div>}
-          {MODULES.filter(m => m.group === g).map(m => {
+          {MODULES.filter(m => m.group === g && !m.hidden).map(m => {
             const on = s.module === m.id; const b = m.badge ? m.badge(s) : 0;
             return (
               <button key={m.id} onClick={() => act.go(m.id)} title={m.label} className={cx('w-full flex items-center gap-2.5 px-4 h-9 text-[13px] text-left relative', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
@@ -158,18 +158,17 @@ function FilterBar() {
   return (
     <div className="bg-panel border-b border-line px-5 py-2 flex items-center gap-1.5 flex-wrap">
       <span className="text-[12px] font-bold text-ink3 mr-1">Showing</span>
-      {bm ? <Badge tone="brand" className="!text-[12px] !py-1"><I.Store size={13} />My branch: {D.BR[s.bmBranch].name}, {D.BR[s.bmBranch].brand}</Badge> : <>
-        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId && f.brand === 'All' ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
+      {bm ? <Badge tone="brand" className="!text-[12px] !py-1"><I.Store size={13} />My branch: {D.BR[s.bmBranch].name}</Badge> : <>
+        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.MapPin} value={f.region} onChange={v => setF({ region: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Region: all' }, ...D.REGIONS.map(r => ({ value: r, label: `${r} (${D.BRANCHES.filter(b => b.region === r).length})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Building2} value={f.city || 'All'} onChange={v => setF({ city: v, branchId: null })} options={[{ value: 'All', label: `City: all (${cities.length})` }, ...cities.map(c => ({ value: c, label: `${c} (${cityCounts[c]})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
-        <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: `${b.name}, ${b.brand}` }))]} />
+        <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
         <button onClick={() => act.drill(f.branchId ? { t: 'branch', id: f.branchId } : { t: 'set', k: 'all' })} title="Drill down from here to a store, a device or a line" className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Layers size={14} />Drill down</button>
-        <Select icon={I.Tag} value={f.brand} onChange={v => setF({ brand: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Brand: all' }, ...D.BRANDS.map(b => ({ value: b, label: b }))]} />
         <div className="relative">
           <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-44" />
           {matches.length > 0 && (
@@ -289,7 +288,7 @@ export function BranchDrawer() {
   const devs = D.devicesOf(b.id);
   const close = () => act.set({ selBranch: null });
   return (
-    <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}, {b.brand}</span>} sub={`${b.id}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
+    <Modal open onClose={close} title={<span className="flex items-center gap-2"><Dot tone={healthTone(h)} />{b.name}</span>} sub={`${b.id}, ${b.region}, ${b.segment}, ${clk.local} (${clk.open ? 'open' : 'closed'})`} wide
       footer={<><Btn icon={I.Sunrise} onClick={() => { close(); act.set(st => ({ module: 'readiness', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Readiness checks</Btn><Btn icon={I.Boxes} onClick={() => { close(); act.set(st => ({ module: 'inventory', filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } })); }}>Devices</Btn><div className="flex-1" /><Btn kind="brand" icon={I.Filter} onClick={() => { close(); act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: b.id } }); }}>Filter console to this branch</Btn></>}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>

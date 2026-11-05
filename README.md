@@ -21,7 +21,7 @@ Every demo and runbook runs in one of three modes:
 | Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents |
 | Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch, Approvals & Changes |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
-| Improve | Predictive Watchlist, Knowledge, Mova iO Agents, Automation Library |
+| Improve | Predictive Watchlist, Knowledge, AI & Automation Catalogue (catalogue, agents at work, runbooks and runs) |
 | Govern | SLA & KPI Tracker (Annexure B), Reports |
 
 The **live demos** are a separate page (`demos/`) with its own link; the two pages do not link to each other. Each scripted SRS branch situation plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation.

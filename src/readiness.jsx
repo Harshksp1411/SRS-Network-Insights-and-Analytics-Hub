@@ -148,7 +148,7 @@ export function OpeningSchedule({ rows }) {
         {Array.from({ length: 8 }, (_, i) => <text key={i} x={Math.min(W - 1, L + (i * 4) * bw)} y={H - 4} fontSize="10.5" fill="rgb(var(--ink3))" textAnchor={i === 0 ? 'start' : L + (i * 4) * bw + 16 > W ? 'end' : 'middle'}>{hhmmFromMin(start + i * 60)}</text>)}
         {nowX != null && <g><line x1={nowX} x2={nowX} y1={4} y2={H - B + 4} stroke="rgb(var(--ink))" strokeDasharray="3 3" /><text x={nowX + 4} y={14} fontSize="10.5" fontWeight="700" fill="rgb(var(--ink))">now</text></g>}
       </svg></div>
-      {nowX == null && <div className="text-[11.5px] text-ink3">Shows the next opening wave. Checks start at 05:30 local in each time zone.</div>}
+
     </Card>
   );
 }

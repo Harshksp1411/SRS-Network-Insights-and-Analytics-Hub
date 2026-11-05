@@ -276,7 +276,7 @@ export function AlertFunnel() {
           <span className="h-7 bg-chip/60 rounded-sm relative"><span className="absolute inset-y-0 left-0 rounded-sm transition-all duration-700 flex items-center justify-end pr-2 text-white font-bold tabular-nums text-[12px]" style={{ width: `${Math.max(5, Math.sqrt(v / max) * 100)}%`, background: col }} key={l}>{num(v)}</span></span>
           <span className="hidden md:block text-[11.5px] text-ink3 leading-tight">{note}</span>
         </div>))}</div>
-      <div className="text-[11px] text-ink3 mt-2">Bar length uses a square-root scale so small stages stay visible.</div>
+      
     </Card>
   );
 }
@@ -447,7 +447,7 @@ export function ScoreHistogram() {
         <span className="absolute top-0 bottom-0 border-l border-dashed border-ink3" style={{ left: `${(50 / 75) * 100}%` }}><span className="absolute -top-0.5 left-1 text-[10.5px] text-ink3 whitespace-nowrap">good from 80</span></span>
       </div>
       <div className="flex justify-between text-[10.5px] text-ink3 mt-1"><span>30</span><span>50</span><span>70</span><span>90</span><span>100</span></div>
-      <div className="text-[11px] text-ink3 mt-1">Bar height uses a square-root scale so the few critical branches stay visible.</div>
+      
     </Card>
   );
 }

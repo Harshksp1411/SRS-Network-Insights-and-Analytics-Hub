@@ -12,7 +12,7 @@ export function Card({ title, sub, icon: I, right, children, className, pad = tr
         <header className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 pt-3 pb-2">
           <div className="min-w-0 flex-1 basis-[220px]">
             {title && <h3 className="font-display text-[16px] font-semibold text-ink leading-tight">{title}</h3>}
-            {sub && <p className="text-[12.5px] text-ink3 mt-0.5 leading-snug">{sub}</p>}
+            {sub && (typeof sub !== 'string' || sub.length <= 70) && <p className="text-[12.5px] text-ink3 mt-0.5 leading-snug">{sub}</p>}
           </div>
           {right}
         </header>
@@ -224,8 +224,8 @@ export function Empty({ icon: I, title, sub, children }) {
 }
 export function PageHead({ icon: I, title, sub, right, children }) {
   return (
-    <div className="flex items-end gap-3 mb-4 flex-wrap pb-1">
-      <div className="flex-1 min-w-[260px]"><h1 className="font-display text-[28px] font-bold text-ink leading-none">{title}</h1>{sub && <p className="text-[13.5px] text-ink2 mt-1.5 max-w-[78ch] leading-snug">{sub}</p>}</div>
+    <div className="flex items-center gap-3 mb-4 flex-wrap pb-1">
+      <div className="flex-1 min-w-[260px]"><h1 className="font-display text-[28px] font-bold text-ink leading-none">{title}</h1></div>
       <div className="flex items-center gap-2 flex-wrap">{right}</div>
       {children}
     </div>
