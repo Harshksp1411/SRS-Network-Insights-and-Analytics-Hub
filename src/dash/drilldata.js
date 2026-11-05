@@ -210,7 +210,7 @@ export function labelOf(n) {
     case 'change': return n.id;
     case 'approvals': return 'Decisions waiting';
     case 'approval': return n.id;
-    case 'sla': return 'Service levels';
+    case 'sla': return n.per ? `Service levels, last ${n.per} months` : 'Service levels';
     case 'metric': return (D.SLA[n.i] || {}).name || 'Service level';
     case 'mttr': return 'Time to fix, six months';
     case 'projects': return 'New branches';

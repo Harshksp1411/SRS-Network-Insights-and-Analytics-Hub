@@ -453,15 +453,28 @@ export function ScoreHistogram() {
 }
 
 // ── Calendar heat: incidents per day, last 12 weeks ──────────────────
-export function CalendarHeat() {
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// with a period (P from history.js): one cell per day across its months, each month adding up to that month's tickets
+function periodDays(P) {
+  const R = rng(77 + P.n), out = [];
+  P.months.forEach((mo, k) => {
+    const mi = MON.indexOf(mo.m), nd = new Date(mo.y, mi + 1, 0).getDate();
+    const w = Array.from({ length: nd }, (_, d) => { const dow = new Date(mo.y, mi, d + 1).getDay(); return (dow === 0 ? 0.4 : dow === 6 ? 0.6 : 1) * (0.75 + R() * 0.5); });
+    const sw = w.reduce((a, v) => a + v, 0), tot = P.byMonth[k].total; let left = tot;
+    w.forEach((v, d) => { const n = d === nd - 1 ? Math.max(0, left) : Math.round(tot * v / sw); left -= n; out.push({ t: new Date(mo.y, mi, d + 1, 12).getTime(), v: n }); });
+  });
+  return out;
+}
+export function CalendarHeat({ P }) {
   const now = useNow();
-  const days = useMemo(() => { const R = rng(77); return Array.from({ length: 84 }, (_, i) => { const t = now - (83 - i) * 86400000; const dow = new Date(t).getDay(); const base = dow === 0 ? 9 : dow === 6 ? 13 : 23; const storm = i > 60 && i < 64 ? 18 : 0; return { t, v: Math.max(2, Math.round(base + (R() - 0.5) * 10 + storm)) }; }); }, []);
+  const days = useMemo(() => P ? periodDays(P) : (() => { const R = rng(77); return Array.from({ length: 84 }, (_, i) => { const t = now - (83 - i) * 86400000; const dow = new Date(t).getDay(); const base = dow === 0 ? 9 : dow === 6 ? 13 : 23; const storm = i > 60 && i < 64 ? 18 : 0; return { t, v: Math.max(2, Math.round(base + (R() - 0.5) * 10 + storm)) }; }); })(), [P]);
   const mx = Math.max(...days.map(d => d.v)); const tot = days.reduce((a, d) => a + d.v, 0);
   const [hv, setHv] = useState(null);
+  const cs = !P || P.n <= 3 ? 15 : P.n <= 6 ? 12 : P.n <= 9 ? 10 : 8, gp = cs >= 12 ? 3 : 2;
   return (
-    <Card title="Incidents per day, last 12 weeks" sub={`${num(tot)} incidents, about ${Math.round(tot / 84)} a day. Weekends are quieter; the dark run is the hail storms.`}>
-      <div className="flex gap-2"><div className="grid grid-rows-7 gap-[3px] text-[10px] text-ink3 pt-[1px]">{['Sun', '', 'Tue', '', 'Thu', '', 'Sat'].map((d, i) => <span key={i} className="h-[15px] leading-[15px]">{d}</span>)}</div>
-        <div className="grid grid-flow-col grid-rows-7 gap-[3px]">{Array.from({ length: new Date(days[0].t).getDay() }).map((_, i) => <span key={`p${i}`} />)}{days.map(d => <span key={d.t} onMouseEnter={() => setHv(d)} onMouseLeave={() => setHv(null)} className="w-[15px] h-[15px] rounded-[2px]" style={{ background: SEQ[Math.min(7, Math.floor(d.v / mx * 7.99))] }} />)}</div></div>
+    <Card title={P ? `Tickets per day, ${P.from} to ${P.to}` : 'Incidents per day, last 12 weeks'} sub={P ? `${num(tot)} tickets over ${P.n} months, about ${Math.round(tot / days.length)} a day. Weekends are quieter.` : `${num(tot)} incidents, about ${Math.round(tot / 84)} a day. Weekends are quieter; the dark run is the hail storms.`}>
+      <div className="flex gap-2 overflow-x-auto"><div className="grid grid-rows-7 text-[10px] text-ink3 pt-[1px]" style={{ gap: gp }}>{['Sun', '', 'Tue', '', 'Thu', '', 'Sat'].map((d, i) => <span key={i} style={{ height: cs, lineHeight: `${cs}px` }}>{d}</span>)}</div>
+        <div className="grid grid-flow-col grid-rows-7" style={{ gap: gp }}>{Array.from({ length: new Date(days[0].t).getDay() }).map((_, i) => <span key={`p${i}`} />)}{days.map(d => <span key={d.t} onMouseEnter={() => setHv(d)} onMouseLeave={() => setHv(null)} className="rounded-[2px]" style={{ width: cs, height: cs, background: SEQ[Math.min(7, Math.floor(d.v / mx * 7.99))] }} />)}</div></div>
       <div className="flex items-center gap-1 mt-2 text-[11px] text-ink3"><span className="mr-1">Fewer</span>{SEQ.map(c => <span key={c} className="w-3.5 h-2.5 rounded-[2px]" style={{ background: c }} />)}<span className="ml-1">More</span>{hv && <span className="ml-auto text-ink2">{new Date(hv.t).toDateString().slice(0, 10)}: <b className="text-ink">{hv.v}</b></span>}</div>
     </Card>
   );

@@ -15,6 +15,7 @@ import {
   rootOf, faultPath, incOf, LAYER_PLAIN, causeIncOf, rootGroups, changeIn,
 } from './drilldata.js';
 import { MONTHS_SO_FAR } from './visuals.js';
+import * as HIST from '../history.js';
 import { DrillLinks } from './links.js';
 import { TakeAction } from './TakeAction.jsx';
 import { fixPlan } from './fix.js';
@@ -783,24 +784,27 @@ function ApprovalView({ n, go, ctx }) {
 
 // ---------- service levels and trends ----------
 const slaState = m => m.lower ? (m.act <= m.esl ? 'met' : 'below') : m.act >= m.esl ? 'met' : m.msl != null && m.act < m.msl ? 'min' : 'below';
-function SlaView({ go }) {
-  const rows = D.SLA.map((m, i) => ({ m, i, st: slaState(m) }));
-  const lines = [...new Set(D.SLA.map(m => m.line))];
+// opened from the SLA & KPI tracker with a period (n.per): every figure is the average of those months
+const slaFor = per => per ? HIST.period(per).sla.map(x => ({ ...x.m, act: x.avg, trend: x.series, month: x.m.act })) : D.SLA;
+function SlaView({ n = {}, go }) {
+  const per = n.per, SLA = slaFor(per);
+  const rows = SLA.map((m, i) => ({ m, i, st: slaState(m) }));
+  const lines = [...new Set(SLA.map(m => m.line))];
   const fmt = m => v => m.fmt ? P(v, m.fmt) : P(v, 1);
   return (
     <div>
-      <Head kicker="Service levels" right={<div className="pt-5"><OpenIn what="sla" /></div>} title={`${rows.filter(r => r.st === 'met').length} of ${rows.length} service levels met`} sub="The Annexure B service levels and KPIs, last month against the expected level. The black mark on each bar is the target." />
+      <Head kicker="Service levels" right={<div className="pt-5"><OpenIn what="sla" /></div>} title={`${rows.filter(r => r.st === 'met').length} of ${rows.length} service levels met${per ? `, last ${per} months` : ''}`} sub={`The Annexure B service levels and KPIs, ${per ? `the average of the last ${per} months` : 'last month'} against the expected level. The black mark on each bar is the target.`} />
       <Kpis go={go} items={[
         { label: 'Met the expected level', value: num(rows.filter(r => r.st === 'met').length), tone: 'ok' },
         { label: 'Above minimum, below expected', value: num(rows.filter(r => r.st === 'below').length), tone: 'warn' },
-        { label: 'Below the minimum', value: num(rows.filter(r => r.st === 'min').length), tone: rows.some(r => r.st === 'min') ? 'bad' : 'ok' },
-        { label: 'Network uptime', value: P(D.SLA.find(m => m.n === 29).act, 3), tone: 'ok', go: { t: 'metric', i: D.SLA.findIndex(m => m.n === 29) } },
-        { label: 'Time to fix major outages', value: `${D.MTTR_MONTHS.P1[4]} h`, tone: 'ok', go: { t: 'mttr' } },
+        (() => { const dip = per ? SLA.filter(m => m.msl != null && !m.lower && m.trend.some(v => v < m.msl)).length : 0; return { label: 'Below the minimum', value: num(rows.filter(r => r.st === 'min').length), sub: per ? (dip ? `on average; ${dip} fell below in at least one month` : 'on average, and in every month') : undefined, tone: rows.some(r => r.st === 'min') || dip ? 'bad' : 'ok' }; })(),
+        { label: 'Network uptime', value: P(SLA.find(m => m.n === 29).act, 3), tone: 'ok', go: { t: 'metric', i: D.SLA.findIndex(m => m.n === 29), per } },
+        { label: 'Time to fix major outages', value: per ? `${(HIST.period(per).mttr.P1.reduce((a, v) => a + v, 0) / per).toFixed(1)} h` : `${D.MTTR_MONTHS.P1[4]} h`, tone: 'ok', go: { t: 'mttr' } },
       ]} />
       <div className="grid lg:grid-cols-2 gap-x-8 gap-y-7 mt-6">{lines.map(l => (
         <Panel key={l} title={l} hint="click a line">
           <div className="space-y-1">{rows.filter(r => r.m.line === l).map(({ m, i, st }) => { const lo = m.lower ? 0 : Math.min(m.msl ?? m.esl, m.act) - 0.05, hi = m.lower ? 0.4 : 1; const pos = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)); return (
-            <button key={i} onClick={() => go({ t: 'metric', i })} className="w-full text-left grid grid-cols-[minmax(0,1fr)_120px_64px] items-center gap-2 text-[12.5px] px-1 py-1 rounded hover:bg-chip/70">
+            <button key={i} onClick={() => go({ t: 'metric', i, per })} className="w-full text-left grid grid-cols-[minmax(0,1fr)_120px_64px] items-center gap-2 text-[12.5px] px-1 py-1 rounded hover:bg-chip/70">
               <span className="truncate text-ink" title={m.name}>{m.name}</span>
               <span className="relative h-2.5 bg-ink/10 rounded-sm"><span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${pos(m.act)}%`, background: st === 'met' ? C.ok : st === 'min' ? C.bad : C.warn }} /><span className="absolute -top-1 -bottom-1 w-[2px] bg-ink" style={{ left: `${pos(m.esl)}%` }} /></span>
               <b className={cx('text-right tabular-nums', st === 'met' ? 'text-ok' : st === 'min' ? 'text-bad' : 'text-warn')}>{fmt(m)(m.act)}</b>
@@ -810,20 +814,23 @@ function SlaView({ go }) {
   );
 }
 function MetricView({ n, go }) {
-  const m = D.SLA[n.i]; if (!m) return null;
+  const per = n.per, m = slaFor(per)[n.i]; if (!m) return null;
   const st = slaState(m), f = v => P(v, m.fmt || 1);
+  const labels = per ? HIST.MONTHS12.slice(-per).map((x, i, a) => i === a.length - 1 ? `${x.m} so far` : x.m) : MONTHS_SO_FAR;
+  const NUM = { 3: 'Three', 6: 'Six', 9: 'Nine', 12: 'Twelve' };
+  const span = per ? `the last ${per} months` : 'last month';
   return (
     <div>
-      <Head kicker={m.line} right={<div className="pt-5"><OpenIn what="sla" /></div>} title={m.name} sub={`${m.def}. ${m.cls}. ${st === 'met' ? 'Met the expected level last month.' : st === 'min' ? 'Below the minimum last month.' : 'Above the minimum, short of the expected level.'}`} />
+      <Head kicker={m.line} right={<div className="pt-5"><OpenIn what="sla" /></div>} title={m.name} sub={`${m.def}. ${m.cls}. ${st === 'met' ? `Met the expected level, ${span}.` : st === 'min' ? `Below the minimum, ${span}.` : `Above the minimum, short of the expected level, ${span}.`}`} />
       <Kpis go={go} items={[
-        { label: 'Last month', value: f(m.act), tone: st === 'met' ? 'ok' : st === 'min' ? 'bad' : 'warn' },
+        { label: per ? `Average, ${per} months` : 'Last month', value: f(m.act), sub: per ? `this month ${f(m.month)}` : undefined, tone: st === 'met' ? 'ok' : st === 'min' ? 'bad' : 'warn' },
         { label: 'Expected level', value: f(m.esl) },
         { label: 'Minimum level', value: m.msl != null ? f(m.msl) : 'None (KPI)' },
-        { label: 'Six months ago', value: f(m.trend[0]), sub: m.trend[5] > m.trend[0] === !m.lower ? 'improving' : 'worse than then', tone: m.trend[5] > m.trend[0] === !m.lower ? 'ok' : 'warn' },
+        { label: `${NUM[m.trend.length] || m.trend.length} months ago`, value: f(m.trend[0]), sub: m.trend[m.trend.length - 1] > m.trend[0] === !m.lower ? 'improving' : 'worse than then', tone: m.trend[m.trend.length - 1] > m.trend[0] === !m.lower ? 'ok' : 'warn' },
         m.queue && { label: `Open ${m.queue} incidents`, value: 'See them', go: { t: 'incidents', k: 'open', pri: m.queue } },
       ]} />
-      <div className="mt-6"><Panel title="Six months" hint="the dashed lines are the targets">
-        <LineChart h={220} padL={66} labels={MONTHS_SO_FAR} yFmt={f} series={[{ name: m.name, color: C.s1, area: true, data: m.trend }]} refLines={[{ v: m.esl, label: 'Expected', color: C.ok }, ...(m.msl != null && m.msl > Math.min(...m.trend) - 0.05 ? [{ v: m.msl, label: 'Minimum', color: C.bad }] : [])]} />
+      <div className="mt-6"><Panel title={`${NUM[m.trend.length] || m.trend.length} months`} hint="the dashed lines are the targets">
+        <LineChart h={220} padL={66} labels={labels} yFmt={f} series={[{ name: m.name, color: C.s1, area: true, data: m.trend }]} refLines={[{ v: m.esl, label: 'Expected', color: C.ok }, ...(m.msl != null && m.msl > Math.min(...m.trend) - 0.05 ? [{ v: m.msl, label: 'Minimum', color: C.bad }] : [])]} />
       </Panel></div>
     </div>
   );
