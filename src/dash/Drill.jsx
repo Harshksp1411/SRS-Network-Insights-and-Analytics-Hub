@@ -624,7 +624,7 @@ function RcaView({ n, go, ctx }) {
         { label: 'Other times here, 7 days', value: num(before.length), tone: before.length ? 'warn' : 'ok', sub: before.length ? 'a repeat' : 'first time', go: before.length ? { t: 'incidents', k: 'opened7', kind: inc.kind, branch: b.id } : null },
         chg ? { label: 'The change that caused it', value: chg, tone: 'bad', go: { t: 'change', id: chg } } : ci && { label: D.CIR[inc.ci] ? 'The line' : 'The device', value: D.CIR[inc.ci] ? D.CIR[inc.ci].carrier : inc.ci.split('-').pop(), go: ci },
       ]} />
-      <div className="mt-6"><Panel title="Where the fault is" hint="traced by the Mova iO Diagnosis Agent on the network graph, from the tills to the data centre · click a part">
+      <div className="mt-6"><Panel title="Where the fault is" hint="traced by the Mova iO Diagnosis Agent along the branch path, from the tills to the data centre · click a part">
         <FaultPath nodes={path} go={go} />
       </Panel></div>
       <TakeAction inc={inc} s={s} now={now} go={go} focus={n.focus === 'act'} />

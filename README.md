@@ -1,6 +1,6 @@
 # SRS Network Insights and Analytics Hub
 
-Five self-contained, offline web pages: the operations console, the live demos, the real-time role-based dashboards, Network Intelligence (Now, Then, Next) and the OpsRamp platform walk-through. All cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
+Three self-contained, offline web pages: the operations console, the live demos and the real-time role-based dashboards. All cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
 
 **Everything runs in the browser with sample data.** Fleet totals match the SRS RFP inventory (900 branches, 933 EdgeConnect EC-XS, 4,075 devices, 1,800 circuits) and the 6-month ticket history. Per-branch placement, firmware, serials, schedules and trend histories are illustrative and are labelled as such on screen.
 
@@ -18,7 +18,7 @@ Every demo and runbook runs in one of three modes:
 
 | Area | Screens |
 |---|---|
-| Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents, Network Graph |
+| Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents |
 | Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch, Approvals & Changes |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
 | Improve | Predictive Watchlist, Knowledge, Mova iO Agents, Automation Library |
@@ -32,7 +32,7 @@ Branches are numbered 1 to 900 across the estate, with their location in the nam
 
 **Drill down to any level, and to the root cause.** Every count in the console opens the detail behind it: a tile with an arrow (›) opens its list, and in a tile with several numbers (healthy / degraded / down, circuits down / degraded, SLA clocks on track / at risk / breached, open incidents by priority) each number opens its own list, so clicking the red **3** on the Operations Overview shows the three branches that are down. The panel walks on to a region, a state, a city, one branch, one internet line, one device or one incident, carries the filter bar with it, and hands over to Branch 360, the incident record or the screen that owns the list. From any problem branch, line or incident, **See the root cause** shows where the fault is (network inside SRS, the ISP or the application) on the path from the tills to the data centre, the evidence that rules the other layers out, the ranked causes, how it was found, the change behind it if a change caused it, wider carrier problems in the same region, repeats and the problem record. Lists of branches with problems start with their root causes, grouped by where the fault is.
 
-**Mova iO decides who fixes it, and does the work.** Every root cause and next step comes from Mova iO, and each part names the agent behind it. The Correlation Agent groups the alerts, the Diagnosis Agent finds the root cause and traces it on the network graph, and the Smart Triage Agent picks the route: a runbook, an NOC L1/L2 engineer, a US-based network SME, an SRS field technician on site, HPE Aruba TAC, the carrier, application support or security. It also says whether Mova iO can fix it remotely, and marks each route as recommended, try first, in hand, tried, only if needed or not needed. The Runbook, Dispatch, Carrier, Ticket Update and Change Validation agents prepare each step: the hand-off package, the field visit with the job, skills, spare and ranked technicians, the carrier case or escalation, the HPE case, or the security request. Mova iO acts on its own where the gate rules allow. Otherwise an engineer reviews and approves (the only human step), and the agent carries it out and records it on the ticket, the work order or case, and the audit log. Movate keeps the ticket until the Verification Agent's checks pass. Roles that cannot approve, and the role dashboards, see the same plan read-only. The logic is in `src/dash/fix.js`; the panel is `src/dash/TakeAction.jsx`.
+**Mova iO decides who fixes it, and does the work.** Every root cause and next step comes from Mova iO, and each part names the agent behind it. The Correlation Agent groups the alerts, the Diagnosis Agent finds the root cause and traces it along the branch's path, and the Smart Triage Agent picks the route: a runbook, an NOC L1/L2 engineer, a US-based network SME, an SRS field technician on site, HPE Aruba TAC, the carrier, application support or security. It also says whether Mova iO can fix it remotely, and marks each route as recommended, try first, in hand, tried, only if needed or not needed. The Runbook, Dispatch, Carrier, Ticket Update and Change Validation agents prepare each step: the hand-off package, the field visit with the job, skills, spare and ranked technicians, the carrier case or escalation, the HPE case, or the security request. Mova iO acts on its own where the gate rules allow. Otherwise an engineer reviews and approves (the only human step), and the agent carries it out and records it on the ticket, the work order or case, and the audit log. Movate keeps the ticket until the Verification Agent's checks pass. Roles that cannot approve, and the role dashboards, see the same plan read-only. The logic is in `src/dash/fix.js`; the panel is `src/dash/TakeAction.jsx`.
 
 **Onsite work pack.** Every field visit carries a work pack that Mova iO assembles, so the technician arrives prepared instead of starting the investigation again. It opens with Mova iO's summary for the technician: the probable problem and what is less likely, what was already checked or tried remotely and what each showed, the fix to carry out on site with a plan B, and what to bring (the replacement part reserved at the depot, extras and tools). The NOC sees the same summary when it reviews the dispatch. Then come six parts: site context (circuit IDs from the CMDB, demarc, network path, key devices); before arrival (authorised access, appointment, parts reserved at the depot, tools); diagnostic history (Mova iO's root cause, OpsRamp findings, what was tried, earlier ServiceNow incidents); the approved checklist; evidence (photos, readings with their ranges, findings); and verify + hand-off. The Field Technician works it on a tablet view (*My jobs today* in Field Dispatch) and the Verification Agent runs the return-to-service check. The NOC owner then accepts the hand-off, which closes the work order and resolves the incident. Code: `src/dash/workpack.js` and `src/dash/WorkPack.jsx`.
 
@@ -114,24 +114,3 @@ Open either file directly in a browser. No server and no network calls are neede
 | `src/dash/*` | The role dashboards: roles and access, the view for each role, charts, drill-down and PDF export |
 | `build.mjs` | esbuild + Tailwind, inlined into one HTML file |
 
-## Network Intelligence (`intelligence/`)
-
-The three-lens dashboards from the Network Intelligence & Analytics solution response, on the same live data as the console:
-
-- **Now: live health** from OpsRamp. Stores trading, availability (today, week to date, month to date), stores degraded and down, stores on a single circuit, major incidents, availability by region, stores ranked by business impact, estate layers, the store map, redundancy exposure, and capacity, availability and performance for devices and access links.
-- **Then: performance and trends** from ServiceNow, over 30 days, 90 days or 12 months. SLA attainment, MTTR, incidents, remote fix rate and change success; repeat offenders, root cause mix, the carrier scorecard, SLA by priority with breaches explained, and volume trends. It has executive, service owner and vendor views, and a one-page executive summary PDF.
-- **Next: predictive risk.** A 0 to 100 risk score for every store, with its drivers and an action, raised as a proactive ServiceNow record. Also the risk heat map, 30, 60 and 90-day capacity forecasts, lifecycle risk, and whether predictions held.
-- **Overview, governance and KPIs:** personas, cadence, the shared KPI dictionary with baselines, and data governance.
-
-The code is in `src/intel/`; the shared frame for both new pages is `src/sites/shell.jsx`.
-
-## OpsRamp platform (`opsramp/`)
-
-The OpsRamp Platform Capabilities solution response as a working page:
-
-- **Integration:** five sources and two consumers, store topology and flow analytics.
-- **Event management:** the seven stages from alarm storm to one incident with today's counts, the unified alert browser, policies in Off, Observed, Recommend or On, maintenance windows, enrichment, escalation and first response.
-- **ServiceNow and AI:** two-way sync, priority and category mapping, the sync log, the operations copilot and anomaly detection.
-- **Demo and outcomes:** the nine-step demo of one store outage, and the outcomes.
-
-The code is in `src/ops/`.

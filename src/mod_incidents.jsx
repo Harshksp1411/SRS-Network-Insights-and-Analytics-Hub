@@ -239,7 +239,7 @@ function IncidentDetail({ id }) {
           <Card title="Business impact" icon={I.Store}>
             {inc.impact.map((x, k) => <div key={k} className="text-[12.5px] text-ink flex gap-1.5 py-0.5"><I.Dot size={16} className="text-ink3 shrink-0" />{x}</div>)}
             <div className="mt-2 text-[12px] text-ink2">Branch local time <b className="text-ink">{clk.local}</b> – {clk.open ? <span className="text-warn font-semibold">open, trading</span> : 'closed'}</div>
-            <Btn size="sm" className="mt-2" icon={I.Network} onClick={() => act.set({ module: 'graph', graphBranch: b.id, selInc: null })}>Blast radius in graph</Btn>
+            <Btn size="sm" className="mt-2" icon={I.Network} onClick={() => act.drill({ t: 'branch', id: b.id })}>Blast radius: the whole branch</Btn>
           </Card>
           <Card title="WAN at this branch" icon={I.Cable}>
             {b.wan.map(cid => { const cc = circuitOf(s, cid); return <div key={cid} className="text-[12.5px] py-1 border-b border-line/60 last:border-0"><div className="flex items-center gap-1.5"><Dot tone={cc.status === 'Up' ? 'green' : cc.status === 'Degraded' ? 'amber' : 'red'} /><b className="text-ink">{cc.role}</b><span className="text-ink2">{cc.carrier} {cc.type}</span><span className="ml-auto text-ink3">{cc.status}</span></div><div className="text-[11.5px] text-ink3 ml-3.5">{cc.lat} ms, jitter {cc.jit} ms, loss {cc.loss}%</div></div>; })}

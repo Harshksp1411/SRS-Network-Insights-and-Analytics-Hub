@@ -167,6 +167,7 @@ export function baseReadiness(s, b) {
 const stIcon = st => st === 'pass' ? <I.CheckCircle2 size={15} className="text-ok" /> : st === 'warn' ? <I.AlertTriangle size={15} className="text-warn" /> : st === 'fail' ? <I.XCircle size={15} className="text-bad" /> : <I.Loader2 size={15} className="text-info animate-spin" />;
 
 export function Readiness() {
+  const [rtab, setRtab] = React.useState('look');
   const { s, act } = useApp();
   const now = useNow();
   const list = filteredBranches(s);
@@ -205,9 +206,9 @@ export function Readiness() {
       <PageHead icon={I.Sunrise} title="Branch Readiness" sub="Network checks run at 05:30 local for every branch: primary and backup internet, EdgeConnect, tunnels, switches, Wi-Fi, DHCP pools, config compliance and the POS and ERP paths. Issues are fixed overnight or given an owner before opening."
         right={<><Btn op icon={I.RefreshCw} onClick={bulk}>Run check now</Btn><ExportBtn onClick={() => exportCSV('srs-readiness.csv', R, [{ label: 'Branch', get: r => r.b.name }, { label: 'Brand', get: r => r.b.brand }, { label: 'Region', get: r => r.b.region }, { label: 'Opens', get: r => `${r.clk.opens || r.b.hours.open} ${r.b.tz}` }, { label: 'Result', key: 'result' }, ...COLS.map(c => ({ label: c.label, get: r => `${r.c[c.id].fixed ? 'fixed' : r.c[c.id].st}: ${r.c[c.id].detail}` }))])} /></>} />
       <PreopenBanner rows={R} />
-      <div className="mt-3"><ReadinessSummary rows={R} /></div>
+      <div className="mt-3"><ReadinessSummary rows={R} active={rtab} onPick={t => { setRtab(t); setTimeout(() => document.getElementById('readiness-table')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mt-3"><OpenByTimezone rows={R} /><OpeningSchedule rows={R} /></div>
-      <div className="mt-3"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} /></div>
+      <div className="mt-3 scroll-mt-36" id="readiness-table"><ReadinessTable rows={R} onRerun={rerun2} onRaise={raise2} running={running} tab={rtab} setTab={setRtab} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mt-3 items-start"><PreopenStream /><FixedOvernight rows={R} /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 mt-3 items-start">
         <ReadinessTrendCard />

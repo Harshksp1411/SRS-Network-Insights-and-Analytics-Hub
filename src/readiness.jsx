@@ -92,16 +92,22 @@ export function PreopenBanner({ rows }) {
   );
 }
 
-export function ReadinessSummary({ rows }) {
+// the morning result in one row: every tile filters the branch table below and scrolls to it
+export const RESULT_TAB = { all: 'all', Ready: 'ready', 'Fixed overnight': 'fix', 'Needs attention': 'att', 'Not ready': 'not' };
+export function ReadinessSummary({ rows, onPick, active }) {
   const n = k => rows.filter(r => r.result === k).length;
+  const tiles = [['Branches checked this morning', 'text-ink', 'all', rows.length, 'run 05:30 local'], ['Ready', 'text-ok', 'Ready'], ['Fixed overnight by Mova iO', 'text-brand', 'Fixed overnight'], ['Needs attention', 'text-warn', 'Needs attention'], ['Not ready', 'text-bad', 'Not ready']];
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="mr-4"><div className="text-[12.5px] text-ink2">Branches checked this morning · run 05:30 local</div><div className="text-[36px] font-bold text-ink leading-none mt-1 tabular-nums">{num(rows.length)}</div></div>
-        {[['Ready', 'text-ok', 'Ready'], ['Fixed overnight by Mova iO', 'text-brand', 'Fixed overnight'], ['Needs attention', 'text-warn', 'Needs attention'], ['Not ready', 'text-bad', 'Not ready']].map(([l, tc, k]) => (
-          <div key={k} className="border border-line rounded-lg px-4 py-2 min-w-[150px]"><div className="text-[12px] text-ink2">{l}</div><div className={cx('text-[26px] font-bold leading-tight tabular-nums', tc)}>{num(n(k))}</div></div>))}
-        <div className="flex-1 min-w-[220px]"><div className="flex h-3 rounded overflow-hidden bg-chip">{[['Ready', C.ok], ['Fixed overnight', C.s1], ['Needs attention', C.warn], ['Not ready', C.bad]].map(([k, c]) => <span key={k} title={`${k}: ${n(k)}`} style={{ width: `${n(k) / Math.max(1, rows.length) * 100}%`, background: c }} className="transition-all duration-700" />)}</div><div className="text-[11.5px] text-ink3 mt-1">{(n('Ready') / Math.max(1, rows.length) * 100).toFixed(1)}% ready with nothing to do</div></div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {tiles.map(([l, tc, k, v, sub]) => { const on = active === RESULT_TAB[k]; const val = v ?? n(k); return (
+          <button key={k} onClick={() => onPick && onPick(RESULT_TAB[k])} aria-pressed={on} title={`Show ${k === 'all' ? 'every branch' : `${k.toLowerCase()} branches`} in the table below`} className={cx('text-left border rounded-lg px-4 py-2.5 hover:border-ink3 group min-w-0', on ? 'border-ink ring-1 ring-ink bg-chip/40' : 'border-line')}>
+            <div className="text-[12px] text-ink2 flex items-start gap-1"><span className="flex-1">{l}</span><I.ChevronRight size={13} className="text-ink3 group-hover:text-brand mt-[1px]" /></div>
+            <div className={cx('text-[28px] font-bold leading-tight tabular-nums', tc)}>{num(val)}</div>
+            <div className="text-[11px] text-ink3">{sub || `${(val / Math.max(1, rows.length) * 100).toFixed(1)}% of branches`}</div>
+          </button>); })}
       </div>
+      <div className="mt-3"><div className="flex h-3 rounded overflow-hidden bg-chip">{[['Ready', C.ok], ['Fixed overnight', C.s1], ['Needs attention', C.warn], ['Not ready', C.bad]].map(([k, c]) => <button key={k} onClick={() => onPick && onPick(RESULT_TAB[k])} title={`${k}: ${n(k)}`} style={{ width: `${n(k) / Math.max(1, rows.length) * 100}%`, background: c }} className="transition-all duration-700 hover:brightness-110" />)}</div><div className="text-[11.5px] text-ink3 mt-1">{(n('Ready') / Math.max(1, rows.length) * 100).toFixed(1)}% ready with nothing to do. Click a tile or a bar to see those branches below.</div></div>
     </Card>
   );
 }
@@ -148,18 +154,19 @@ export function OpeningSchedule({ rows }) {
 }
 const hhmmFromMin = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
-export function ReadinessTable({ rows, onRerun, onRaise, running }) {
+export function ReadinessTable({ rows, onRerun, onRaise, running, tab: tabIn, setTab: setTabIn }) {
   const { act } = useApp();
-  const [tab, setTab] = useState('look');
+  const [tabOwn, setTabOwn] = useState('look');
+  const tab = tabIn || tabOwn, setTab = setTabIn || setTabOwn;
   const [n, setN] = useState(40);
   const order = { 'Not ready': 0, 'Needs attention': 1, 'Fixed overnight': 2, Ready: 3 };
   const sorted = [...rows].sort((a, b) => order[a.result] - order[b.result] || a.next - b.next);
-  const shown = sorted.filter(r => tab === 'all' ? true : tab === 'look' ? r.result !== 'Ready' : tab === 'not' ? r.result === 'Not ready' : tab === 'att' ? r.result === 'Needs attention' : r.result === 'Fixed overnight');
+  const shown = sorted.filter(r => tab === 'all' ? true : tab === 'look' ? r.result !== 'Ready' : tab === 'not' ? r.result === 'Not ready' : tab === 'att' ? r.result === 'Needs attention' : tab === 'ready' ? r.result === 'Ready' : r.result === 'Fixed overnight');
   const cnt = k => rows.filter(r => r.result === k).length;
   const first = r => { const x = Object.values(r.c).find(v => v.st === 'fail') || Object.values(r.c).find(v => v.st === 'warn'); return x ? x.detail : r.fixed ? `${r.fixed.t} ${r.fixed.text}` : r.incs[0] ? r.incs[0].title : 'All checks pass'; };
   return (
     <Card title="Readiness by branch" sub={`${Math.min(n, shown.length)} shown of ${num(shown.length)}. Hover any icon for the reading.`} pad={false}
-      right={<Tabs size="sm" value={tab} onChange={t => { setTab(t); setN(40); }} tabs={[{ id: 'look', label: 'Needs a look', count: rows.length - cnt('Ready') }, { id: 'not', label: 'Not ready', count: cnt('Not ready') }, { id: 'att', label: 'Attention', count: cnt('Needs attention') }, { id: 'fix', label: 'Fixed overnight', count: cnt('Fixed overnight') }, { id: 'all', label: 'All', count: rows.length }]} />}>
+      right={<Tabs size="sm" value={tab} onChange={t => { setTab(t); setN(40); }} tabs={[{ id: 'look', label: 'Needs a look', count: rows.length - cnt('Ready') }, { id: 'not', label: 'Not ready', count: cnt('Not ready') }, { id: 'att', label: 'Attention', count: cnt('Needs attention') }, { id: 'fix', label: 'Fixed overnight', count: cnt('Fixed overnight') }, { id: 'ready', label: 'Ready', count: cnt('Ready') }, { id: 'all', label: 'All', count: rows.length }]} />}>
       <div className="overflow-x-auto"><table className="w-full text-[12.5px]">
         <thead><tr className="text-ink3 border-b border-line">
           <th className="text-left font-semibold px-2 py-2">Branch</th><th className="text-left font-semibold px-2">Opens</th><th className="text-left font-semibold px-2">Result</th>

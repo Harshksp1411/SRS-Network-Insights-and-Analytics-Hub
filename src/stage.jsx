@@ -482,7 +482,7 @@ function TicketCard({ no, kind, title, pri, group, assignee, ci, tkt, start, onO
 
 // ── explanation (shared with the Live demos page) ────────────────────
 export function ViewToggle({ view, setView }) {
-  return <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="View">{[['biz', 'Business view'], ['tech', 'Technical view']].map(([k, l]) => <button key={k} aria-pressed={view === k} onClick={() => setView(k)} className={cx('h-7 px-3 rounded', view === k ? 'bg-panel shadow-sm text-ink' : 'text-ink2')}>{l}</button>)}</div>;
+  return <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="View">{[['biz', 'Business view'], ['tech', 'Technical view'], ['ideal', 'Compare with ideal']].map(([k, l]) => <button key={k} aria-pressed={view === k} onClick={() => setView(k)} className={cx('h-7 px-3 rounded', view === k ? 'bg-panel shadow-sm text-ink' : 'text-ink2')}>{l}</button>)}</div>;
 }
 const H5 = ({ children }) => <div className="text-[12px] font-bold text-brand mt-4 mb-1.5">{children}</div>;
 const Li = ({ children }) => <li className="flex gap-2 text-[12.5px] leading-[18px]"><span className="w-1.5 h-1.5 rounded-full bg-ink3 mt-[6px] shrink-0" /><span>{children}</span></li>;
@@ -491,6 +491,7 @@ export function ExplainBody({ demo, sp, c, view, measured, inc }) {
   const no = (sp.ticket && sp.ticket.no) || (c.id && !c.preview ? c.id : null);
   const recs = [no ? `ServiceNow ${no}` : 'ServiceNow incident', sp.systems.includes('carrier') && `${sp.carrier} case${inc && inc.carrierCase ? ` ${inc.carrierCase}` : ''}`, sp.systems.includes('field') && `work order${inc && inc.workOrder ? ` ${inc.workOrder}` : ''}`, sp.systems.includes('git') && 'Network-as-Code commit', `Teams card to ${sp.audience}`, 'Mova iO audit log'].filter(Boolean);
   const srcs = sp.systems.filter(k => SRCI[k] && (OBS.has(k) || sp.alerts.some(a => a[2] === k)));
+  if (view === 'ideal') return <CompareIdeal demo={demo} sp={sp} />;
   if (view === 'tech') { const t = sp.tech; return (
     <div className="text-ink">
       <div className="text-[12.5px]"><b>Runs on:</b> {sp.engine === 'ansible' ? 'Ansible' : 'Python'} on the Mova iO runner · <code>{sp.file}</code> · target <code>{sp.host}</code></div>
@@ -545,4 +546,57 @@ export const MODE_RULES = [
 ];
 export function ModeRules({ className }) {
   return <div className={cx('space-y-1.5', className)}>{MODE_RULES.map(([n, k, ic, t]) => { const Ic = ic; return <div key={n} className="flex gap-2 text-[12px] leading-[16px]"><Ic size={14} className={cx('shrink-0 mt-px', k === 'auto' ? 'text-ok' : k === 'stop' ? 'text-info' : 'text-warn')} /><span><b>{n}:</b> {t}</span></div>; })}</div>;
+}
+
+// ── this run against the ideal, and against the same job done by hand without automation ──
+// Minutes in real life (the stage plays them compressed). Ideal: the best the service is designed for, with
+// policy allowing it; by hand: the typical path today, a store call, triage and a manual fix.
+const PHASES = [['detect', 'Detect', '#6B7C93'], ['ticket', 'Ticket', '#2F6DB5'], ['diag', 'Root cause', '#7A5AF8'], ['decide', 'Decide', '#C46A00'], ['act', 'Fix', '#2E8540'], ['partner', 'Carrier or field', '#B42318'], ['verify', 'Verify and record', '#16A0A0']];
+export function idealOf(demo, sp) {
+  const kind = gateOf(demo), N = sp.tasks.length, K = sp.checks.length, E = sp.evidence.length, n = sp.n || 1;
+  const carrier = sp.systems.includes('carrier'), field = sp.systems.includes('field');
+  const run = { detect: sp.m.early ? 0.5 : 1, ticket: 1.5, diag: 1 + E * 0.4, decide: kind === 'auto' ? 0 : kind === 'stop' ? 5 : 12, act: N * 1.2, partner: (carrier ? 95 : 0) + (field ? 150 : 0), verify: K * 1.5 + 1 };
+  const ideal = { detect: sp.m.early ? 0.5 : 1, ticket: 1, diag: 1 + E * 0.3, decide: kind === 'approve' ? 3 : 0, act: N * 1, partner: (carrier ? 60 : 0) + (field ? 120 : 0), verify: K * 1 + 0.5 };
+  const hand = { detect: 18, ticket: 10, diag: 35 + E * 4, decide: 20, act: N * 6, partner: (carrier ? 240 : 0) + (field ? 360 : 0), verify: 20 + K * 3 };
+  const total = o => Object.values(o).reduce((a, v) => a + v, 0);
+  const people = { run: kind === 'approve' ? 1 : 0, ideal: kind === 'approve' ? 1 : 0, hand: 3 + (carrier ? 1 : 0) + (field ? 1 : 0) };
+  const alarms = { run: 1, ideal: 1, hand: n };
+  const gaps = PHASES.map(([k, l]) => ({ k, l, gap: run[k] - ideal[k] })).filter(g => Math.round(g.gap) >= 1).sort((a, b) => b.gap - a.gap);
+  const close = { decide: kind === 'approve' ? `Pre-approve ${sp.rb} as a standard change after 20 clean runs, or move it to human-on-the-loop: saves about ${Math.round(run.decide - ideal.decide)} min.` : `Shorten the ${R_STOP} stop window to 2 minutes for this runbook once it has a clean record: saves about ${Math.round(run.decide - ideal.decide)} min.`, partner: carrier && field ? 'Agree a 1-hour carrier escalation and keep spares pre-positioned at the nearest depot.' : carrier ? `Agree a 1-hour response with ${sp.carrier || 'the carrier'} for repeat lines, with the evidence pack sent automatically.` : 'Pre-position the spare at the nearest depot and book the technician in quiet hours.', verify: 'Run the verification checks in parallel rather than one after another.', act: 'Run the runbook steps in parallel where they do not depend on each other.', diag: 'Add the missing evidence source to the correlation so the cause is confirmed sooner.', ticket: 'Raise the ticket from the first correlated alert, not after the group settles.' };
+  return { kind, run, ideal, hand, t: { run: total(run), ideal: total(ideal), hand: total(hand) }, people, alarms, gaps, close };
+}
+const mins = v => v >= 120 ? `${(v / 60).toFixed(1)} h` : `${Math.round(v)} min`;
+function CompareIdeal({ demo, sp }) {
+  const x = idealOf(demo, sp), max = x.t.hand;
+  const rows = [['run', 'This run (Mova iO)'], ['ideal', 'Ideal'], ['hand', 'By hand, without automation']];
+  const vsIdeal = x.t.run - x.t.ideal, pctIdeal = x.t.ideal / x.t.run;
+  return (
+    <div className="text-ink">
+      <div className={cx('rounded-md border p-3 text-[12.5px] leading-[18px]', vsIdeal < 2 ? 'border-ok/40 bg-ok/5' : 'border-warn/40 bg-warn/5')}>
+        <b>{vsIdeal < 2 ? 'This run matches the ideal.' : `This run is ${mins(vsIdeal)} behind the ideal (${Math.round(pctIdeal * 100)}% of ideal speed).`}</b> {`It restores the service in ${mins(x.t.run)}, against ${mins(x.t.ideal)} ideal and ${mins(x.t.hand)} by hand: ${Math.round((1 - x.t.run / x.t.hand) * 100)}% faster than doing it by hand.`}
+      </div>
+      <H5>Time to restore, phase by phase</H5>
+      <div className="space-y-2.5">{rows.map(([k, l]) => <div key={k}>
+        <div className="flex items-center justify-between text-[12px] mb-0.5"><b className={k === 'run' ? 'text-ink' : 'text-ink2'}>{l}</b><span className="tabular-nums font-bold">{mins(x.t[k])}</span></div>
+        <div className="flex h-4 rounded overflow-hidden bg-chip" style={{ width: `${Math.max(8, x.t[k] / max * 100)}%` }}>{PHASES.map(([p, pl, col]) => x[k][p] > 0 && <span key={p} title={`${pl}: ${mins(x[k][p])}`} style={{ width: `${x[k][p] / x.t[k] * 100}%`, background: col }} />)}</div>
+      </div>)}</div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">{PHASES.filter(([p]) => x.hand[p] > 0).map(([p, l, col]) => <span key={p} className="inline-flex items-center gap-1 text-[11px] text-ink2"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: col }} />{l}</span>)}</div>
+      <H5>Side by side</H5>
+      <div className="overflow-x-auto"><table className="w-full text-[12px]"><thead><tr className="text-left text-ink3 border-b border-line"><th className="py-1 pr-2 font-semibold">Measure</th><th className="py-1 pr-2 font-semibold text-right">This run</th><th className="py-1 pr-2 font-semibold text-right">Ideal</th><th className="py-1 pr-2 font-semibold text-right">By hand</th><th className="py-1 font-semibold">vs ideal</th></tr></thead>
+        <tbody>{[
+          ['Time to detect', mins(x.run.detect), mins(x.ideal.detect), mins(x.hand.detect), x.run.detect - x.ideal.detect],
+          ['Time to the ticket', mins(x.run.detect + x.run.ticket), mins(x.ideal.detect + x.ideal.ticket), mins(x.hand.detect + x.hand.ticket), (x.run.detect + x.run.ticket) - (x.ideal.detect + x.ideal.ticket)],
+          ['Time to the root cause', mins(x.run.detect + x.run.ticket + x.run.diag), mins(x.ideal.detect + x.ideal.ticket + x.ideal.diag), mins(x.hand.detect + x.hand.ticket + x.hand.diag), (x.run.detect + x.run.ticket + x.run.diag) - (x.ideal.detect + x.ideal.ticket + x.ideal.diag)],
+          ['Waiting for a decision', mins(x.run.decide), mins(x.ideal.decide), mins(x.hand.decide), x.run.decide - x.ideal.decide],
+          ['Time to restore', mins(x.t.run), mins(x.t.ideal), mins(x.t.hand), vsIdeal],
+          ['Alarms the NOC handles', x.alarms.run, x.alarms.ideal, x.alarms.hand, 0],
+          ['People involved', x.people.run, x.people.ideal, x.people.hand, x.people.run - x.people.ideal],
+          ['Service level', fmtV(sp.m.after, sp.m), fmtV(sp.m.base, sp.m), fmtV(sp.m.bad, sp.m), 0],
+          ['Records complete', 'Yes', 'Yes', 'Often partial', 0],
+        ].map(([l, a, b, c, g]) => <tr key={l} className="border-b border-line/60 last:border-0"><td className="py-1 pr-2 text-ink2">{l}</td><td className="py-1 pr-2 text-right font-bold tabular-nums">{a}</td><td className="py-1 pr-2 text-right tabular-nums">{b}</td><td className="py-1 pr-2 text-right tabular-nums text-ink3">{c}</td><td className="py-1">{(typeof a === 'number' ? g > 0 : Math.round(g) >= 1) ? <span className="text-warn font-semibold">+{typeof a === 'number' ? g : mins(g)}</span> : <span className="text-ok font-semibold">at ideal</span>}</td></tr>)}</tbody></table></div>
+      <H5>Where the gap is, and how to close it</H5>
+      {x.gaps.length ? <ul className="space-y-1">{x.gaps.slice(0, 3).map(g => <Li key={g.k}><b>{g.l}: +{mins(g.gap)}.</b> {x.close[g.k]}</Li>)}</ul> : <div className="text-[12.5px] text-ink2">No gap: the run is already at the ideal for this situation.</div>}
+      <div className="text-[11.5px] text-ink3 mt-3">Minutes are real-world times; the stage plays them compressed. Ideal is the best the service is designed for, with policy allowing it. By hand is the typical path today: a store call, triage, a manual fix and a written-up ticket.</div>
+    </div>
+  );
 }
