@@ -345,14 +345,23 @@ export function CandidatesCard() {
 }
 
 // ─────────────── SLA ───────────────
-export function SLAProjectionCard({ m }) {
-  const f = P.slaProjection(m);
+// two months ahead from a period's monthly series: trend of the last six months (or fewer), widening range
+const NEXT = { Oct: ['Nov', 'Dec'], Nov: ['Dec', 'Jan'], Dec: ['Jan', 'Feb'] };
+function projectFrom(m, t, lab) {
+  const n = t.length, last = t[n - 1], k = Math.min(5, n - 1), slope = (last - t[n - 1 - k]) / k;
+  const cap = v => Math.min(1, Math.max(0, v));
+  const fc = [...Array(n - 1).fill(null), last, cap(last + slope * 0.8), cap(last + slope * 1.4)];
+  const spread = Math.max(0.004, Math.abs(slope) * 0.6 + 0.004);
+  return { labels: [...lab, ...(NEXT[lab[n - 1]] || ['+1 mo', '+2 mo'])], actual: [...t, null, null], fc, lo: fc.map((v, i) => v == null ? null : i === n - 1 ? v : v - spread * (i - n + 1)), hi: fc.map((v, i) => v == null ? null : i === n - 1 ? v : Math.min(1, v + spread * (i - n + 1))), nowIndex: n - 1 };
+}
+export function SLAProjectionCard({ m, series, labels: lab }) {
+  const f = series ? projectFrom(m, series, lab) : P.slaProjection(m);
   const fm = v => `${(v * 100).toFixed(m.fmt || 1)}%`;
-  const end = f.fc[7]; const meets = m.lower ? end <= m.esl : end >= m.esl;
+  const end = f.fc[f.fc.length - 1]; const meets = m.lower ? end <= m.esl : end >= m.esl;
   return (
-    <Card title={m.name} sub={`#${m.n}, ${m.def}. Two-month projection with likely range.`}>
-      <div className="text-[12.5px] mb-1">Projected December: <b className={meets ? 'text-ok' : 'text-warn'}>{fm(end)}</b> <span className="text-ink3">({meets ? 'meets' : 'below'} expected {fm(m.esl)})</span></div>
-      <LineChart labels={f.labels} series={[{ name: 'Actual', data: f.actual, color: C.s1 }, { name: 'Projection', data: f.fc, color: C.s1, forecastFrom: 5 }]} band={{ lo: f.lo, hi: f.hi, color: C.s1 }} forecastFrom={5} h={200} yFmt={fm} refLines={[...(m.msl != null ? [{ v: m.msl, label: 'Minimum', color: C.bad }] : []), { v: m.esl, label: 'Expected', color: C.ok }]} />
+    <Card title={m.name} sub={`#${m.n}, ${m.def}. ${series ? `The last ${series.length} months, then a` : 'A'} two-month projection with likely range.`}>
+      <div className="text-[12.5px] mb-1">Projected {f.labels[f.labels.length - 1]}: <b className={meets ? 'text-ok' : 'text-warn'}>{fm(end)}</b> <span className="text-ink3">({meets ? 'meets' : 'below'} expected {fm(m.esl)})</span></div>
+      <LineChart labels={f.labels} series={[{ name: 'Actual', data: f.actual, color: C.s1 }, { name: 'Projection', data: f.fc, color: C.s1, forecastFrom: f.nowIndex }]} band={{ lo: f.lo, hi: f.hi, color: C.s1 }} forecastFrom={f.nowIndex} h={200} yFmt={fm} refLines={[...(m.msl != null ? [{ v: m.msl, label: 'Minimum', color: C.bad }] : []), { v: m.esl, label: 'Expected', color: C.ok }]} />
     </Card>
   );
 }
