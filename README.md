@@ -1,6 +1,6 @@
 # SRS Network Insights and Analytics Hub
 
-Three self-contained, offline web pages: the operations console, the live demos and the real-time role-based dashboards. Both cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
+Five self-contained, offline web pages: the operations console, the live demos, the real-time role-based dashboards, Network Intelligence (Now, Then, Next) and the OpsRamp platform walk-through. All cover the SRS Distribution managed network service, operated by Movate. The console is the working screen for the NOC, network engineers, StoreOps, field technicians, the M&A integration team and Security.
 
 **Everything runs in the browser with sample data.** Fleet totals match the SRS RFP inventory (900 branches, 933 EdgeConnect EC-XS, 4,075 devices, 1,800 circuits) and the 6-month ticket history. Per-branch placement, firmware, serials, schedules and trend histories are illustrative and are labelled as such on screen.
 
@@ -113,3 +113,25 @@ Open either file directly in a browser. No server and no network calls are neede
 | `src/charts.jsx`, `src/ui.jsx` | Chart and UI components |
 | `src/dash/*` | The role dashboards: roles and access, the view for each role, charts, drill-down and PDF export |
 | `build.mjs` | esbuild + Tailwind, inlined into one HTML file |
+
+## Network Intelligence (`intelligence/`)
+
+The three-lens dashboards from the Network Intelligence & Analytics solution response, on the same live data as the console:
+
+- **Now: live health** from OpsRamp. Stores trading, availability (today, week to date, month to date), stores degraded and down, stores on a single circuit, major incidents, availability by region, stores ranked by business impact, estate layers, the store map, redundancy exposure, and capacity, availability and performance for devices and access links.
+- **Then: performance and trends** from ServiceNow, over 30 days, 90 days or 12 months. SLA attainment, MTTR, incidents, remote fix rate and change success; repeat offenders, root cause mix, the carrier scorecard, SLA by priority with breaches explained, and volume trends. It has executive, service owner and vendor views, and a one-page executive summary PDF.
+- **Next: predictive risk.** A 0 to 100 risk score for every store, with its drivers and an action, raised as a proactive ServiceNow record. Also the risk heat map, 30, 60 and 90-day capacity forecasts, lifecycle risk, and whether predictions held.
+- **Overview, governance and KPIs:** personas, cadence, the shared KPI dictionary with baselines, and data governance.
+
+The code is in `src/intel/`; the shared frame for both new pages is `src/sites/shell.jsx`.
+
+## OpsRamp platform (`opsramp/`)
+
+The OpsRamp Platform Capabilities solution response as a working page:
+
+- **Integration:** five sources and two consumers, store topology and flow analytics.
+- **Event management:** the seven stages from alarm storm to one incident with today's counts, the unified alert browser, policies in Off, Observed, Recommend or On, maintenance windows, enrichment, escalation and first response.
+- **ServiceNow and AI:** two-way sync, priority and category mapping, the sync log, the operations copilot and anomaly detection.
+- **Demo and outcomes:** the nine-step demo of one store outage, and the outcomes.
+
+The code is in `src/ops/`.
