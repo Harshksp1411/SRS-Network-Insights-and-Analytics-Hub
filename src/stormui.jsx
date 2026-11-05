@@ -35,8 +35,8 @@ export function AlertStormReplay() {
       <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5 mb-3">{STAGES.map((g, i) => { const v = i === 5 && upd ? sc.rows.find(r => r.fate === 'upstream' && r.src === 'Simplify')?.n : cnt[i]; return (
         <button key={g.k} onClick={() => { setSt(i); setPlay(false); }} className={cx('text-left rounded-lg border px-2.5 py-2 transition-colors', i === st ? 'border-brand bg-brand/10' : i < st ? 'border-line bg-chip/50' : 'border-line')}>
           <div className="flex items-center gap-1.5"><span className={cx('w-5 h-5 rounded-full text-[11px] font-bold grid place-items-center shrink-0', i <= st ? 'bg-brand text-white' : 'bg-chip text-ink3')}>{i + 1}</span><span className="text-[12px] font-bold text-ink truncate">{g.label}</span></div>
-          <div className={cx('text-[22px] font-extrabold tabular-nums leading-tight mt-1', i <= st ? 'text-ink' : 'text-ink3')}>{i === 5 ? (upd ? `${v} updated` : `${v} ticket`) : num(v)}</div>
-          <div className="text-[11px] text-ink3 leading-tight">{i === 0 ? 'events' : i === 1 || i === 2 ? 'alerts left' : i === 5 ? (upd ? 'no new ticket' : 'in ServiceNow') : sc.incidents ? 'incident' : 'event, no Movate ticket'}</div>
+          <div className={cx('text-[22px] font-extrabold tabular-nums leading-tight mt-1', i <= st ? 'text-ink' : 'text-ink3/50')}>{i > st ? '—' : i === 5 ? (upd ? `${v} updated` : `${v} ticket`) : num(v)}</div>
+          <div className="text-[11px] text-ink3 leading-tight">{i > st ? 'waiting' : i === 0 ? 'events' : i === 1 || i === 2 ? 'alerts left' : i === 5 ? (upd ? 'no new ticket' : 'in ServiceNow') : sc.incidents ? 'incident' : 'event, no new ticket'}</div>
         </button>); })}</div>
       <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
       {st <= 2 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.rows.map((r, i) => { const f = FATE[r.fate], out = gone(r); return (
@@ -52,7 +52,7 @@ export function AlertStormReplay() {
       {st === 3 && <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="border border-line rounded-lg p-3"><div className="text-[12px] font-bold text-ink mb-1.5 flex items-center gap-1.5"><I.GitMerge size={13} className="text-brand" />Why these belong together</div><ul className="space-y-1">{sc.corr.map(c => <li key={c} className="flex gap-1.5 text-[12.5px] text-ink2"><I.Check size={13} className="text-ok mt-[2px] shrink-0" />{c}</li>)}</ul></div>
         <div className="border border-line rounded-lg p-3"><div className="text-[12px] font-bold text-ink mb-1.5">What is left</div>{sc.rows.filter(r => FATE[r.fate].stage > 2).map((r, i) => <div key={i} className="flex items-center gap-2 text-[12.5px] py-0.5"><Badge tone={FATE[r.fate].tone}>{FATE[r.fate].label}</Badge><span className="text-ink truncate">{r.msg}</span></div>)}
-          {!sc.incidents && <div className="text-[12.5px] text-ink2">No alert of Movate's own is left: {sc.rows.filter(r => r.fate === 'upstream' && r.src === 'Simplify')[0].n} access-link tickets were already raised by Simplify upstream. The evidence goes onto those.</div>}</div>
+          {!sc.incidents && <div className="text-[12.5px] text-ink2">Nothing new for OpsRamp to ticket: {sc.rows.filter(r => r.fate === 'upstream' && r.src === 'Simplify')[0].n} access-link tickets were already raised by Simplify upstream. The evidence goes onto those.</div>}</div>
       </div>}
       {st === 4 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.enrich.map(([k, v]) => <div key={k} className="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-1.5 text-[12.5px]"><span className="text-ink3">{k}</span><span className="text-ink font-semibold">{v}</span></div>)}</div>}
       {st === 5 && <TicketPreview sc={sc} onOpen={id => act.openInc(id)} />}
@@ -65,16 +65,16 @@ function TicketPreview({ sc, onOpen }) {
   const F = ({ k, v, mono }) => <div className="min-w-0"><div className="text-[10.5px] uppercase tracking-wide text-ink3 font-semibold">{k}</div><div className={cx('text-[12.5px] text-ink font-semibold truncate', mono && 'font-mono')}>{v}</div></div>;
   return (
     <div className="border border-line rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-chip/60 border-b border-line"><Logo k="servicenow" h={12} /><b className="text-[12.5px] text-ink">Incident</b><span className="font-mono text-[12px] text-ink2">{t.number}</span><Badge tone={t.action === 'Created' ? 'green' : 'blue'}>{t.action} by Mova iO</Badge><span className="flex-1" />{t.incId && <Btn size="sm" icon={I.ExternalLink} onClick={() => onOpen(t.incId)}>Open incident</Btn>}</div>
+      <div className="flex items-center gap-2 px-3 py-2 bg-chip/60 border-b border-line"><Logo k="servicenow" h={12} /><b className="text-[12.5px] text-ink">Incident</b><span className="font-mono text-[12px] text-ink2">{t.number}</span><Badge tone={t.action === 'Created' ? 'green' : 'blue'}>{t.action} by OpsRamp</Badge><span className="flex-1" />{t.incId && <Btn size="sm" icon={I.ExternalLink} onClick={() => onOpen(t.incId)}>Open incident</Btn>}</div>
       <div className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-        <F k="Caller" v={t.caller || 'Mova iO integration'} /><F k="Category" v={t.cat} /><F k="Configuration item" v={t.ci} mono /><F k="State" v={t.state} />
+        <F k="Caller" v={t.caller || 'OpsRamp integration'} /><F k="Category" v={t.cat} /><F k="Configuration item" v={t.ci} mono /><F k="State" v={t.state} />
         <F k="Impact" v={t.impact} /><F k="Urgency" v={t.urgency} /><div><div className="text-[10.5px] uppercase tracking-wide text-ink3 font-semibold">Priority</div><div className="mt-0.5"><Pri p={t.pri} /></div></div><F k="Assignment group" v={t.group} />
       </div>
       <div className="px-3 pb-3 space-y-2">
         <F k="Short description" v={t.short} />
         <div><div className="text-[10.5px] uppercase tracking-wide text-ink3 font-semibold">Description</div><div className="text-[12.5px] text-ink2 leading-snug">{t.desc}</div></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[12px]">{[['Events grouped', num(raw)], ['Alerts attached', sc.rows.filter(r => FATE[r.fate].stage > 1).length], ['Held back, listed', sc.rows.filter(r => FATE[r.fate].stage === 2).length], ['Duplicate tickets', 0]].map(([k, v]) => <div key={k} className="border border-line rounded px-2 py-1"><div className="text-ink3 text-[11px]">{k}</div><div className="font-bold text-ink tabular-nums">{v}</div></div>)}</div>
-        <div className="border-l-4 border-brand bg-brand/5 rounded-r px-3 py-2 text-[12px] text-ink2"><b className="text-ink">Work note from Mova iO:</b> {sc.enrich.map(([k, v]) => `${k}: ${v}`).slice(0, 4).join('. ')}.</div>
+        <div className="border-l-4 border-brand bg-brand/5 rounded-r px-3 py-2 text-[12px] text-ink2"><b className="text-ink">Work note from OpsRamp:</b> {sc.enrich.map(([k, v]) => `${k}: ${v}`).slice(0, 4).join('. ')}.</div>
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ const LIFE = [
   ['Create', I.PlusCircle, 'The first alert left after correlation opens one ticket: CI from the CMDB, priority from impact and urgency, group from the category'],
   ['Update', I.RefreshCw, 'Later alerts on the same event are attached as work notes. Priority goes up if the impact grows'],
   ['Hand over', I.ArrowRightLeft, 'Assignment, state and engineer notes come back from ServiceNow, so the console and the ticket always agree'],
-  ['Resolve', I.CheckCircle2, 'When the alarm clears and the checks pass, Mova iO resolves with a close code and tells Store Ops'],
+  ['Resolve', I.CheckCircle2, 'When the alarm clears and the checks pass, OpsRamp resolves with a close code and tells Store Ops'],
   ['Reopen', I.Repeat, 'If the same fault comes back within 24 hours, the old ticket reopens instead of a new one'],
 ];
 export function ServiceNowSyncCard() {
@@ -125,8 +125,8 @@ export function ServiceNowSyncCard() {
   }, [L.feed, s.incidents, s.resolved]);
   const tone = { Created: 'green', Attached: 'blue', Assigned: 'purple', Resolved: 'gray' };
   return (
-    <Card title="Auto-ticketing to ServiceNow" sub="Mova iO opens, updates and resolves the tickets; engineers work them in ServiceNow and the console stays in step" icon={I.Ticket}>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">{[['Tickets created today', tc.inc, I.PlusCircle, 'One per branch per event'], ['Alerts attached, no new ticket', attached, I.Link2, 'Duplicate tickets prevented'], ['Resolved by Mova iO today', tc.autoRes, I.CheckCircle2, 'Checks passed, close code set'], ['Duplicate tickets', 0, I.Copy, 'Same outage never ticketed twice']].map(([k, v, Ic, d]) => <div key={k} className="border border-line rounded-lg px-3 py-2"><div className="flex items-center gap-1.5"><Ic size={14} className="text-brand" /><span className="text-[18px] font-extrabold text-ink tabular-nums">{num(v)}</span></div><div className="text-[12px] font-semibold text-ink leading-tight">{k}</div><div className="text-[11px] text-ink3">{d}</div></div>)}</div>
+    <Card title="Auto-ticketing to ServiceNow" sub="OpsRamp opens, updates and resolves the tickets; engineers work them in ServiceNow and the console stays in step" icon={I.Ticket}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">{[['Tickets created today', tc.inc, I.PlusCircle, 'One per branch per event'], ['Alerts attached, no new ticket', attached, I.Link2, 'Duplicate tickets prevented'], ['Resolved by OpsRamp today', tc.autoRes, I.CheckCircle2, 'Checks passed, close code set'], ['Duplicate tickets', 0, I.Copy, 'Same outage never ticketed twice']].map(([k, v, Ic, d]) => <div key={k} className="border border-line rounded-lg px-3 py-2"><div className="flex items-center gap-1.5"><Ic size={14} className="text-brand" /><span className="text-[18px] font-extrabold text-ink tabular-nums">{num(v)}</span></div><div className="text-[12px] font-semibold text-ink leading-tight">{k}</div><div className="text-[11px] text-ink3">{d}</div></div>)}</div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3">
         <div className="space-y-3">
           <div><div className="text-[12px] font-bold uppercase tracking-wide text-ink3 mb-1.5">A ticket's life</div><ol className="space-y-1.5">{LIFE.map(([k, Ic, d], i) => <li key={k} className="flex gap-2 text-[12.5px]"><span className="w-6 h-6 rounded-full bg-brand/10 text-brand grid place-items-center shrink-0"><Ic size={13} /></span><div><b className="text-ink">{i + 1}. {k}.</b> <span className="text-ink2">{d}.</span></div></li>)}</ol></div>
@@ -137,10 +137,10 @@ export function ServiceNowSyncCard() {
         <div><div className="text-[12px] font-bold uppercase tracking-wide text-ink3 mb-1.5 flex items-center gap-1.5">Sync log <span className="normal-case font-normal tracking-normal">(newest first)</span></div>
           <div className="border border-line rounded-lg divide-y divide-line/70">{log.map((x, i) => <button key={i} onClick={() => act.openInc(x.inc)} className="w-full text-left flex items-start gap-2 px-2.5 py-1.5 text-[12px] hover:bg-chip/50">
             <code className="text-ink3 text-[11px] w-[54px] shrink-0 pt-[1px]">{hhmmss(x.t)}</code>
-            <span className="shrink-0 pt-[1px]" title={x.dir === 'out' ? 'Mova iO to ServiceNow' : 'ServiceNow to Mova iO'}>{x.dir === 'out' ? <I.ArrowRight size={13} className="text-brand" /> : <I.ArrowLeft size={13} className="text-info" />}</span>
+            <span className="shrink-0 pt-[1px]" title={x.dir === 'out' ? 'OpsRamp to ServiceNow' : 'ServiceNow to OpsRamp'}>{x.dir === 'out' ? <I.ArrowRight size={13} className="text-brand" /> : <I.ArrowLeft size={13} className="text-info" />}</span>
             <Badge tone={tone[x.what]} className="shrink-0 w-[70px] justify-center">{x.what}</Badge>
             <span className="min-w-0 flex-1"><span className="font-mono text-ink font-semibold">{x.inc}</span> <span className="text-ink2">{x.text}</span></span></button>)}</div>
-          <div className="flex gap-3 text-[11px] text-ink3 mt-1"><span className="inline-flex items-center gap-1"><I.ArrowRight size={11} className="text-brand" />Mova iO to ServiceNow</span><span className="inline-flex items-center gap-1"><I.ArrowLeft size={11} className="text-info" />ServiceNow to Mova iO</span></div></div>
+          <div className="flex gap-3 text-[11px] text-ink3 mt-1"><span className="inline-flex items-center gap-1"><I.ArrowRight size={11} className="text-brand" />OpsRamp to ServiceNow</span><span className="inline-flex items-center gap-1"><I.ArrowLeft size={11} className="text-info" />ServiceNow to OpsRamp</span></div></div>
       </div>
     </Card>
   );

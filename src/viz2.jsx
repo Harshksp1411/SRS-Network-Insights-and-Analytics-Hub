@@ -238,7 +238,7 @@ export function CorrelationEngine() {
   const lastMin = L.feed.filter(e => (MONITOR_SRC.has(e.src) || e.inc) && Date.now() - e.t < 60e3);
   const cnt = o => lastMin.filter(e => outcomeOf(e) === o).length;
   return (
-    <Card title="Correlation engine" sub="Each alert as it arrives and what Mova iO did with it" right={<LiveTag />}>
+    <Card title="Correlation engine" sub="Each alert as it arrives and what OpsRamp did with it" right={<LiveTag />}>
       <div className="flex flex-wrap gap-1.5 mb-2">{Object.keys(OC).map(o => <Badge key={o} tone={OC[o]}>{o} <b className="tabular-nums">{cnt(o)}</b></Badge>)}<span className="ml-auto text-[11.5px] text-ink3">last minute</span></div>
       <div className="divide-y divide-line/70">{items.map(e => { const o = outcomeOf(e); const b = D.BR[e.branchId]; return (
         <button key={e.id} onClick={() => e.inc ? act.openInc(e.inc) : act.openBranch(e.branchId)} className="w-full flex items-center gap-2 py-1.5 text-[12px] text-left feed-in hover:bg-chip/50">
@@ -290,7 +290,7 @@ export function AlertSankey() {
   const watch = Math.round(c.corr * 0.12), corrd = c.corr - watch;
   const mid = [['Auto-cleared', c.auto, C.ok], ['Rolled to digest', c.digest, C.s3], ['Correlated', corrd, C.s1], ['Being watched', watch, C.warn]];
   const fixed = Math.round(corrd * 0.28), person = corrd - fixed;
-  const out = [['No ticket needed', c.auto + c.digest + watch, C.s3], ['Fixed by Mova iO', fixed, C.ok], ['With an engineer', person, C.s1]];
+  const out = [['No ticket needed', c.auto + c.digest + watch, C.s3], ['Fixed by automation', fixed, C.ok], ['With an engineer', person, C.s1]];
   const H = 300, nw = 12, gap = 10, tot = c.raw || 1;
   const col = (list, x) => { const usable = H - gap * (list.length - 1); let y = 0; return list.map(([n, v, color]) => { const h = Math.max(3, v / tot * usable); const o = { n, v, color, x, y, h }; y += h + gap; return o; }); };
   const A = col(src.map(([n, v]) => [n, v, C.s2]), 0), B = col(mid, W * 0.42), Cc = col(out, W - nw - 160);

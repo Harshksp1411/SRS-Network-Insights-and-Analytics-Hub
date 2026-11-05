@@ -60,7 +60,7 @@ function branchDark() {
       ['Knowledge', 'KB0012102 Branch unreachable: treat the EdgeConnect as parent'],
       ['Next step', 'RB-108 EdgeConnect remote recovery (needs approval)'],
     ],
-    ticket: { action: 'Created', number: inc ? inc.id : 'INC0384702', impact: 'Medium (one branch down)', urgency: 'High (branch open)', pri: 'P2', cat: 'SD-WAN', ci: ec, group: 'Movate NOC – L2 Network', state: 'New', short: 'Branch unreachable – EdgeConnect not responding', desc: `Mova iO grouped the alarms from Orchestrator, OpsRamp, Aruba Central, synthetics and New Relic into this incident. ${ec} stopped answering; the switches and access points behind it were suppressed as child alarms. Card payment and ERP tests from the branch fail.`, branchId: b.id, incId: inc && inc.id },
+    ticket: { action: 'Created', number: inc ? inc.id : 'INC0384702', impact: 'Medium (one branch down)', urgency: 'High (branch open)', pri: 'P2', cat: 'SD-WAN', ci: ec, group: 'Movate NOC – L2 Network', state: 'New', short: 'Branch unreachable – EdgeConnect not responding', desc: `OpsRamp grouped the alarms from Orchestrator, OpsRamp, Aruba Central, synthetics and New Relic into this incident. ${ec} stopped answering; the switches and access points behind it were suppressed as child alarms. Card payment and ERP tests from the branch fail.`, branchId: b.id, incId: inc && inc.id },
   };
 }
 
@@ -91,7 +91,7 @@ function fibreCut() {
       ['Backup health', 'All LTE links healthy and inside the data plan'],
       ['Watch', 'Alert if any branch loses the backup too, or the cut lasts over 4 hours'],
     ],
-    ticket: { action: 'Updated, not created', number: `${n} Simplify tickets`, caller: 'Simplify integration', impact: 'Low (on backup)', urgency: 'High (branches open)', pri: 'P3', cat: 'Carrier / LEC', ci: `${n} Spectrum circuits`, group: 'Simplify (upstream)', state: 'In Progress', short: `Spectrum fibre cut, Dallas: ${n} branches on LTE backup`, desc: `Simplify raised the access-link tickets. Mova iO created no ticket of its own, so SRS sees each outage once. It added the evidence (loss, failover times, backup health) to Simplify's tickets as work notes and tagged them with one correlation ID so the NOC handles them as one event.`, branchId: b.id },
+    ticket: { action: 'Updated, not created', number: `${n} Simplify tickets`, caller: 'Simplify integration', impact: 'Low (on backup)', urgency: 'High (branches open)', pri: 'P3', cat: 'Carrier / LEC', ci: `${n} Spectrum circuits`, group: 'Simplify (upstream)', state: 'In Progress', short: `Spectrum fibre cut, Dallas: ${n} branches on LTE backup`, desc: `Simplify raised the access-link tickets. OpsRamp created no ticket of its own, so SRS sees each outage once. It added the evidence (loss, failover times, backup health) to Simplify's tickets as work notes and tagged them with one correlation ID so the NOC handles them as one event.`, branchId: b.id },
   };
 }
 
@@ -121,7 +121,7 @@ function firmwareWave() {
       ['History', 'Same model needed a second reboot in wave 1 at 3 APs'],
       ['Next step', 'RB-104 AP reboot from Aruba Central (runs without approval: branch closed)'],
     ],
-    ticket: { action: 'Created', number: 'INC0384811', impact: 'Low (two APs)', urgency: 'Low (branch closed)', pri: 'P4', cat: 'Wireless', ci: `${b.code}-ap03`, group: 'Movate Network SME – L3 (change owner)', state: 'New', short: `2 APs did not return after ${chg.id}`, desc: `The change window suppressed ${n} AP reboots and the alarms that came with them. Two APs at ${b.name} were still down 15 minutes after it closed, so Mova iO raised one ticket linked to ${chg.id} for the change owner.`, branchId: b.id, chg: chg.id },
+    ticket: { action: 'Created', number: 'INC0384811', impact: 'Low (two APs)', urgency: 'Low (branch closed)', pri: 'P4', cat: 'Wireless', ci: `${b.code}-ap03`, group: 'Movate Network SME – L3 (change owner)', state: 'New', short: `2 APs did not return after ${chg.id}`, desc: `The change window suppressed ${n} AP reboots and the alarms that came with them. Two APs at ${b.name} were still down 15 minutes after it closed, so OpsRamp raised one ticket linked to ${chg.id} for the change owner.`, branchId: b.id, chg: chg.id },
   };
 }
 
@@ -146,11 +146,11 @@ function noisyNight() {
     enrich: [
       ['CI', `${c.id}, ${c.carrier} ${c.type}`],
       ['Branch hours', `Opens at ${b.hours.open} local, in under an hour`],
-      ['Impact', 'Card payments would drop on every flap; Mova iO pinned traffic to LTE'],
+      ['Impact', 'Card payments would drop on every flap; the SD-WAN policy pinned traffic to LTE'],
       ['Circuit history', `${c.tickets90} tickets in 90 days, ${c.flaps30} flaps in 30 days`],
       ['Carrier', `Evidence pack ready for a ${c.carrier} case (RB-106)`],
     ],
-    ticket: { action: 'Created', number: 'INC0384812', impact: 'Medium (payments at risk)', urgency: 'Medium (opens within 2 hours)', pri: 'P3', cat: 'Carrier / LEC', ci: c.id, group: 'Movate NOC – L2 Network', state: 'New', short: `${c.carrier} ${c.type} flapping – traffic held on LTE backup`, desc: `56 up and down alarms from Orchestrator and OpsRamp became one flapping alert. Mova iO pinned card payments and ERP to LTE so the flaps do not reach the counter, and built the evidence pack for a ${c.carrier} case.`, branchId: b.id },
+    ticket: { action: 'Created', number: 'INC0384812', impact: 'Medium (payments at risk)', urgency: 'Medium (opens within 2 hours)', pri: 'P3', cat: 'Carrier / LEC', ci: c.id, group: 'Movate NOC – L2 Network', state: 'New', short: `${c.carrier} ${c.type} flapping – traffic held on LTE backup`, desc: `56 up and down alarms from Orchestrator and OpsRamp became one flapping alert. OpsRamp pinned card payments and ERP to LTE so the flaps do not reach the counter, and built the evidence pack for a ${c.carrier} case.`, branchId: b.id },
   };
 }
 
