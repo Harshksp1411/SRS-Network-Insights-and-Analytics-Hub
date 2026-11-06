@@ -20,22 +20,22 @@ const Th = ({ children, r }) => <th className={cx('py-1.5 pr-3 font-semibold tex
 function Pipeline({ tc, nAnom }) {
   const dedup = Math.round(tc.suppressed * 0.55), fr = tc.suppressed - dedup;
   const stages = [
-    ['Collect', ['rule'], 'NextGen gateway, APIs, SNMPv3, syslog and webhooks from every source', `${num(tc.events)} events in`],
-    ['Spot anomalies', ['ml'], 'Learned normal for every line and device; forecasts and change detection', `${nAnom} drifting now`],
-    ['Deduplicate', ['rule'], 'A repeat of an open alert is added to it, not raised again', `${num(dedup)} repeats folded`],
-    ['First response', ['ml', 'rule'], 'Known noise suppressed: user rules, a training file of SRS history, learned periodic patterns', `${num(fr)} suppressed`],
-    ['Correlate', ['ml', 'topo'], 'Topology, carrier and location, learned alert sequences, time window', `${num(tc.raw)} alerts → ${num(tc.inc)} incidents`],
-    ['Diagnose and act', ['agent'], 'Root cause, the approved runbook, verification', `${num(tc.autoRes || 0)} fixed with no human touch`],
-    ['ServiceNow', ['rule'], 'One incident per correlated group; updates both ways', `${num(tc.inc)} tickets`],
+    ['Collect', ['rule'], num(tc.events), 'events in', I.Download],
+    ['Spot anomalies', ['ml'], nAnom, 'lines drifting', I.Activity],
+    ['Deduplicate', ['rule'], num(dedup), 'repeats folded', I.Copy],
+    ['First response', ['ml', 'rule'], num(fr), 'suppressed', I.Filter],
+    ['Correlate', ['ml', 'topo'], `${num(tc.raw)} → ${num(tc.inc)}`, 'alerts → incidents', I.GitMerge],
+    ['Diagnose and act', ['agent'], num(tc.autoRes || 0), 'fixed, no human touch', I.Wand2],
+    ['ServiceNow', ['rule'], num(tc.inc), 'tickets', I.Ticket],
   ];
   return (
     <Card title="Where the AI works, today" right={<Badge tone="blue">HPE OpsRamp</Badge>}>
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">{stages.map(([n, ks, d, v], i) => (
-        <div key={n} className={cx('rounded-lg border p-2.5 flex flex-col', ks.includes('ml') ? 'border-ai/40 bg-ai/[0.04]' : 'border-line')}>
-          <div className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-ink text-white text-[11px] font-bold grid place-items-center shrink-0">{i + 1}</span><b className="text-[13px] text-ink">{n}</b></div>
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2">{stages.map(([n, ks, v, u, Ic], i) => (
+        <div key={n} className={cx('rounded-lg border p-2.5 flex flex-col relative', ks.includes('ml') ? 'border-ai/40 bg-ai/[0.04]' : 'border-line')}>
+          <div className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-ink text-white text-[11px] font-bold grid place-items-center shrink-0">{i + 1}</span><b className="text-[13px] text-ink">{n}</b><Ic size={14} className="ml-auto text-ink3" /></div>
           <div className="flex flex-wrap gap-1 mt-1.5">{ks.map(k => <Tag key={k} k={k} />)}</div>
-          <div className="text-[11.5px] text-ink2 mt-1.5 flex-1">{d}</div>
-          <div className="text-[12.5px] font-bold text-ink mt-2 tabular-nums">{v}</div>
+          <div className="text-[20px] font-bold text-ink mt-3 tabular-nums leading-none">{v}</div>
+          <div className="text-[11.5px] text-ink3 mt-0.5">{u}</div>
         </div>))}</div>
     </Card>
   );
@@ -57,7 +57,7 @@ function BeforeAfter() {
   const without = S.n[0], withAI = counts[counts.length - 1], max = S.n[0];
   return (
     <Card title="Before and after the AI" right={<div className="flex rounded-md border border-line overflow-hidden text-[12px]">{Object.entries(SCEN).map(([k, v]) => <button key={k} onClick={() => setSc(k)} className={cx('px-2.5 py-1', sc === k ? 'bg-ink text-white' : 'text-ink2 hover:bg-chip')}>{v.label.split(':')[0].split(' (')[0]}</button>)}</div>}>
-      <div className="text-[12px] text-ink3 mb-3">{S.label}: {S.note}. Switch a step off to see what reaches the NOC without it.</div>
+      <div className="text-[12px] text-ink3 mb-3">{S.note}</div>
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-5 items-center">
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 text-[12.5px]"><span className="w-56 shrink-0 text-ink">Events in</span><div className="flex-1 h-5 bg-chip rounded"><div className="h-5 rounded bg-ink3" style={{ width: '100%' }} /></div><b className="w-14 text-right tabular-nums">{num(S.n[0])}</b></div>
@@ -69,9 +69,10 @@ function BeforeAfter() {
             </div>))}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg border border-line p-3"><div className="text-[12px] text-ink3">Without OpsRamp AI</div><div className="text-[28px] font-bold text-bad tabular-nums leading-tight">{num(without)}</div><div className="text-[12px] text-ink2">tickets or alerts for a person to read</div></div>
-          <div className="rounded-lg border border-ok/40 bg-ok/5 p-3"><div className="text-[12px] text-ink3">With the steps switched on</div><div className="text-[28px] font-bold text-ok tabular-nums leading-tight">{num(withAI)}</div><div className="text-[12px] text-ink2">incident{withAI === 1 ? '' : 's'} in ServiceNow</div></div>
-          <div className="col-span-2 rounded-lg bg-chip px-3 py-2 text-[12.5px] text-ink"><b>{(() => { const r = (1 - withAI / without) * 100; return r > 99 ? r.toFixed(1) : Math.round(r); })()}% fewer</b> things to look at; at 4 minutes of triage each that is <b>{Math.round((without - withAI) * 4 / 60)} hours</b> of NOC time saved in this example.</div>
+          <div className="rounded-lg border border-line p-3"><div className="text-[12px] text-ink3">Without OpsRamp AI</div><div className="text-[28px] font-bold text-bad tabular-nums leading-tight">{num(without)}</div><div className="text-[12px] text-ink2">to read</div></div>
+          <div className="rounded-lg border border-ok/40 bg-ok/5 p-3"><div className="text-[12px] text-ink3">With the steps switched on</div><div className="text-[28px] font-bold text-ok tabular-nums leading-tight">{num(withAI)}</div><div className="text-[12px] text-ink2">incident{withAI === 1 ? '' : 's'}</div></div>
+          <div className="rounded-lg border border-line p-3"><div className="text-[12px] text-ink3">Fewer to look at</div><div className="text-[22px] font-bold text-ink tabular-nums leading-tight">{(() => { const r = (1 - withAI / without) * 100; return r > 99 ? r.toFixed(1) : Math.round(r); })()}%</div></div>
+          <div className="rounded-lg border border-line p-3"><div className="text-[12px] text-ink3">NOC time saved</div><div className="text-[22px] font-bold text-ink tabular-nums leading-tight">{Math.round((without - withAI) * 4 / 60)} h</div><div className="text-[11px] text-ink3">at 4 min each</div></div>
         </div>
       </div>
     </Card>
@@ -79,21 +80,23 @@ function BeforeAfter() {
 }
 
 // ---------- correlation and topology ----------
-function Methods({ open }) {
+function Methods() {
   const M = [
-    ['Topology', 'topo', I.Network, 0.42, 'Relationships OpsRamp discovers (LLDP/CDP, ARP, the SD-WAN overlay): circuit → SD-WAN appliance → switches → access points and tills. When a parent is down, its children are grouped under its alert.', 'CP-01'],
-    ['Carrier and location', 'ml', I.MapPin, 0.18, 'Clustering on attributes, no topology needed: same carrier segment, central office, region or storm area.', 'CP-02'],
-    ['Learned alert sequences', 'ml', I.Sparkles, 0.1, 'Machine learning finds sequences that keep happening together in SRS history (co-occurrence), keeps learning from new data, and is site and region aware.', 'CP-03'],
-    ['Time window', 'rule', I.Clock, 0.22, 'Fixed windows when nothing else applies: same branch inside 10 minutes; same carrier and region inside 15.', null],
-    ['Change', 'rule', I.GitPullRequest, 0.08, 'A change on a related device in the previous 60 minutes is linked to the incident.', null],
+    ['Topology', 'topo', I.Network, 0.42, 'circuit → appliance → switch → AP', 'CP-01'],
+    ['Carrier and location', 'ml', I.MapPin, 0.18, 'carrier · central office · region', 'CP-02'],
+    ['Learned alert sequences', 'ml', I.Sparkles, 0.1, 'co-occurrence in SRS history', 'CP-03'],
+    ['Time window', 'rule', I.Clock, 0.22, 'branch 10 min · region 15 min', null],
+    ['Change', 'rule', I.GitPullRequest, 0.08, 'related change in 60 min', null],
   ];
   return (
-    <Card title="How alerts are grouped" sub="Share of today's correlation groups by method">
+    <Card title="How alerts are grouped today">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">{M.map(([n, k, Ic, f, d, p]) => (
         <div key={n} className="border border-line rounded-lg p-3 flex flex-col">
-          <div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b><span className="text-[18px] font-bold text-ink tabular-nums">{Math.round(f * 100)}%</span></div>
-          <div className="mt-1"><Tag k={k} />{p && <span className="ml-1.5 text-[10.5px] font-mono text-ink3">{p}</span>}</div>
-          <div className="text-[12px] text-ink2 mt-1.5">{d}</div>
+          <div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b></div>
+          <div className="text-[26px] font-bold text-ink tabular-nums leading-tight mt-1">{Math.round(f * 100)}%</div>
+          <div className="h-1.5 bg-chip rounded mt-1"><div className={cx('h-1.5 rounded', k === 'ml' ? 'bg-ai' : k === 'topo' ? 'bg-info' : 'bg-ink3')} style={{ width: `${f * 100 / 0.42}%` }} /></div>
+          <div className="mt-2 flex items-center gap-1.5"><Tag k={k} />{p && <span className="text-[10.5px] font-mono text-ink3">{p}</span>}</div>
+          <div className="text-[11.5px] text-ink3 mt-1.5">{d}</div>
         </div>))}</div>
     </Card>
   );
@@ -102,15 +105,15 @@ function Methods({ open }) {
 function TopologyCard() {
   const chain = [['Carrier circuit', 'AT&T DIA wan1', 'bad', 'Loss 100%'], ['SD-WAN appliance', 'EdgeConnect ec01', 'warn', 'Tunnel down'], ['Core switch', 'CX 6300 sw01', 'warn', 'Uplink flap'], ['Access switches', 'sw02, sw03', 'warn', '6 port alarms'], ['Access points and tills', '4 APs, 3 POS', 'warn', '11 down alarms'], ['Applications', 'ERP, card payments', 'warn', 'Slow, from New Relic']];
   return (
-    <Card title="Topology at one branch" sub="One fault, many alarms, one inference">
+    <Card title="Topology at one branch">
       <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{chain.map(([n, d, st, a], i) => <React.Fragment key={n}>
         {i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}
         <div className={cx('flex-1 rounded-lg border p-2.5', st === 'bad' ? 'border-bad/50 bg-bad/5' : 'border-line bg-chip/50')}>
-          <div className="text-[10.5px] font-bold uppercase text-ink3">{i === 0 ? 'Parent: root cause' : 'Child: grouped'}</div>
+          <div className="text-[10.5px] font-bold uppercase text-ink3">{i === 0 ? 'Root cause' : 'Grouped'}</div>
           <b className="text-[12.5px] text-ink block">{n}</b><div className="text-[11.5px] text-ink2">{d}</div>
           <div className={cx('text-[11.5px] font-semibold mt-1', st === 'bad' ? 'text-bad' : 'text-warn')}>{a}</div>
         </div></React.Fragment>)}</div>
-      <div className="mt-3 rounded-lg border border-ai/40 bg-ai/[0.04] px-3 py-2 text-[12.5px] text-ink flex gap-2"><I.GitMerge size={15} className="text-ai mt-0.5 shrink-0" /><span><b>One inference:</b> 62 events → 1 incident on the circuit, with the 61 child alarms attached as evidence. ServiceNow gets one ticket on the right CI, assigned to carrier management.</span></div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-[12.5px]">{[['62', 'events'], ['1', 'incident on the circuit'], ['61', 'child alarms attached'], ['1', 'ServiceNow ticket']].map(([v, l], i) => <React.Fragment key={l}>{i > 0 && <I.ArrowRight size={14} className="text-ink3" />}<span className="rounded-md border border-ai/40 bg-ai/[0.05] px-2.5 py-1"><b className="text-ink tabular-nums">{v}</b> <span className="text-ink2">{l}</span></span></React.Fragment>)}</div>
     </Card>
   );
 }
@@ -128,13 +131,13 @@ function LearnedCard() {
   const T = { Off: 'gray', Observed: 'blue', Recommend: 'amber', On: 'green' };
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-stretch [&>*]:h-full">
-      <Card title="Alert sequences the model has learned" sub="From 12 months of SRS history, still learning">
+      <Card title="Alert sequences the model has learned">
         <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>Sequence</Th><Th r>Seen, 90 days</Th><Th r>Typical gap</Th><Th r>Confidence</Th><Th>Policy</Th></tr></thead>
           <tbody>{SEQ.map(([q, n, g, c, p]) => <tr key={q} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 text-ink">{q}</td><td className="py-1.5 pr-3 text-right tabular-nums">{n}</td><td className="py-1.5 pr-3 text-right">{g}</td><td className="py-1.5 pr-3 text-right font-semibold tabular-nums">{Math.round(c * 100)}%</td><td className="py-1.5 whitespace-nowrap"><span className="font-mono text-[11px] text-ink3 mr-1">{p}</span><Badge tone={T[modes[p] || M[p]]}>{modes[p] || M[p]}</Badge></td></tr>)}</tbody></table></div>
       </Card>
-      <Card title="How a correlation policy earns trust">
-        <ol className="space-y-2">{[['Observed', 'blue', 'Runs in the shadow: it records the groups it would have made, and they are compared with how engineers grouped the same alerts.'], ['Recommend', 'amber', 'Suggests the grouping on the incident; an engineer accepts or rejects it, and that feedback trains the model.'], ['On', 'green', 'Groups automatically. It keeps learning from new data; it can be moved back at any time in the AI & Automation Catalogue.']].map(([m, t, d], i) => <li key={m} className="flex gap-2.5 text-[12.5px]"><span className="w-6 h-6 rounded-full bg-ink text-white text-[11.5px] font-bold grid place-items-center shrink-0">{i + 1}</span><span><Badge tone={t}>{m}</Badge> <span className="text-ink2">{d}</span></span></li>)}</ol>
-        <div className="mt-3 text-[12px] text-ink2 border-t border-line pt-2">A policy is used once it shows <b className="text-ink">Ready</b>: enough history to learn from. Filtering too much before correlation stops related alerts being grouped, so filters stay narrow.</div>
+      <Card title="Correlation policy modes">
+        <div className="flex items-stretch gap-1.5">{[['Observed', 'blue', 'shadow'], ['Recommend', 'amber', 'engineer accepts'], ['On', 'green', 'automatic']].map(([m, t, d], i) => { const ids = ['CP-01', 'CP-02', 'CP-03'].filter(p => (modes[p] || M[p]) === m); return <React.Fragment key={m}>{i > 0 && <div className="flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-2.5 text-center"><Badge tone={t}>{m}</Badge><div className="text-[24px] font-bold text-ink tabular-nums mt-1">{ids.length}</div><div className="text-[11px] text-ink3">{d}</div><div className="flex flex-wrap justify-center gap-1 mt-1">{ids.map(p => <span key={p} className="font-mono text-[10.5px] text-ink2 border border-line rounded px-1">{p}</span>)}</div></div></React.Fragment>; })}</div>
+        <div className="grid grid-cols-3 gap-2 mt-3 text-[12px]">{[['Learning from', '12 months'], ['Status', 'Ready'], ['Retrains', 'continuously']].map(([k, v]) => <div key={k} className="rounded bg-chip px-2 py-1.5"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink">{v}</b></div>)}</div>
       </Card>
     </div>
   );
@@ -143,62 +146,63 @@ function LearnedCard() {
 // ---------- anomaly detection ----------
 function AnomalyModels({ n, ex }) {
   const M = [
-    ['Learned normal', I.Activity, 'A baseline for every line and device metric by hour of the week. Flags a drift away from normal while the reading is still under the fixed limit.', `${n} lines drifting now`, 'Latency, jitter, loss, CPU, Wi-Fi airtime'],
-    ['Forecast', I.TrendingUp, 'Projects the trend forward and alerts before a limit is reached, with the days left.', '4 capacity forecasts open', 'Line use at peak, PoE budget, address pools'],
-    ['Change detection', I.GitCompare, 'Spots a step change after a change, a firmware wave or a carrier event, and links it to the change.', 'Used on every change window', 'Firmware waves, policy changes'],
-    ['Learned patterns', I.CalendarClock, 'Learns what repeats on a schedule and is harmless, so first response can suppress it.', 'FR-02 on: nightly backup spikes', 'Backups, store opening and closing'],
+    ['Learned normal', I.Activity, `${n}`, 'lines drifting now', ['Latency', 'Jitter', 'Loss', 'CPU', 'Airtime']],
+    ['Forecast', I.TrendingUp, '4', 'capacity forecasts open', ['Line use', 'PoE budget', 'Address pools']],
+    ['Change detection', I.GitCompare, '100%', 'of change windows checked', ['Firmware', 'Policy', 'Carrier']],
+    ['Learned patterns', I.CalendarClock, 'FR-02', 'nightly backup spikes', ['Backups', 'Opening', 'Closing']],
   ];
   return (
-    <Card title="How OpsRamp finds anomalies" sub="Finding problems before a fixed threshold would">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{M.map(([t, Ic, d, v, u]) => <div key={t} className="border border-ai/30 bg-ai/[0.03] rounded-lg p-3 flex flex-col"><div className="flex items-center gap-2"><Ic size={15} className="text-ai" /><b className="text-[13px] text-ink">{t}</b></div><div className="text-[12px] text-ink2 mt-1.5 flex-1">{d}</div><div className="text-[12.5px] font-bold text-ink mt-2">{v}</div><div className="text-[11px] text-ink3">{u}</div></div>)}</div>
-      <div className="mt-3 rounded-lg bg-chip px-3 py-2 text-[12.5px] text-ink flex gap-2"><I.Lightbulb size={15} className="text-warn mt-0.5 shrink-0" /><span>{ex ? `${ex.b.name.replace(/ – .*/, '')} (${ex.b.city}) normally runs at ${Math.round(ex.normal)} ms and now runs at ${Math.round(ex.now)} ms. A 100 ms threshold raises nothing; the learned normal flags it today${ex.eta ? `, about ${ex.eta} days before it would breach` : ''}.` : 'A line drifting from its own normal is flagged while it is still under the fixed limit, days before it would breach.'}</span></div>
+    <Card title="How OpsRamp finds anomalies">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{M.map(([t, Ic, v, u, chips]) => <div key={t} className="border border-ai/30 bg-ai/[0.03] rounded-lg p-3 flex flex-col"><div className="flex items-center gap-2"><Ic size={15} className="text-ai" /><b className="text-[13px] text-ink">{t}</b><Tag k="ml" /></div><div className="text-[24px] font-bold text-ink tabular-nums mt-2 leading-none">{v}</div><div className="text-[11.5px] text-ink3 mt-0.5">{u}</div><div className="flex flex-wrap gap-1 mt-2">{chips.map(c => <span key={c} className="text-[10.5px] px-1.5 py-[1px] rounded border border-line bg-panel text-ink2">{c}</span>)}</div></div>)}</div>
+      {ex && <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-[12.5px]">{[['Line', `${ex.b.name.replace(/ – .*/, '')}, ${ex.b.city}`], ['Normal', `${Math.round(ex.normal)} ms`], ['Now', `${Math.round(ex.now)} ms`], ['Fixed limit', `100 ms${ex.eta ? ` · ~${ex.eta} days away` : ''}`]].map(([k, v], i) => <div key={k} className={cx('rounded-lg border px-3 py-2', i === 2 ? 'border-warn/50 bg-warn/5' : 'border-line')}><div className="text-[11px] text-ink3">{k}</div><b className="text-ink">{v}</b></div>)}</div>}
     </Card>
   );
 }
 
 // ---------- sources and integration ----------
 const SOURCES = [
-  ['HPE Aruba EdgeConnect Orchestrator', 'Tunnel and path statistics, alarms, business intent', 'REST API polled by the gateway; alarms pushed by the Orchestrator notification service (HTTPS) to an OpsRamp webhook', 'Medium', 0.31],
-  ['HPE Aruba Central', 'Access points and switches, clients, Wi-Fi health, webhooks', 'Aruba Central API and webhooks; OpsRamp is built into Central for other vendors', 'Low', 0.24],
-  ['Aruba CX and 2530 switches', 'Health, interfaces, PoE, traps and syslog', 'NextGen gateway over SNMPv3; AOS-CX REST for CX', 'Low', 0.17],
-  ['ISP circuits (Simplify access-link feed)', 'Line up and down, carrier tickets', 'Token-based webhook into OpsRamp', 'Low', 0.08],
-  ['Carrier portals', 'Case updates and restore times', 'REST or email-to-event, per carrier', 'Medium', 0.02],
-  ['New Relic', 'Application response, errors', 'Out-of-the-box integration with default attributes', 'Low', 0.1],
-  ['Synthetic tests', 'Card payment path, ERP, cloud apps', 'OpsRamp synthetic monitors from each branch', 'Low', 0.06],
-  ['Microsoft Azure', 'Cloud applications SRS runs', 'Native cloud integration', 'Low', 0.02],
-  ['ServiceNow', 'Incidents and the CMDB', 'Certified ServiceNow Store app, OAuth 2.0, both ways', 'Medium', 0],
-  ['Microsoft Teams and email', 'Notifications to StoreOps and engineers', 'Outbound integration', 'Low', 0],
+  ['HPE Aruba EdgeConnect Orchestrator', 'Paths, tunnels, alarms', ['REST API', 'Webhook'], 'Medium', 0.31],
+  ['HPE Aruba Central', 'APs, switches, Wi-Fi', ['API', 'Webhook', 'Built in'], 'Low', 0.24],
+  ['Aruba CX and 2530 switches', 'Health, ports, PoE, traps', ['SNMPv3', 'AOS-CX REST'], 'Low', 0.17],
+  ['ISP circuits (Simplify)', 'Line state, carrier tickets', ['Webhook'], 'Low', 0.08],
+  ['Carrier portals', 'Case updates', ['REST', 'Email'], 'Medium', 0.02],
+  ['New Relic', 'App response, errors', ['Native'], 'Low', 0.1],
+  ['Synthetic tests', 'Payments, ERP, cloud', ['Native'], 'Low', 0.06],
+  ['Microsoft Azure', 'Cloud apps', ['Native'], 'Low', 0.02],
+  ['ServiceNow', 'Incidents, CMDB', ['Store app', 'OAuth 2.0', 'Both ways'], 'Medium', 0],
+  ['Microsoft Teams and email', 'Notifications', ['Outbound'], 'Low', 0],
 ];
 function Integration({ tc }) {
-  const steps = [['Install the NextGen gateway', 'One per data centre: OVA or ISO, or on Kubernetes with zero-touch onboarding. It keeps 24 hours of alerts if the link drops.', '2 hours'], ['Add credentials', 'SNMPv3 and API keys, attached to resource groups with least privilege.', '1 hour'], ['Discover', 'Discovery profiles find devices and their relationships over SNMP and the vendor APIs.', 'Overnight, automatic'], ['Assign templates', 'Template-based alert definitions give each device its metrics and levels by type and store group.', 'Automatic'], ['Connect event sources', 'In Integrations: add the tool, copy the webhook URL and token, map its fields to alerts, check the inbound log.', '30 minutes per tool'], ['Connect ServiceNow', 'Install the certified app and authorise with OAuth 2.0 from the OpsRamp screen.', 'Half a day with the SRS ServiceNow admin']];
+  const steps = [['NextGen gateway', 'OVA · ISO · Kubernetes', '2 h', I.Server], ['Credentials', 'SNMPv3 · API keys', '1 h', I.KeyRound], ['Discovery', 'SNMP · vendor APIs', 'Overnight', I.Radar], ['Templates', 'by type and store group', 'Automatic', I.LayoutTemplate], ['Event sources', 'webhook URL + token', '30 min each', I.Webhook], ['ServiceNow', 'Store app · OAuth 2.0', 'Half a day', I.Ticket]];
   return (<>
-    <Card title="How easy it is to connect a source" className="mb-3">
-      <ol className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-2">{steps.map(([t, d, h], i) => <li key={t} className="border border-line rounded-lg p-3 flex flex-col"><div className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-brand text-white text-[11px] font-bold grid place-items-center shrink-0">{i + 1}</span><b className="text-[12.5px] text-ink">{t}</b></div><div className="text-[11.5px] text-ink2 mt-1.5 flex-1">{d}</div><div className="text-[12px] font-bold text-ink mt-2">{h}</div></li>)}</ol>
-      <div className="mt-3 text-[12px] text-ink2">Anything with a REST API can be added as a custom integration, and SDK apps cover custom discovery and monitoring. OpsRamp lists more than 2,500 integrations out of the box.</div>
+    <Card title="Connecting a source" className="mb-3" right={<Badge tone="blue">2,500+ integrations in the OpsRamp library</Badge>}>
+      <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{steps.map(([t, d, h, Ic], i) => <React.Fragment key={t}>{i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-3"><div className="flex items-center gap-1.5"><Ic size={15} className="text-brand" /><b className="text-[12.5px] text-ink">{t}</b></div><div className="text-[11.5px] text-ink3 mt-1">{d}</div><div className="text-[16px] font-bold text-ink mt-2">{h}</div></div></React.Fragment>)}</div>
     </Card>
-    <Card title="SRS sources" sub={`${SOURCES.length} connected, ${num(tc.events)} events in today`}>
-      <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>Source</Th><Th>What comes in</Th><Th>How it connects</Th><Th>Effort</Th><Th r>Events today</Th></tr></thead>
-        <tbody>{SOURCES.map(([n, w, h, e, f]) => <tr key={n} className="border-b border-line/60 last:border-0 align-top"><td className="py-1.5 pr-3 font-semibold text-ink"><span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ok" />{n}</span></td><td className="py-1.5 pr-3 text-ink2">{w}</td><td className="py-1.5 pr-3 text-ink2">{h}</td><td className="py-1.5 pr-3"><Badge tone={e === 'Low' ? 'green' : 'amber'}>{e}</Badge></td><td className="py-1.5 text-right tabular-nums">{f ? num(Math.round(tc.events * f)) : '—'}</td></tr>)}</tbody></table></div>
+    <Card title="SRS sources" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SOURCES.length}</b> connected · <b className="text-ink">{num(tc.events)}</b> events today</span>}>
+      <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>Source</Th><Th>Data</Th><Th>Connects by</Th><Th>Effort</Th><Th r>Events today</Th></tr></thead>
+        <tbody>{SOURCES.map(([n, w, h, e, f]) => <tr key={n} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 font-semibold text-ink"><span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ok" />{n}</span></td><td className="py-1.5 pr-3 text-ink2">{w}</td><td className="py-1.5 pr-3"><span className="flex flex-wrap gap-1">{h.map(x => <span key={x} className="text-[11px] px-1.5 py-[1px] rounded border border-line bg-chip text-ink2">{x}</span>)}</span></td><td className="py-1.5 pr-3"><Badge tone={e === 'Low' ? 'green' : 'amber'}>{e}</Badge></td><td className="py-1.5 text-right tabular-nums">{f ? num(Math.round(tc.events * f)) : '—'}</td></tr>)}</tbody></table></div>
     </Card>
   </>);
 }
 
 // ---------- ServiceNow ----------
 function SNow() {
-  const map = [['Correlated group (inference) subject', 'Short description'], ['Priority from impact and branch hours (P1–P4)', 'Priority, impact and urgency'], ['Resource the root cause sits on', 'Configuration item (cmdb_ci)'], ['Assignment group from the monitoring template', 'Assignment group'], ['Alerts correlated into the group', 'Work notes on the same ticket, no new ticket'], ['Root cause and confidence from Mova iO', 'Description'], ['Branch', 'Location'], ['State', 'State, both ways'], ['Close code', 'Resolution code, both ways']];
-  const flow = [['Alert group formed', 'OpsRamp'], ['Incident created', 'ServiceNow'], ['Assigned and worked', 'Both ways'], ['More alerts attached', 'Work notes'], ['Resolved in either', 'Closes in both']];
+  const map = [['Correlated group subject', 'Short description'], ['Priority (P1–P4)', 'Priority, impact, urgency'], ['Root-cause resource', 'Configuration item'], ['Template assignment group', 'Assignment group'], ['Correlated alerts', 'Work notes, same ticket'], ['Root cause and confidence', 'Description'], ['Branch', 'Location'], ['State', 'State, both ways'], ['Close code', 'Resolution code, both ways']];
+  const flow = [['Alert group', 'OpsRamp', I.GitMerge], ['Incident', 'ServiceNow', I.Ticket], ['Assigned and worked', 'both ways', I.ArrowLeftRight], ['More alerts', 'work notes', I.MessageSquarePlus], ['Resolved', 'closes in both', I.CircleCheck]];
+  const Chip = ({ children }) => <span className="text-[11.5px] px-2 py-0.5 rounded-full border border-line bg-chip text-ink2">{children}</span>;
   return (<>
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 mb-3 items-stretch [&>*]:h-full">
-      <Card title="Incidents: both ways">
-        <div className="flex flex-wrap items-center gap-1.5">{flow.map(([a, b], i) => <React.Fragment key={a}>{i > 0 && <I.ArrowRight size={14} className="text-ink3" />}<span className="rounded-md border border-line px-2 py-1 text-[12px]"><b className="text-ink">{a}</b><span className="text-ink3"> · {b}</span></span></React.Fragment>)}</div>
-        <ul className="mt-3 space-y-1.5 text-[12.5px] text-ink">{['One ticket per correlated group, on the right CI and assignment group.', 'State, assignment and work notes stay in step in both directions.', 'Closing the incident in either system closes it in the other.', 'Certified ServiceNow Store app, authorised with OAuth 2.0; the integration user has the ITIL role.'].map(t => <li key={t} className="flex gap-1.5"><I.Check size={14} className="text-ok mt-[2px] shrink-0" />{t}</li>)}</ul>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mb-3 items-stretch [&>*]:h-full">
+      <Card title="Incidents, both ways">
+        <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{flow.map(([a, b, Ic], i) => <React.Fragment key={a}>{i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-2.5 text-center"><Ic size={18} className="mx-auto text-brand" /><b className="block text-[12.5px] text-ink mt-1">{a}</b><span className="text-[11px] text-ink3">{b}</span></div></React.Fragment>)}</div>
+        <div className="flex flex-wrap gap-1.5 mt-3"><Chip>One ticket per group</Chip><Chip>Right CI and group</Chip><Chip>Certified Store app</Chip><Chip>OAuth 2.0</Chip><Chip>ITIL integration user</Chip></div>
       </Card>
       <Card title="CMDB">
-        <ul className="space-y-1.5 text-[12.5px] text-ink">{['Devices and circuits OpsRamp discovers are pushed into the ServiceNow CMDB with their CI class from the monitoring template.', 'Relationships (which switch sits behind which SD-WAN appliance) stay in OpsRamp topology, which is what correlation uses; every incident carries the CI it is about.', 'The nightly reconciliation in Device & Circuit Inventory flags anything found on the network but missing from the CMDB.'].map(t => <li key={t} className="flex gap-1.5"><I.Database size={14} className="text-info mt-[2px] shrink-0" />{t}</li>)}</ul>
+        <div className="grid grid-cols-3 gap-2">{[['4,075', 'devices pushed'], ['1,800', 'circuits pushed'], ['Nightly', 'reconciliation']].map(([v, l]) => <div key={l} className="rounded-lg border border-line p-2.5"><div className="text-[20px] font-bold text-ink tabular-nums leading-none">{v}</div><div className="text-[11.5px] text-ink3 mt-1">{l}</div></div>)}</div>
+        <div className="flex flex-wrap gap-1.5 mt-3"><Chip>CI class from the template</Chip><Chip>Relationships in OpsRamp topology</Chip><Chip>CI on every incident</Chip></div>
       </Card>
     </div>
-    <Card title="Field mapping, OpsRamp to ServiceNow" className="mb-3">
-      <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>OpsRamp</Th><Th>ServiceNow</Th></tr></thead><tbody>{map.map(([a, b]) => <tr key={a} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 text-ink">{a}</td><td className="py-1.5 text-ink2">{b}</td></tr>)}</tbody></table></div>
+    <Card title="Field mapping" className="mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">{map.map(([a, b]) => <div key={a} className="flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60"><span className="text-ink flex-1">{a}</span><I.ArrowRight size={13} className="text-ink3 shrink-0" /><span className="text-ink2 flex-1">{b}</span></div>)}</div>
     </Card>
     <ServiceNowSyncCard />
   </>);

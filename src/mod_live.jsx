@@ -56,7 +56,7 @@ export function Correlation() {
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div className="theme-opsramp">
-      <OpsRampHead title="Correlation" sub="HPE OpsRamp event management and AIOps: every source in, one incident out to ServiceNow" right={<LiveBadge />} />
+      <OpsRampHead title="Correlation" sub="HPE OpsRamp · event management and AIOps" right={<LiveBadge />} />
       <LiveKpis cols={5} items={[
         { label: 'Events in today', value: num(tc.events), sub: 'traps, syslog and threshold crossings from every tool', series: S.raw, color: C.s2, icon: I.Bell },
         { label: 'Noise removed', value: `${Math.round(tc.noise * 100)}%`, sub: `${num(tc.suppressed)} duplicates, flaps and info events (KPI 50%)`, series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
