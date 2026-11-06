@@ -6,6 +6,7 @@ import { Card, Badge, Btn, Table, PageHead, Tabs, Stat, Modal, KV, cx, Progress,
 import { Bars, Legend, C, Ring } from './charts.jsx';
 import { num, pct, dur, ago, dt, dateShort, MIN, HR, DAY, exportCSV } from './util.js';
 import { ThroughputCard, SlipCard } from './viz.jsx';
+import { IntegrationStudio } from './studio.jsx';
 
 const RAG = { Green: 'green', Amber: 'amber', Red: 'red' };
 const daysTo = (t, now) => Math.round((t - now) / DAY);
@@ -39,8 +40,9 @@ export function BiaB() {
         <Stat label="Amber / red" icon={I.AlertTriangle} onClick={() => act.drill({ t: 'projects' })} value={<span><span className="text-warn">{P.filter(p => p.rag === 'Amber').length}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-bad">{P.filter(p => p.rag === 'Red').length}</span></span>} sub="each with owner + fix date" />
         <Stat label="In hypercare" icon={I.HeartHandshake} onClick={() => act.drill({ t: 'projects' })} value={P.filter(p => p.stage === 'Hypercare').length} sub="14 days, tighter thresholds" />
       </div>
-      <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'portfolio', label: 'Portfolio', icon: I.LayoutGrid }, { id: 'tracks', label: 'Two tracks', icon: I.Split }, { id: 'kit', label: 'Kit & VLANs', icon: I.Package }, { id: 'floor', label: 'Floor plan', icon: I.Map }, { id: 'steps', label: 'Acquired-branch steps', icon: I.ListTodo }, { id: 'cutover', label: 'Cutover weekend', icon: I.Timer }, { id: 'parity', label: 'Day-1 parity', icon: I.Scale }]} />
+      <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'portfolio', label: 'Portfolio', icon: I.LayoutGrid }, { id: 'opsramp', label: 'Onboard to OpsRamp', icon: I.Plug }, { id: 'tracks', label: 'Two tracks', icon: I.Split }, { id: 'kit', label: 'Kit & VLANs', icon: I.Package }, { id: 'floor', label: 'Floor plan', icon: I.Map }, { id: 'steps', label: 'Acquired-branch steps', icon: I.ListTodo }, { id: 'cutover', label: 'Cutover weekend', icon: I.Timer }, { id: 'parity', label: 'Day-1 parity', icon: I.Scale }]} />
       {tab === 'portfolio' && <Portfolio track={track} setTrack={setTrack} onOpen={setOpen} now={now} />}
+      {tab === 'opsramp' && <div className="theme-opsramp"><IntegrationStudio /></div>}
       {tab === 'tracks' && <TracksView onOpen={setOpen} now={now} />}
       {tab === 'kit' && <Kit />}
       {tab === 'floor' && <FloorPlan />}

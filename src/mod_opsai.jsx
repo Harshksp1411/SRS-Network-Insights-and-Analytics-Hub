@@ -10,6 +10,7 @@ import { Card, Badge, cx } from './ui.jsx';
 import { todayCounts } from './viz2.jsx';
 import { AnomaliesCard, anomaliesOf } from './patterns.jsx';
 import { ServiceNowSyncCard } from './stormui.jsx';
+import { IntegrationStudio } from './studio.jsx';
 import { num } from './util.js';
 
 const KIND = { ml: ['Machine learning', 'bg-ai/10 text-ai border-ai/30'], topo: ['Topology', 'bg-info/10 text-info border-info/30'], rule: ['Rules', 'bg-chip text-ink2 border-line'], agent: ['Mova iO agents', 'bg-brand/10 text-brand border-brand/30'] };
@@ -175,6 +176,7 @@ const SOURCES = [
 function Integration({ tc }) {
   const steps = [['NextGen gateway', 'OVA · ISO · Kubernetes', '2 h', I.Server], ['Credentials', 'SNMPv3 · API keys', '1 h', I.KeyRound], ['Discovery', 'SNMP · vendor APIs', 'Overnight', I.Radar], ['Templates', 'by type and store group', 'Automatic', I.LayoutTemplate], ['Event sources', 'webhook URL + token', '30 min each', I.Webhook], ['ServiceNow', 'Store app · OAuth 2.0', 'Half a day', I.Ticket]];
   return (<>
+    <div className="mb-3"><IntegrationStudio /></div>
     <Card title="Connecting a source" className="mb-3" right={<Badge tone="blue">2,500+ integrations in the OpsRamp library</Badge>}>
       <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{steps.map(([t, d, h, Ic], i) => <React.Fragment key={t}>{i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-3"><div className="flex items-center gap-1.5"><Ic size={15} className="text-brand" /><b className="text-[12.5px] text-ink">{t}</b></div><div className="text-[11.5px] text-ink3 mt-1">{d}</div><div className="text-[16px] font-bold text-ink mt-2">{h}</div></div></React.Fragment>)}</div>
     </Card>
