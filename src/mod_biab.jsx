@@ -7,6 +7,7 @@ import { Bars, Legend, C, Ring } from './charts.jsx';
 import { num, pct, dur, ago, dt, dateShort, MIN, HR, DAY, exportCSV } from './util.js';
 import { ThroughputCard, SlipCard } from './viz.jsx';
 import { IntegrationStudio } from './studio.jsx';
+import { DeviceOnboarding } from './onboard.jsx';
 
 const RAG = { Green: 'green', Amber: 'amber', Red: 'red' };
 const daysTo = (t, now) => Math.round((t - now) / DAY);
@@ -42,7 +43,7 @@ export function BiaB() {
       </div>
       <Tabs value={tab} onChange={go} className="mb-3" tabs={[{ id: 'portfolio', label: 'Portfolio', icon: I.LayoutGrid }, { id: 'opsramp', label: 'Onboard to OpsRamp', icon: I.Plug }, { id: 'tracks', label: 'Two tracks', icon: I.Split }, { id: 'kit', label: 'Kit & VLANs', icon: I.Package }, { id: 'floor', label: 'Floor plan', icon: I.Map }, { id: 'steps', label: 'Acquired-branch steps', icon: I.ListTodo }, { id: 'cutover', label: 'Cutover weekend', icon: I.Timer }, { id: 'parity', label: 'Day-1 parity', icon: I.Scale }]} />
       {tab === 'portfolio' && <Portfolio track={track} setTrack={setTrack} onOpen={setOpen} now={now} />}
-      {tab === 'opsramp' && <div className="theme-opsramp"><IntegrationStudio /></div>}
+      {tab === 'opsramp' && <div className="theme-opsramp space-y-3"><IntegrationStudio /><DeviceOnboarding /></div>}
       {tab === 'tracks' && <TracksView onOpen={setOpen} now={now} />}
       {tab === 'kit' && <Kit />}
       {tab === 'floor' && <FloorPlan />}

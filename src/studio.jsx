@@ -72,7 +72,7 @@ export function IntegrationStudio() {
       {on ? <I.CircleCheck size={15} className="text-ok shrink-0" /> : <button onClick={() => start(id)} className="text-[11px] font-bold text-brand hover:underline shrink-0">Connect</button>}
     </div>
   );
-  const total = SRC.filter(x => conn.has(x[0])).reduce((a, x) => a + x[4], 0);
+  const total = SRC.filter(x => conn.has(x[0])).reduce((a, x) => a + x[4], 0) + (s.onboarded || []).length;
   const busy = run && run.step < run.steps.length;
   return (
     <Card title="Integration studio" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SRC.filter(x => conn.has(x[0])).length}</b> connected · <b className="text-ink">{SRC.filter(x => !conn.has(x[0])).length}</b> ready in the library · <b className="text-ink">{num(total)}</b> devices and lines monitored</span>}>
