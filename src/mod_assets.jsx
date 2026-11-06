@@ -1,4 +1,5 @@
 import { rankTechs } from './dash/fix.js';
+import { FieldVisit } from './fieldvisit.jsx';
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { LivePanel } from './liveui.jsx';
@@ -255,7 +256,7 @@ HOST                         Loss%   Snt   Avg   Best  Wrst
 export function Dispatch() {
   const { s, act } = useApp();
   const now = useNow();
-  const [tab, setTab] = useState(s.tab.dispatch || 'orders');
+  const tab = s.tab.dispatch || 'orders', setTab = t => act.setTab('dispatch', t);
   const [match, setMatch] = useState(null);
   const wos = s.workOrders.filter(w => inScope(s, w.branchId));
   const rank = w => rankTechs(s, w); // the same matching the root-cause view uses to send a technician
@@ -282,9 +283,10 @@ export function Dispatch() {
         <SparesCoverCard />
         <TechUtilCard />
       </div>
-      <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'orders', label: 'Work orders', count: wos.length }, { id: 'techs', label: 'Technicians', count: s.techs.length }, { id: 'depots', label: 'Depot spares', count: s.depots.length }]} />
+      <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'visit', label: 'Technician view' }, { id: 'orders', label: 'Work orders', count: wos.length }, { id: 'techs', label: 'Technicians', count: s.techs.length }, { id: 'depots', label: 'Depot spares', count: s.depots.length }]} />
+      {tab === 'visit' && <FieldVisit />}
       {tab === 'orders' && <Card pad={false}><div className="p-3"><Table rows={wos} cols={[
-        { key: 'id', label: 'Work order', render: w => <span className="font-mono text-[12px] font-semibold">{w.id}</span> },
+        { key: 'id', label: 'Work order', render: w => <button onClick={() => { act.set({ fieldWo: w.id }); setTab('visit'); }} className="font-mono text-[12px] font-semibold text-brand hover:underline inline-flex items-center gap-1" title="Technician view"><I.Smartphone size={12} />{w.id}</button> },
         { key: 'priority', label: 'Pri', render: w => <Pri p={w.priority} /> },
         { key: 'branch', label: 'Branch', get: w => D.BR[w.branchId].name, render: w => { const b = D.BR[w.branchId]; const c = branchClock(b, now); return <div><div className="font-semibold">{b.name}</div><div className="text-[11px] text-ink3 truncate max-w-[150px]" title="">{b.brand}, {c.local}, {c.open ? 'open' : 'closed'}</div></div>; } },
         { key: 'task', label: 'Task', render: w => <div className="max-w-[340px] text-[12.5px]">{w.task}<div className="flex flex-wrap gap-1 mt-1">{w.skills.map(k => <Badge key={k}>{k}</Badge>)}{w.parts.map(p => <Badge key={p} tone="blue"><I.Package size={10} />{p}</Badge>)}</div></div> },

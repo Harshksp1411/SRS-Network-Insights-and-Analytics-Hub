@@ -158,10 +158,10 @@ function FilterBar() {
     : [{ value: '', label: 'Device: any' }, { value: 's:devices:all', label: `All devices in view (${num(list.reduce((a, b) => a + b.dev.ec + b.dev.sw + b.dev.ap, 0))})` }, { value: 's:devices:down', label: 'Devices down now' }, { value: 's:devices:crit', label: 'Devices with a critical flaw' }, { value: 's:devices:eos', label: 'Switches reaching end of support' }, { value: 's:lines:all', label: `All lines in view (${num(list.length * 2)})` }, { value: 's:lines:problem', label: 'Lines down or degraded now' }];
   const pickDevice = v => { if (!v) return; const [k, a, b] = v.split(':'); act.drill(k === 'c' ? { t: 'circuit', id: a } : k === 'd' ? { t: 'device', id: a } : { t: a, k: b }); };
   return (
-    <div className="bg-panel border-b border-line px-5 py-2 flex items-center gap-1.5 flex-wrap">
+    <div className="bg-panel border-b border-line px-5 py-2 flex items-center gap-1.5 flex-wrap [&_select]:max-w-[138px]">
       <span className="text-[12px] font-bold text-ink3 mr-1">Showing</span>
       {bm ? <Badge tone="brand" className="!text-[12px] !py-1"><I.Store size={13} />My branch: {D.BR[s.bmBranch].name}</Badge> : <>
-        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
+        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId && f.brand === 'All' ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.MapPin} value={f.region} onChange={v => setF({ region: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Region: all' }, ...D.REGIONS.map(r => ({ value: r, label: `${r} (${D.BRANCHES.filter(b => b.region === r).length})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
@@ -170,8 +170,9 @@ function FilterBar() {
         <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
+        <Select icon={I.Tag} value={f.brand} onChange={v => setF({ brand: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Brand: all' }, ...D.BRANDS.map(b => ({ value: b, label: `${b} (${D.BRANCHES.filter(x => x.brand === b && (f.region === 'All' || x.region === f.region)).length})` }))]} />
         <div className="relative">
-          <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-44" />
+          <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-36" />
           {matches.length > 0 && (
             <div className="absolute top-9 left-0 w-80 bg-panel border border-line rounded-md shadow-xl z-50 py-1">
               {matches.map(b => <button key={b.id} onClick={() => { act.set(st => ({ filters: { region: 'All', city: cityKey(b), brand: 'All', branchId: b.id } })); act.openBranch(b.id); setQ(''); }} className="w-full text-left px-3 py-1.5 hover:bg-chip text-[12.5px] flex items-center gap-2"><Dot tone={healthTone(healthOf(s, b))} /><span className="font-semibold text-ink">{b.name}</span><span className="text-ink3 truncate">{b.brand}, {b.state}</span><span className="ml-auto text-ink3 text-[11px]">{b.id}</span></button>)}
