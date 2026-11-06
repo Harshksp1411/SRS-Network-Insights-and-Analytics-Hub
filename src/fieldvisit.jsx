@@ -10,6 +10,7 @@ import { Card, Badge, Btn, Pri, cx } from './ui.jsx';
 import { rankTechs } from './dash/fix.js';
 import { packOf, readingOk, tickStep, addPhoto, setReading, setFindings, returnCheck, acceptHandoff } from './dash/workpack.js';
 import { hhmm, MIN } from './util.js';
+import { StoreLayout, planOf } from './storeplan.jsx';
 
 const MILES = 2.9; // map units to road miles, the same scale the technician matching uses
 const ROADS = { TX: ['I-35', 'I-45', 'I-20', 'US-75'], FL: ['I-75', 'I-4', 'I-95'], GA: ['I-75', 'I-85', 'I-20'], IL: ['I-55', 'I-90', 'I-294'], AZ: ['I-10', 'I-17'], NC: ['I-85', 'I-77', 'I-40'], SC: ['I-26', 'I-85'], CO: ['I-25', 'I-70'], PA: ['I-76', 'I-476', 'I-95'], WA: ['I-5', 'I-405'], TN: ['I-40', 'I-24', 'I-65'], AL: ['I-65', 'I-20'], OH: ['I-71', 'I-75'], VA: ['I-64', 'I-95'], LA: ['I-10', 'I-12'], OK: ['I-35', 'I-44'], MO: ['I-70', 'I-44'], IN: ['I-65', 'I-70'], MI: ['I-75', 'I-96'], NJ: ['I-95', 'NJ Turnpike'], NY: ['I-87', 'I-90'], CA: ['I-5', 'I-405'], NV: ['I-15', 'US-95'], UT: ['I-15', 'I-80'], KS: ['I-35', 'I-70'], MN: ['I-94', 'I-35W'] };
@@ -104,87 +105,21 @@ export function RouteCard({ wo }) {
   );
 }
 
-// ---------- the store layout ----------
-const ZONES = { office: [16, 16, 170, 96, 'Back office'], closet: [16, 124, 84, 70, 'IT closet'], counter: [16, 206, 170, 108, 'Sales counter'], warehouse: [200, 16, 250, 196, 'Warehouse'], docks: [200, 224, 250, 90, 'Loading docks'] };
-const ZONE_OF = { 'Back office': 'office', Counter: 'counter', Warehouse: 'warehouse', 'Loading docks': 'docks' };
-
-export function layoutOf(b, inc, demarc) {
-  const devs = D.devicesOf(b.id);
-  const fault = inc && inc.ci;
-  const items = [];
-  // the rack in the IT closet: SD-WAN appliances and switches
-  const rack = devs.filter(d => d.type !== 'AP');
-  rack.slice(0, 5).forEach((d, i) => items.push({ d, x: 32 + (i % 2) * 34, y: 148 + Math.floor(i / 2) * 14, kind: d.type === 'SD-WAN' ? 'ec' : 'sw' }));
-  // the access points, spread across the zone each one serves
-  const byZone = {};
-  devs.filter(d => d.type === 'AP').forEach(d => { const z = d.role === 'Outdoor yard' ? 'yard' : ZONE_OF[d.role] || 'warehouse'; (byZone[z] = byZone[z] || []).push(d); });
-  Object.entries(byZone).forEach(([z, list]) => list.forEach((d, i) => {
-    if (z === 'yard') { items.push({ d, x: 500 + (i % 2) * 70, y: 60 + Math.floor(i / 2) * 80, kind: 'ap', pole: true }); return; }
-    const [x, y, w, h] = ZONES[z]; const n = list.length, cols = Math.min(n, z === 'warehouse' ? 3 : 2), rows = Math.ceil(n / cols);
-    items.push({ d, x: x + (w / (cols + 1)) * ((i % cols) + 1), y: y + 18 + ((h - 18) / (rows + 1)) * (Math.floor(i / cols) + 1), kind: 'ap' });
-  }));
-  const dm = /receiving/.test(demarc) ? { x: 440, y: 300 } : /Back office/.test(demarc) ? { x: 170, y: 30 } : { x: 90, y: 134 };
-  const target = items.find(it => it.d.id === fault) || (inc && /circuit|jitter|pos/.test(inc.kind) ? { x: dm.x, y: dm.y } : { x: 58, y: 166 });
-  return { items, more: Math.max(0, rack.length - 5), dm, target, fault };
-}
-
-export function StoreLayout({ b, inc, demarc, compact, onDevice }) {
-  const L = layoutOf(b, inc, demarc || '');
-  const W = b.yard ? 640 : 470;
-  const path = L.target ? `M 440 330 L 440 316 L 300 316 L 300 ${L.target.y > 212 ? L.target.y : 218} ${L.target.x < 200 ? `L 193 218 L 193 ${L.target.y} ` : ''}L ${L.target.x} ${L.target.y}` : null;
-  const fs = compact ? 13 : 10;
-  return (
-    <svg viewBox={`0 0 ${W} 340`} className="w-full" style={compact ? undefined : { maxHeight: 340 }}>
-      {/* the building and its rooms */}
-      <rect x={8} y={8} width={450} height={314} rx={4} className="fill-panel stroke-ink3" strokeWidth={2} />
-      {Object.entries(ZONES).map(([k, [x, y, w, h, n]]) => <g key={k}>
-        <rect x={x} y={y} width={w} height={h} rx={3} className={cx(k === 'closet' ? 'fill-info/10 stroke-info' : 'fill-chip stroke-line')} strokeWidth={1.2} />
-        <text x={x + 6} y={y + 13} fontSize={fs} fontWeight={700} className="fill-ink2">{n}</text>
-      </g>)}
-      {/* warehouse racking and dock doors */}
-      {[0, 1, 2, 3, 4].map(i => <rect key={i} x={222 + i * 46} y={44} width={12} height={150} className="fill-line" opacity={0.7} />)}
-      {[0, 1, 2, 3].map(i => <rect key={i} x={222 + i * 58} y={310} width={40} height={8} className="fill-ink3" />)}
-      {/* POS terminals at the counter */}
-      {[0, 1, 2].map(i => <g key={i} transform={`translate(${40 + i * 50},${286})`}><rect x={-9} y={-7} width={18} height={14} rx={2} fill="#2A9D8F" /><text y={4} textAnchor="middle" fontSize={7} fill="#fff" fontWeight={700}>POS</text></g>)}
-      {/* entrances */}
-      <g transform="translate(100,322)"><rect x={-22} y={-4} width={44} height={8} fill="#2E8540" /><text y={16} textAnchor="middle" fontSize={fs} className="fill-ink2">Customer entrance</text></g>
-      <g transform="translate(440,322)"><rect x={-14} y={-4} width={28} height={8} fill="#2F6DB5" /><text y={16} textAnchor="end" x={14} fontSize={fs} className="fill-info" fontWeight={700}>Contractor door</text></g>
-      {/* the yard */}
-      {b.yard && <g><rect x={470} y={8} width={162} height={314} rx={4} fill="none" className="stroke-ink3" strokeDasharray="6 4" strokeWidth={1.5} /><text x={478} y={24} fontSize={fs} fontWeight={700} className="fill-ink2">Outdoor yard</text>
-        {[0, 1, 2].map(i => <rect key={i} x={486} y={200 + i * 34} width={130} height={14} className="fill-line" opacity={0.6} />)}</g>}
-      {/* demarc */}
-      <g transform={`translate(${L.dm.x},${L.dm.y})`}><rect x={-7} y={-7} width={14} height={14} rx={2} fill="#E07B00" /><text x={10} y={4} fontSize={fs - 1} className="fill-warn" fontWeight={700}>Demarc</text></g>
-      {/* the technician's way in */}
-      {path && <path d={path} fill="none" stroke="#2F6DB5" strokeWidth={2.2} strokeDasharray="5 4" markerEnd="url(#arr)" />}
-      <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2F6DB5" /></marker></defs>
-      {/* devices */}
-      {L.items.map(it => { const bad = it.d.id === L.fault; const col = it.kind === 'ec' ? '#762123' : it.kind === 'sw' ? '#1D3F66' : '#2F6DB5'; return (
-        <g key={it.d.id} transform={`translate(${it.x},${it.y})`} onClick={onDevice ? () => onDevice(it.d) : undefined} className={onDevice ? 'cursor-pointer' : undefined}>
-          <title>{`${it.d.id} · ${it.d.model}${it.d.role ? ` · ${it.d.role}` : ''}`}</title>
-          {bad && <circle r={14} fill="#D62D20" opacity={0.25}><animate attributeName="r" values="9;17;9" dur="1.6s" repeatCount="indefinite" /></circle>}
-          {it.pole && <line x1={0} y1={6} x2={0} y2={30} className="stroke-ink3" strokeWidth={2} />}
-          {it.kind === 'ap' ? <circle r={6.5} fill={bad ? '#D62D20' : col} stroke="#fff" strokeWidth={1.5} /> : <rect x={-14} y={-5} width={28} height={10} rx={2} fill={bad ? '#D62D20' : col} />}
-          {it.kind === 'ap' ? <path d="M-3,-1 a4,4 0 0 1 6,0 M-1.4,1 a2,2 0 0 1 2.8,0" fill="none" stroke="#fff" strokeWidth={1.1} /> : <text y={3} textAnchor="middle" fontSize={6.5} fill="#fff" fontWeight={700}>{it.kind === 'ec' ? 'SD-WAN' : it.d.model}</text>}
-          {(!compact || bad) && it.kind === 'ap' && <text y={-10} textAnchor="middle" fontSize={fs - 2} className={bad ? 'fill-bad' : 'fill-ink3'} fontWeight={bad ? 700 : 400}>{it.d.id.split('-').pop()}</text>}
-        </g>); })}
-      {L.more > 0 && <text x={32} y={190} fontSize={fs - 2} className="fill-ink3">+{L.more} more in the rack</text>}
-    </svg>
-  );
-}
-
+// ---------- the store layout: see storeplan.jsx ----------
 export function StoreLayoutCard({ wo }) {
   const { s, act } = useApp(); const now = useNow();
   const P = packOf(s, wo, now);
   const demarc = (P.site.find(x => x[0] === 'Demarc') || [])[1];
   const fault = P.inc && D.DEV[P.inc.ci];
-  const devs = D.devicesOf(P.b.id);
+  const devs = D.devicesOf(P.b.id), plan = planOf(P.b);
   return (
-    <Card title={`Store layout: ${P.b.name.replace(/ – .*/, '')}`} right={fault ? <Badge tone="red">{fault.id} · {fault.type === 'AP' ? fault.role : 'IT closet'}</Badge> : P.inc ? <Badge tone="amber">Demarc: {demarc}</Badge> : <Badge>Planned work</Badge>}>
+    <Card title={`Store layout: ${P.b.name.replace(/ – .*/, '')}`} sub={plan.desc} right={fault ? <Badge tone="red">{fault.id} · {fault.type === 'AP' ? fault.role : 'IT closet'}</Badge> : P.inc ? <Badge tone="amber">Demarc: {demarc}</Badge> : <Badge>Planned work</Badge>}>
       <StoreLayout b={P.b} inc={P.inc} demarc={demarc} onDevice={d => act.drill({ t: 'device', id: d.id })} />
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink2 mt-1">
-        {[['#762123', 'SD-WAN', devs.filter(d => d.type === 'SD-WAN').length], ['#1D3F66', 'Switch', devs.filter(d => d.type === 'Switch').length], ['#2F6DB5', 'Access point', devs.filter(d => d.type === 'AP').length], ['#2A9D8F', 'POS', 3], ['#E07B00', 'Demarc', 1], ['#D62D20', 'Fault', P.inc ? 1 : 0]].map(([c, l, n]) => <span key={l} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />{l} <b className="text-ink">{n}</b></span>)}
+        {[['#762123', 'SD-WAN', devs.filter(d => d.type === 'SD-WAN').length], ['#1D3F66', 'Switch', devs.filter(d => d.type === 'Switch').length], ['#2F6DB5', 'Access point', devs.filter(d => d.type === 'AP').length], ['#2A9D8F', 'POS', plan.pos], ['#E07B00', 'Demarc', 1], ['#D62D20', 'Fault', P.inc ? 1 : 0]].map(([c, l, n]) => <span key={l} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />{l} <b className="text-ink">{n}</b></span>)}
         <span className="inline-flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed border-info" />Way in</span>
       </div>
+      <div className="text-[11.5px] text-ink3 mt-1">Layout: {plan.features.join('; ')}.</div>
     </Card>
   );
 }
@@ -243,7 +178,7 @@ export function PhoneApp({ wo, s, now, act, role, go, tab: tabIn, setTab: setTab
             {tab === 'site' && <>
               <Box title="Site">{P.site.map(([k, v]) => <Row key={k} k={k} v={v} />)}</Box>
               <Box title="Network path"><div className="flex items-center gap-0.5">{P.path.map((x, i) => <React.Fragment key={x.label}>{i > 0 && <span className="w-1.5 h-px bg-ink3" />}<span className={cx('flex-1 text-center text-[10px] font-semibold rounded border px-0.5 py-1', PATH_COL[x.st] || PATH_COL.ok)}>{x.label}</span></React.Fragment>)}</div></Box>
-              <Box title="Store layout"><StoreLayout b={P.b} inc={P.inc} demarc={demarc} compact /></Box>
+              <Box title="Store layout"><StoreLayout b={P.b} inc={P.inc} demarc={demarc} compact /><div className="text-[11px] text-ink3 mt-1">{planOf(P.b).desc}</div></Box>
               <Box title="Key devices">{P.devices.map(d => <div key={d.id} className={cx('py-1 border-b border-line/60 last:border-0 text-[12px]', d.fault && 'text-bad')}>{link({ t: 'device', id: d.id }, <><b>{d.kind}</b> <span className="font-mono text-[11px]">{d.id}</span>{d.fault ? ' · fault' : ''}</>)}<div className="text-[11px] text-ink3">{d.model} · {d.where}</div></div>)}</Box>
             </>}
             {tab === 'travel' && <>
