@@ -13,6 +13,7 @@ import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
 import { Catalogue, CatalogueTab } from './catalogue.jsx';
 import { Policies } from './mod_policies.jsx';
+import { OpsAI } from './mod_opsai.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -30,6 +31,7 @@ export const MODULES = [
   { id: 'overview', label: 'Operations Overview', icon: I.LayoutDashboard, group: 'Operate', C: Overview },
   { id: 'live', label: 'Live Operations', icon: I.Radio, group: 'Operate', C: LiveOps },
   { id: 'correlation', label: 'Correlation', icon: I.GitMerge, group: 'Operate', C: Correlation },
+  { id: 'opsai', label: 'OpsRamp AI & Integrations', icon: I.BrainCircuit, group: 'Operate', C: OpsAI },
   { id: 'b360', label: 'Branch 360', icon: I.Store, group: 'Operate', C: Branch360 },
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
