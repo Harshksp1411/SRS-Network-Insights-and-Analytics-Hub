@@ -19,14 +19,14 @@ Every demo and runbook runs in one of three modes:
 | Area | Screens |
 |---|---|
 | Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents |
-| Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch, Approvals & Changes, Policies & Templates (OpsRamp monitoring templates, alert policies, access, network policies and golden configs, onboarding a new make or model) |
+| Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch (with a technician view: the work pack in the field app on a phone, the route from the base and depot to the store, and the store layout with the fault and the way in), Approvals & Changes, Policies & Templates (OpsRamp monitoring templates, alert policies, access, network policies and golden configs, onboarding a new make or model) |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
 | Improve | Predictive Watchlist, Knowledge, AI & Automation Catalogue (catalogue, agents at work, runbooks and runs) |
 | Govern | SLA & KPI Tracker (Annexure B), Reports |
 
 The **live demos** are a separate page (`demos/`) with its own link; the two pages do not link to each other. Each scripted SRS branch situation plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation.
 
-Filter everything by Region › City › Branch › Device. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".
+Filter everything by Region › City › Branch › Device › Brand. Switch role (NOC Engineer, Network Engineer L3, StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) from the header; each role has its own landing page and suggested questions for "Ask Mova iO".
 
 Branches are numbered 1 to 900 across the estate, with their location in the name: "Branch 214 – Virginia Beach, VA" is BR-0214.
 
