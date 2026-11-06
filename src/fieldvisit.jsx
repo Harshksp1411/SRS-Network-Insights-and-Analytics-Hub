@@ -79,7 +79,7 @@ export function RouteMap({ trip, h = 300, aspect = 3.4, pxw = 900 }) {
       {trip.pts.map((p, i) => { const [Ic, col] = MK[p.kind]; return <g key={i} transform={`translate(${p.x},${p.y})`}>
         <circle r={r * 1.6} fill={col} stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
         <Ic x={-r * 0.95} y={-r * 0.95} width={r * 1.9} height={r * 1.9} color="#fff" strokeWidth={2.4} />
-        <text y={trip.pts.some((q, j) => j < i && Math.hypot(q.x - p.x, q.y - p.y) < r * 8) ? r * 3.4 : -r * 2.2} textAnchor="middle" fontSize={r * 1.25} fontWeight={700} className="fill-ink" paintOrder="stroke" stroke="rgb(var(--panel))" strokeWidth={r * 0.5}>{p.label}</text>
+        <text y={p.kind === 'store' ? r * 3.6 : -r * 2.2} textAnchor="middle" fontSize={r * 1.25} fontWeight={700} className="fill-ink" paintOrder="stroke" stroke="rgb(var(--panel))" strokeWidth={r * 0.5}>{p.label}</text>
       </g>; })}
       {trip.at > 0 && trip.at < 1 && <g transform={`translate(${pos.x},${pos.y})`}><circle r={r * 2.4} fill="#2F6DB5" opacity={0.2}><animate attributeName="r" values={`${r * 1.4};${r * 2.8};${r * 1.4}`} dur="2s" repeatCount="indefinite" /></circle><circle r={r * 0.9} fill="#2F6DB5" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" /></g>}
     </svg>
