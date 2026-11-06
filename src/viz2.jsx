@@ -51,7 +51,7 @@ export function ServiceTiles() {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
       {tiles.map(([name, sub, ser, f, key, thr]) => { const n = hits(key); const v = ser.at(-1); const warn = n > 0 || (thr != null && v > thr); return (
-        <div key={name} className={cx('card bg-panel border border-line rounded-lg p-3 min-w-0 border-l-[3px]', warn ? 'border-l-warn' : 'border-l-ok')}>
+        <div key={name} className={'card bg-panel border border-line rounded-lg p-3 min-w-0'}>
           <div className="flex items-center gap-1.5 text-[12.5px]"><Dot tone={warn ? 'amber' : 'green'} /><span className="font-bold text-ink truncate flex-1">{name}</span><span className={cx('text-[11px] font-semibold whitespace-nowrap', warn ? 'text-warn' : 'text-ok')}>{n ? `${n} branch${n > 1 ? 'es' : ''}` : 'Healthy'}</span></div>
           <div className="flex items-end justify-between gap-2 mt-1"><div><div className="text-[20px] font-bold text-ink tabular-nums leading-tight"><TweenNum value={f(v)} /></div><div className="text-[11.5px] text-ink3">{sub}</div></div><Spark data={ser.slice(-60)} color={warn ? C.warn : C.ok} w={120} h={34} /></div>
         </div>); })}

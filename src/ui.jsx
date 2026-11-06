@@ -218,14 +218,9 @@ export function Logo({ k, h = 16, className }) {
   return <span className={cx('inline-flex items-center bg-white rounded px-1 py-0.5 border border-line/60', className)}><img src={LOGOS[k]} alt={k} style={{ height: h }} className="object-contain" /></span>;
 }
 // the header band on the OpsRamp pages
-export function OpsRampHead({ title, sub, right }) {
-  return (
-    <div className="op-band rounded-xl mb-4 px-5 py-4 flex items-center gap-4 flex-wrap shadow-sm">
-      <Logo k="opsramp" h={18} className="!border-0 !px-1.5 !py-1" />
-      <div className="flex-1 min-w-[240px]"><h1 className="font-display text-[26px] font-bold text-white leading-none">{title}</h1>{sub && <div className="text-[12.5px] text-white/75 mt-1">{sub}</div>}</div>
-      <div className="flex items-center gap-2 flex-wrap">{right}</div>
-    </div>
-  );
+// plain page header for the OpsRamp pages (no coloured banner)
+export function OpsRampHead({ title, right }) {
+  return <PageHead title={title} right={right} />;
 }
 export const SRC_LOGO = { OpsRamp: 'opsramp', 'Aruba Central': 'central', Orchestrator: 'aruba', ServiceNow: 'servicenow', 'Mova iO': 'movaio', 'New Relic': 'newrelic', 'Azure Monitor': 'azure', Synthetic: 'opsramp' };
 

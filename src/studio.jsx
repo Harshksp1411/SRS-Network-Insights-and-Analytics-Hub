@@ -10,26 +10,48 @@ import { num } from './util.js';
 
 const cnt = f => D.DEVICES.filter(f).length;
 // [id, name, category, connected?, devices or lines, logo key, the template it uses]
+// [id, name, category, connected for SRS?, devices or lines, logo, template, how it connects]
 export const SRC = [
-  ['ec', 'HPE Aruba EdgeConnect', 'Network', true, cnt(d => d.type === 'SD-WAN'), 'aruba', 'TPL-EC'],
-  ['central', 'HPE Aruba Central', 'Network', true, cnt(d => d.type === 'AP'), 'central', 'TPL-AP'],
-  ['cx', 'Aruba CX and 2530 switches', 'Network', true, cnt(d => d.type === 'Switch'), null, 'TPL-CX'],
-  ['cat9k', 'Cisco Catalyst switches', 'Network', false, 46, null, 'TPL-CX'],
-  ['meraki', 'Cisco Meraki', 'Network', false, 61, null, 'TPL-AP'],
-  ['catsdwan', 'Cisco Catalyst SD-WAN', 'Network', false, 18, null, 'TPL-EC'],
-  ['forti', 'Fortinet FortiGate', 'Network', false, 18, null, null],
-  ['palo', 'Palo Alto Networks', 'Network', false, 4, null, null],
-  ['juniper', 'Juniper Mist', 'Network', false, 12, null, 'TPL-AP'],
-  ['circuits', 'ISP circuits (Simplify)', 'Lines and carriers', true, D.CIRCUITS.length, null, 'TPL-CIR'],
-  ['carriers', 'Carrier portals', 'Lines and carriers', true, 9, null, null],
-  ['newrelic', 'New Relic', 'Applications and cloud', true, D.APPS.length, 'newrelic', 'TPL-APP'],
-  ['azure', 'Microsoft Azure', 'Applications and cloud', true, 6, 'azure', null],
-  ['aws', 'Amazon Web Services', 'Applications and cloud', false, 9, null, null],
-  ['dyna', 'Dynatrace', 'Applications and cloud', false, 0, null, null],
-  ['snow', 'ServiceNow', 'Service management', true, 0, 'servicenow', null],
-  ['teams', 'Microsoft Teams and email', 'Service management', true, 0, null, null],
+  ['ec', 'HPE Aruba EdgeConnect SD-WAN', 'HPE', true, cnt(d => d.type === 'SD-WAN'), 'aruba', 'TPL-EC', 'Custom: Orchestrator REST + webhook'],
+  ['central', 'HPE Aruba Central', 'HPE', true, cnt(d => d.type === 'AP'), 'central', 'TPL-AP', 'Native'],
+  ['cx', 'HPE Aruba CX and 2530 switches', 'HPE', true, cnt(d => d.type === 'Switch'), null, 'TPL-CX', 'SNMPv3 + REST'],
+  ['airwave', 'HPE Aruba AirWave', 'HPE', false, 0, null, null, 'Native'],
+  ['cnx', 'HPE Aruba CNX (GreenLake)', 'HPE', false, 0, null, null, 'Native, GreenLake'],
+  ['proliant', 'HPE ProLiant and Synergy servers', 'HPE', false, 24, null, null, 'Native: iLO Redfish'],
+  ['alletra', 'HPE Alletra and Primera storage', 'HPE', false, 6, null, null, 'Native'],
+  ['simplivity', 'HPE SimpliVity and StoreOnce', 'HPE', false, 4, null, null, 'Native'],
+  ['azure', 'Azure Monitor', 'Cloud', true, 6, 'azure', null, 'Native'],
+  ['aws', 'AWS CloudWatch', 'Cloud', false, 9, null, null, 'Native'],
+  ['gcp', 'Google Cloud', 'Cloud', false, 0, null, null, 'Native'],
+  ['oci', 'Oracle Cloud (OCI)', 'Cloud', false, 0, null, null, 'Native'],
+  ['vmware', 'VMware vCenter', 'Cloud', false, 14, null, null, 'Native'],
+  ['newrelic', 'New Relic', 'Monitoring tools', true, D.APPS.length, 'newrelic', 'TPL-APP', 'Native'],
+  ['appd', 'AppDynamics', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['datadog', 'Datadog', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['dyna', 'Dynatrace', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['prom', 'Prometheus', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['splunk', 'Splunk', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['solarwinds', 'SolarWinds', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['zabbix', 'Zabbix', 'Monitoring tools', false, 0, null, null, 'Native'],
+  ['circuits', 'ISP circuits (Simplify)', 'Lines and carriers', true, D.CIRCUITS.length, null, 'TPL-CIR', 'Custom: webhook'],
+  ['carriers', 'Carrier portals', 'Lines and carriers', true, 9, null, null, 'Custom: REST or email'],
+  ['snow', 'ServiceNow (incidents and CMDB)', 'Service management', true, 0, 'servicenow', null, 'Native, both ways'],
+  ['teams', 'Microsoft Teams and email', 'Service management', true, 0, null, null, 'Webhook and email'],
+  ['jira', 'Jira Service Management', 'Service management', false, 0, null, null, 'Native'],
+  ['bmc', 'BMC Helix', 'Service management', false, 0, null, null, 'Native'],
+  ['fresh', 'Freshservice', 'Service management', false, 0, null, null, 'Native'],
+  ['slack', 'Slack', 'Service management', false, 0, null, null, 'Process automation'],
+  ['cat9k', 'Cisco Catalyst', 'Other network vendors', false, 46, null, 'TPL-CX', 'Native'],
+  ['meraki', 'Cisco Meraki', 'Other network vendors', false, 61, null, 'TPL-AP', 'Native: Dashboard API'],
+  ['juniper', 'Juniper', 'Other network vendors', false, 12, null, 'TPL-AP', 'Native'],
+  ['forti', 'Fortinet', 'Other network vendors', false, 18, null, null, 'Native'],
+  ['arista', 'Arista', 'Other network vendors', false, 0, null, null, 'Native'],
+  ['extreme', 'Extreme Networks', 'Other network vendors', false, 0, null, null, 'Native'],
+  ['infoblox', 'Infoblox', 'Other network vendors', false, 0, null, null, 'Native'],
+  ['palo', 'Palo Alto Networks', 'Other network vendors', false, 4, null, null, 'SNMP'],
+  ['snmp', 'Any SNMP device', 'Other network vendors', false, 0, null, null, 'SNMP v1/v2c/v3'],
 ];
-const CATS = ['Network', 'Lines and carriers', 'Applications and cloud', 'Service management', 'Acquired branches'];
+const CATS = ['HPE', 'Cloud', 'Monitoring tools', 'Lines and carriers', 'Service management', 'Other network vendors', 'Acquired branches'];
 const STEPS_SRC = [['Gateway', I.Server], ['Credentials', I.KeyRound], ['Discovery', I.Radar], ['Templates', I.LayoutTemplate], ['Events', I.Webhook], ['ServiceNow', I.Ticket]];
 const STEPS_ACQ = [['Gateway at the site', I.Server], ['Discover legacy kit', I.Radar], ['Generic and vendor templates', I.LayoutTemplate], ['Topology', I.Network], ['ServiceNow CMDB', I.Database], ['Monitored, day one', I.CircleCheck]];
 
@@ -75,13 +97,13 @@ export function IntegrationStudio() {
   const total = SRC.filter(x => conn.has(x[0])).reduce((a, x) => a + x[4], 0) + (s.onboarded || []).length;
   const busy = run && run.step < run.steps.length;
   return (
-    <Card title="Integration studio" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SRC.filter(x => conn.has(x[0])).length}</b> connected · <b className="text-ink">{SRC.filter(x => !conn.has(x[0])).length}</b> ready in the library · <b className="text-ink">{num(total)}</b> devices and lines monitored</span>}>
+    <Card title="Integration studio" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SRC.filter(x => conn.has(x[0])).length}</b> connected · <b className="text-ink">{SRC.filter(x => !conn.has(x[0])).length}</b> more from the OpsRamp catalogue (3,000+) · <b className="text-ink">{num(total)}</b> devices and lines monitored</span>}>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4 items-start">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{CATS.map(c => (
-          <div key={c} className={c === 'Network' ? 'md:row-span-2' : ''}>
-            <div className="text-[10.5px] font-bold uppercase text-ink3 mb-1.5">{c}</div>
+          <div key={c}>
+            <div className="text-[10.5px] font-bold uppercase text-ink3 mb-1.5">{c === 'HPE' ? 'HPE (OpsRamp is an HPE product)' : c}</div>
             <div className="space-y-1.5">
-              {c !== 'Acquired branches' ? SRC.filter(x => x[2] === c).map(x => <Tile key={x[0]} id={x[0]} name={x[1]} logo={x[5]} on={conn.has(x[0])} sub={conn.has(x[0]) ? (x[4] ? `${num(x[4])} monitored` : 'connected') : `In the OpsRamp library${x[4] ? ` · ${x[4]} found at acquired sites` : ''}`} />)
+              {c !== 'Acquired branches' ? SRC.filter(x => x[2] === c).map(x => <Tile key={x[0]} id={x[0]} name={x[1]} logo={x[5]} on={conn.has(x[0])} sub={`${x[7]} · ${conn.has(x[0]) ? (x[4] ? `${num(x[4])} monitored` : 'connected') : x[4] ? `${x[4]} found${x[2] === 'Other network vendors' ? ' at acquired sites' : ''}` : 'ready'}`} />)
                 : acq.map(p => <Tile key={p.id} id={p.id} acqP name={p.brand} on={acqDone.has(p.id)} sub={acqDone.has(p.id) ? `${p.site} · monitored` : `${p.site} · ${p.stage}`} />)}
             </div>
           </div>))}</div>

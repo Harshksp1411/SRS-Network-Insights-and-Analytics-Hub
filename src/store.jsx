@@ -51,7 +51,17 @@ function init() {
 
 function reducer(s, a) {
   switch (a.type) {
-    case 'set': return { ...s, ...(typeof a.patch === 'function' ? a.patch(s) : a.patch) };
+    case 'set': {
+      const n = { ...s, ...(typeof a.patch === 'function' ? a.patch(s) : a.patch) };
+      // a drill-down that was just closed by a jump to another page comes back with the page
+      if (s.drill && s.drill.length && n.drill && !n.drill.length) { n.lastDrill = s.drill; n.lastDrillT = Date.now(); }
+      // page history: every page change remembers where you were, so Back returns to the same place
+      if (!a.back && n.module !== s.module) {
+        const drill = s.drill && s.drill.length ? s.drill : (s.lastDrillT && Date.now() - s.lastDrillT < 1500 ? s.lastDrill : []);
+        n.navBack = [...(s.navBack || []), { module: s.module, tab: s.tab, b360: s.b360, selInc: s.selInc, drill, y: typeof window !== 'undefined' ? window.scrollY : 0 }].slice(-20);
+      }
+      return n;
+    }
     case 'add': return { ...s, [a.key]: a.front === false ? [...s[a.key], a.item] : [a.item, ...s[a.key]] };
     case 'upd': return { ...s, [a.key]: s[a.key].map(x => x.id === a.id ? { ...x, ...(typeof a.patch === 'function' ? a.patch(x) : a.patch) } : x) };
     case 'del': return { ...s, [a.key]: s[a.key].filter(x => x.id !== a.id) };
@@ -84,6 +94,7 @@ export function AppProvider({ children }) {
       // open the drill-down at a level; the console's filters (region, city, brand, one branch) carry into it
       drill: node => d({ type: 'set', patch: st => ({ drill: node ? [withFilters(st, node)] : [] }) }),
       setDrill: f => d({ type: 'set', patch: st => ({ drill: typeof f === 'function' ? f(st.drill) : f }) }),
+      back: () => { const st = sRef.current, h = (st.navBack || []).slice(-1)[0]; if (!h) return; d({ type: 'set', back: true, patch: { module: h.module, tab: h.tab, b360: h.b360, selInc: h.selInc, drill: h.drill || [], navBack: st.navBack.slice(0, -1) } }); setTimeout(() => window.scrollTo({ top: h.y || 0 }), 60); },
       // escalate to Movate: what SRS people do instead of acting. Mova iO's Smart Triage Agent routes it to the
       // ticket owner and the Movate engagement lead (and the major incident manager when critical); the owner
       // acknowledges and sets the next update time.

@@ -19,6 +19,7 @@ import { MovaActions, PredictionActionsCard } from './predictact.jsx';
 import { CriticalReport } from './critreport.jsx';
 import { BUWeekly } from './bureport.jsx';
 import { AUD, audOf, AudiencePicker } from './audience.jsx';
+import { CEOReport, CIOReport, OpsMgrReport, LeadReport, BusinessView, REV_HOUR } from './personas.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -233,7 +234,7 @@ export function SLATracker() {
   const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'service');
   const [sel, setSel] = useState(0);
   const [per, setPer] = useState(6);
-  const aud = AUD[audOf(s)], exec = aud.depth === 'exec';
+  const aud = AUD[audOf(s)], exec = aud.depth === 'exec' || aud.depth === 'business', business = aud.depth === 'business';
   const P = useMemo(() => HIST.period(per), [per]);
   const status = m => { if (m.lower) return m.act <= m.esl ? 'Meets ESL' : 'Below target'; if (m.act >= m.esl) return 'Meets ESL'; if (m.msl != null && m.act >= m.msl) return 'Above MSL'; return m.msl == null ? 'Below target' : 'Below MSL'; };
   const tone = st => ({ 'Meets ESL': 'green', 'Above MSL': 'amber', 'Below MSL': 'red', 'Below target': 'amber' }[st]);
@@ -275,6 +276,7 @@ export function SLATracker() {
     <div>
       <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Pick what to look at: the service SLAs and KPIs, network performance, or the AI and automation SLAs. Every figure is the average of the 3, 6, 9 or 12 months you pick, with this month alongside." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
       <AudiencePicker s={s} act={act} />
+      {business ? <BusinessView s={s} now={now} act={act} rev={s.tab.revHour || REV_HOUR} /> : <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{Object.entries(VIEW).map(([k, v]) => { const xs = vcount(k), met = xs.filter(x => status(x) === 'Meets ESL').length, on = view === k; return (
         <button key={k} onClick={() => { setView(k); act.setTab('sla', k); }} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
           <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{met}/{xs.length} meet ESL</span></div>
@@ -331,6 +333,7 @@ export function SLATracker() {
           ]} /></div>)}</div></Card>
       </div>
       </>}
+      </>}
     </div>
   );
 }
@@ -349,7 +352,7 @@ export function Reports() {
   const [critDays, setCritDays] = useState(30);
   const open = s.incidents.filter(i => i.state !== 'Resolved');
   const res24 = s.resolved.filter(i => i.resolved > now - DAY);
-  const titles = { bu: 'BU head weekly', handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', critical: 'Critical incidents (P1 / P2)', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
+  const titles = { ceo: 'CEO one-pager', cio: 'CIO review', opsmgr: 'Operations manager weekly', lead: 'Network health review', bu: 'BU head weekly', handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', critical: 'Critical incidents (P1 / P2)', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
   if (['ceo', 'cio'].includes(audOf(s))) titles.bu = 'Executive weekly';
   const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
   const H = ({ children }) => <h2 className="text-[15px] font-extrabold text-ink border-b-2 border-brand pb-1 mt-5 mb-2">{children}</h2>;
@@ -365,12 +368,12 @@ export function Reports() {
       <AudiencePicker s={s} act={act} onPick={k => { act.setTab('reportsLevel', AUD[k].level); if (!AUD[k].reports.includes(tab)) { setTab(AUD[k].reports[0]); act.setTab('reports', AUD[k].reports[0]); } }} />
       <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={aud.reports.map(id => ({ id, label: titles[id] }))} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="Level of detail">{[['exec', 'Executive summary'], ['full', 'Full detail']].map(([k, l]) => <button key={k} aria-pressed={(brief ? 'exec' : 'full') === k} onClick={() => act.setTab('reportsLevel', k)} className={cx('px-3 py-1.5 rounded', (brief ? 'exec' : 'full') === k ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>{l}</button>)}</div>
-        <span className="text-[12px] text-ink3">{brief ? 'For leaders: the picture and the key points.' : 'Every table and timeline.'}</span>
+        {tab !== 'ceo' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="Level of detail">{[['exec', 'Executive summary'], ['full', 'Full detail']].map(([k, l]) => <button key={k} aria-pressed={(brief ? 'exec' : 'full') === k} onClick={() => act.setTab('reportsLevel', k)} className={cx('px-3 py-1.5 rounded', (brief ? 'exec' : 'full') === k ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>{l}</button>)}</div>}
+        {tab !== 'ceo' && <span className="text-[12px] text-ink3">{brief ? 'For leaders: the picture and the key points.' : 'Every table and timeline.'}</span>}
         {tab === 'critical' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold ml-auto" role="group" aria-label="Period">{[7, 30, 90].map(d => <button key={d} aria-pressed={critDays === d} onClick={() => setCritDays(d)} className={cx('px-3 py-1.5 rounded', critDays === d ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>Last {d} days</button>)}</div>}
       </div>
       <div className="bg-panel border border-line rounded-md p-6 print-area" ref={ref}>
-        <div className="flex items-start gap-3 border-b border-line pb-3"><div className="flex-1"><h1 className="text-[22px] font-black text-brand dark:text-[#e8a3a5]">SRS Distribution – {titles[tab]}{brief && tab !== 'audit' ? ': executive summary' : ''}</h1><div className="text-[12px] text-ink3">Managed Network Services, operated by Movate, generated {dt(now)} CT by {act.me()}{tab === 'critical' ? ` · last ${critDays} days` : ''}</div></div></div>
+        <div className="flex items-start gap-3 border-b border-line pb-3"><div className="flex-1"><h1 className="text-[22px] font-black text-brand dark:text-[#e8a3a5]">SRS Distribution – {titles[tab]}{brief && !['audit', 'ceo'].includes(tab) ? ': executive summary' : ''}</h1><div className="text-[12px] text-ink3">Managed Network Services, operated by Movate, generated {dt(now)} CT by {act.me()}{tab === 'critical' ? ` · last ${critDays} days` : ''}</div></div></div>
         {tab === 'handover' && <>
           <RRow>
             <RDonut title="Open incidents by priority" data={['P1', 'P2', 'P3', 'P4'].map(p => ({ label: p, value: open.filter(i => i.pri === p).length, color: PRI_C[p] }))} center={open.length} sub="open" />
@@ -421,6 +424,10 @@ export function Reports() {
           <H>Problems and improvements</H>
           <T rows={s.problems} cols={[['Problem', p => p.id], ['Title', p => p.title], ['State', p => p.state], ['Owner', p => p.owner]]} /></>}
         </>}
+        {tab === 'ceo' && <CEOReport s={s} now={now} H={H} T={T} act={act} rev={s.tab.revHour || REV_HOUR} setRev={v => act.setTab('revHour', v)} />}
+        {tab === 'cio' && <CIOReport s={s} now={now} brief={brief} H={H} T={T} act={act} rev={s.tab.revHour || REV_HOUR} />}
+        {tab === 'opsmgr' && <OpsMgrReport s={s} now={now} H={H} T={T} act={act} />}
+        {tab === 'lead' && <LeadReport s={s} now={now} H={H} T={T} act={act} />}
         {tab === 'bu' && <BUWeekly s={s} now={now} brief={brief} H={H} T={T} act={act} />}
         {tab === 'critical' && <CriticalReport s={s} now={now} days={critDays} brief={brief} H={H} T={T} openInc={act.openInc} />}
         {tab === 'biab' && <>

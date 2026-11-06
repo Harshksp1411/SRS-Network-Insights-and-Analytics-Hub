@@ -171,7 +171,7 @@ const SOURCES = [
   ['Carrier portals', 'Case updates', ['REST', 'Email'], 'Medium', 0.02],
   ['New Relic', 'App response, errors', ['Native'], 'Low', 0.1],
   ['Synthetic tests', 'Payments, ERP, cloud', ['Native'], 'Low', 0.06],
-  ['Microsoft Azure', 'Cloud apps', ['Native'], 'Low', 0.02],
+  ['Azure Monitor', 'Cloud apps and services', ['Native'], 'Low', 0.02],
   ['ServiceNow', 'Incidents, CMDB', ['Store app', 'OAuth 2.0', 'Both ways'], 'Medium', 0],
   ['Microsoft Teams and email', 'Notifications', ['Outbound'], 'Low', 0],
 ];

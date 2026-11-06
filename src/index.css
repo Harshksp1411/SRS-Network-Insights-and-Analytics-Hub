@@ -77,5 +77,3 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
    HPE purple for machine learning, a dark slate header band */
 .theme-opsramp { --brand: 1 169 130; --action: 1 133 103; --ai: 118 48 234; --info: 0 115 157; }
 .dark .theme-opsramp { --brand: 23 200 150; --action: 1 169 130; --ai: 168 130 255; --info: 72 190 230; }
-.op-band { background: linear-gradient(100deg, #263040 0%, #1d2836 62%, #0e3b34 100%); border-bottom: 3px solid #01A982; }
-.theme-opsramp .kpi-strip > * { border-top: 3px solid rgb(1 169 130 / .55); }
