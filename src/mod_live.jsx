@@ -4,7 +4,8 @@ import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp, healthOf, filteredBranches, inScope, onBackupOf } from './store.jsx';
 import { useLive } from './live.jsx';
-import { Card, Badge, PageHead, Dot, cx } from './ui.jsx';
+import { Card, Badge, PageHead, Dot, Tabs, OpsRampHead, cx } from './ui.jsx';
+import { OpsAIContent, AI_TABS } from './mod_opsai.jsx';
 import { C } from './charts.jsx';
 import { LiveBadge, LiveFeed, AlertsPerMinCard, EventFlowCard } from './liveui.jsx';
 import { todayCounts, LiveKpis, AreaTimeline, HeartbeatGrid, AreaHourHeat, ScoreHistogram, CorrelationEngine, AlertFunnel, AlertSankey, GroupingSwimlane, CorrMatrix, AgentActivity, AgentCards, AgentStream, ToolsStrip, TopBranches } from './viz2.jsx';
@@ -50,11 +51,12 @@ export function LiveOps() {
 }
 
 export function Correlation() {
-  const { s } = useApp(); const { L } = useLive();
+  const { s, act } = useApp(); const { L } = useLive();
+  const tab = s.tab.correlation || 'live', setTab = t => act.setTab('correlation', t);
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
-    <div>
-      <PageHead icon={I.GitMerge} title="Correlation" sub="Alerts deduplicated, suppressed and correlated into one incident per branch per event, then ticketed in ServiceNow automatically. Orchestrator, Aruba Central, OpsRamp, New Relic and Simplify in; ServiceNow out." right={<span className="inline-flex items-center gap-2"><Badge tone="blue">OpsRamp event management</Badge><LiveBadge /></span>} />
+    <div className="theme-opsramp">
+      <OpsRampHead title="Correlation" sub="HPE OpsRamp · event management and AIOps" right={<LiveBadge />} />
       <LiveKpis cols={5} items={[
         { label: 'Events in today', value: num(tc.events), sub: 'traps, syslog and threshold crossings from every tool', series: S.raw, color: C.s2, icon: I.Bell },
         { label: 'Noise removed', value: `${Math.round(tc.noise * 100)}%`, sub: `${num(tc.suppressed)} duplicates, flaps and info events (KPI 50%)`, series: S.raw.map((v, i) => 1 - S.corr[i] / v), color: C.ok, icon: I.Filter },
@@ -62,7 +64,10 @@ export function Correlation() {
         { label: 'Incidents today', value: tc.inc, sub: `${Math.round(tc.corr / Math.max(1, tc.inc))} correlated alerts per incident on average`, series: S.corr.map(v => v / 3), color: C.s1, icon: I.Ticket, go: { t: 'incidents', k: 'today' } },
         { label: 'Open correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers, go: { t: 'incidents', k: 'open' } },
       ]} />
-      <div className="mt-3"><AlertStormReplay /></div>
+      <Tabs value={tab} onChange={setTab} className="mt-3 mb-3" tabs={[{ id: 'live', label: 'Live correlation' }, ...AI_TABS]} />
+      {tab !== 'live' && <OpsAIContent tab={tab} />}
+      {tab === 'live' && <>
+      <div><AlertStormReplay /></div>
       <div className="mt-3"><PatternsCard /></div>
       <div className="mt-3"><SuppressionRulesCard /></div>
       <div className="mt-3"><ServiceNowSyncCard /></div>
@@ -71,10 +76,7 @@ export function Correlation() {
       <div className="mt-3"><AlertFunnel /></div>
       <div className="mt-3"><AlertSankey /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><AreaHourHeat /><CorrMatrix /></div>
-      <Card className="mt-3" title="Correlation methods" sub="How signals were grouped today, by rule">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">{[['Topology', 'Signals on the same path: device, switch, EdgeConnect, circuit, carrier.', I.Network, 0.42], ['Time window', 'Same branch inside 10 minutes; same carrier and region inside 15.', I.Clock, 0.22], ['Change', 'A change on a related device in the previous 60 minutes.', I.GitPullRequest, 0.08], ['Carrier and location', 'Branches sharing a carrier segment, central office or storm area.', I.MapPin, 0.18], ['Similarity', 'Matches a known pattern from resolved incidents.', I.Copy, 0.1]].map(([n, d, Ic, f]) => (
-          <div key={n} className="border border-line rounded-lg p-3"><div className="flex items-center gap-2"><Ic size={15} className="text-brand" /><b className="text-ink text-[13px] flex-1">{n}</b><span className="text-[18px] font-bold text-ink tabular-nums">{Math.max(1, Math.round(open.length * f * 3))}</span></div><div className="text-[12px] text-ink2 mt-1 leading-snug">{d}</div><div className="h-1.5 bg-chip rounded mt-2"><div className="h-full bg-brand rounded" style={{ width: `${f * 100 / 0.42}%` }} /></div></div>))}</div>
-      </Card>
+      </>}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
-import { Card, Badge, Btn, PageHead, Stat, Tabs, Pri, cx } from './ui.jsx';
+import { Card, Badge, Btn, Stat, Tabs, Pri, OpsRampHead, cx } from './ui.jsx';
 import { TEMPLATES, METRICS, VENDOR_SRC, PROFILES, ACCESS, ROLES, NET_POLICIES, CONFIGS, VENDORS, ONBOARD, POLICY_ORDER } from './policies.js';
 import { num, pct } from './util.js';
 
@@ -20,8 +20,8 @@ export function Policies() {
   const devs = D.DEVICES.length, covered = TEMPLATES.filter(t => t.cls !== 'Access link' && t.cls !== 'Application path').reduce((a, t) => a + t.n, 0);
   const drift = CONFIGS.reduce((a, c) => a + c.drift.length, 0);
   return (
-    <div>
-      <PageHead icon={I.FileCog} title="Policies & Templates" right={<Badge tone="blue">OpsRamp</Badge>} />
+    <div className="theme-opsramp">
+      <OpsRampHead title="Policies & Templates" sub="HPE OpsRamp · templates and policies" />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat label="Monitoring templates" icon={I.LayoutTemplate} value={TEMPLATES.length + pilots.length} sub={pilots.length ? `${pilots.length} in pilot` : 'one per kind of device or line'} onClick={() => setTab('templates')} />
         <Stat label="Devices covered" icon={I.ShieldCheck} value={pct(covered / devs, 1)} sub={`${num(covered)} of ${num(devs)} devices on a template`} tone="green" onClick={() => setTab('templates')} />
@@ -116,7 +116,6 @@ function AlertPolicies() {
   return (<>
     <Card title="The order OpsRamp applies alert policies" className="mb-3">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2">{POLICY_ORDER.map(([n, d], i) => <div key={n} className="border border-line rounded-lg p-3 relative"><div className="flex items-center gap-2"><span className="w-6 h-6 rounded-full bg-brand text-white text-[12px] font-bold grid place-items-center">{i + 1}</span><b className="text-[13.5px] text-ink">{n}</b></div><div className="text-[12px] text-ink2 mt-1">{d}</div></div>)}</div>
-      <div className="text-[12px] text-ink3 mt-2">Default order. First response can be set to run before correlation, so suppressed alerts never reach correlation or escalation.</div>
     </Card>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full">
       <Card title="Alert correlation policies" right={<Btn size="sm" icon={I.LibraryBig} onClick={() => act.go('catalogue')}>Change modes</Btn>}>{cp.map(row)}</Card>
@@ -124,10 +123,10 @@ function AlertPolicies() {
     </div>
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-stretch [&>*]:h-full">
       <Card title="Alert escalation policies">{ESC.map(([p, steps]) => <div key={p} className="flex items-center gap-2 py-1.5 text-[12px]"><Pri p={p} /><div className="flex-1 flex items-center gap-1 flex-wrap">{steps.map(([w, m], i) => <React.Fragment key={w}>{i > 0 && <I.ChevronRight size={12} className="text-ink3" />}<span className="border border-line rounded px-1.5 py-0.5"><b className="text-ink">{w}</b> <span className="text-ink3">{m ? `+${m >= 60 ? `${m / 60} h` : `${m} min`}` : 'at once'}</span></span></React.Fragment>)}</div></div>)}
-        <div className="text-[12px] text-ink3 mt-2">Escalates when nobody acknowledges in time; the incident is raised in ServiceNow by OpsRamp with the correlated alerts attached.</div></Card>
+        </Card>
       <Card title="Maintenance windows">
         <div className="divide-y divide-line/70">{[...s.changes.filter(c => /Scheduled|Approved/.test(c.state)).slice(0, 4).map(c => [c.id, c.title, c.window]), ['STORE-CLOSED', 'Store closed-hours work (templates, backups)', 'Nightly 00:00–04:00 local'], ['CARRIER', 'Carrier planned works from the carrier portals', 'As notified']].map(([a, b, w]) => <div key={a} className="flex gap-2 py-1.5 text-[12.5px]"><span className="font-mono text-ink3 w-[110px] shrink-0 text-[11.5px]">{a}</span><span className="flex-1 text-ink">{b}</span><span className="text-ink3 shrink-0">{w}</span></div>)}</div>
-        <div className="text-[12px] text-ink3 mt-2">Alarms from devices in scope are held during the window and checked again 15 minutes after it closes.</div></Card>
+        </Card>
     </div>
   </>);
 }
@@ -141,7 +140,6 @@ function Access() {
       </Card>
       <Card title="Who can do what in OpsRamp" sub="Role-based access, signed in with SSO">
         <div className="divide-y divide-line/70">{ROLES.map(r => <div key={r.r} className="py-2 text-[12.5px]"><b className="text-ink">{r.r}</b><div className="text-ink2">{r.can}</div></div>)}</div>
-        <div className="text-[12px] text-ink3 mt-2">Every action, by a person or a runbook, is in the audit log.</div>
       </Card>
     </div>
   );
@@ -188,7 +186,7 @@ function NewVendor({ pilots }) {
       <Card title={`Same metric names: SRS standard to ${x.name.split(' ').slice(0, 2).join(' ')}`}>
                 <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>SRS standard metric</Th><Th>Where it comes from</Th></tr></thead>
           <tbody>{x.map.map(([a, b]) => <tr key={a} className="border-b border-line/60 last:border-0"><td className="py-1 pr-3 text-ink">{a}</td><td className="py-1 font-mono text-[11.5px] text-ink2">{b}</td></tr>)}</tbody></table></div>
-        <div className="text-[12px] text-ink2 mt-2">{like ? `Because the metric names match ${like.name}, the dashboards, SLAs, correlation and auto-ticketing work for the new devices without change.` : 'A new class: thresholds, a parent link and a ServiceNow CI class are set once for it; the rest of the console works unchanged.'}</div>
+        {like && <div className="mt-2"><Badge tone="green">Dashboards, SLAs, correlation and tickets unchanged</Badge></div>}
       </Card>
       </div>
       <Card title={`Onboarding ${x.name}`} right={started ? <Badge tone="amber">pilot running</Badge> : <Btn op size="sm" kind="brand" icon={I.Rocket} onClick={pilot}>Start a pilot (2 stores)</Btn>}>

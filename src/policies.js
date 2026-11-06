@@ -76,21 +76,21 @@ export const VENDORS = [
 ];
 // the order OpsRamp applies alert policies (default; first response can be set to run before correlation)
 export const POLICY_ORDER = [
-  ['Alert correlation (ACP)', 'Groups related alerts into one inference by store topology, region and machine-learning co-occurrence'],
-  ['First response (FRP)', 'Suppresses or snoozes known noise by user rule, training file or machine learning; modes Off, Observed, Recommend, On'],
-  ['Alert escalation (AEP)', 'Raises the ServiceNow incident and escalates L1 to L2 to on-call if nobody acknowledges in time'],
+  ['Alert correlation (ACP)', 'Topology · region · learned sequences'],
+  ['First response (FRP)', 'Suppress known noise · Off, Observed, Recommend, On'],
+  ['Alert escalation (AEP)', 'ServiceNow ticket · L1 → L2 → on-call'],
 ];
 export const ONBOARD = [
-  ['SNMP walk and MIBs', 'Take an SNMP full walk of a sample device and load the vendor MIBs; register the SNMP resource type definition', 'lib'],
-  ['Template', 'Copy the vendor template from the OpsRamp library into the SRS client scope, or build one with the SDK', 'lib'],
-  ['Access', 'Create the credential set and attach it to the resource group: least privilege, rotated on schedule', 'access'],
-  ['Discovery and assignment', 'Discovery profile by vendor and model (SNMP sysObjectID or API); a template-based alert definition assigns the template by resource type and store group', 'auto'],
-  ['Same metric names', 'Map the vendor metrics to the SRS standard names, so dashboards, SLAs and correlation work unchanged', 'map'],
-  ['Thresholds', 'Inherit the thresholds of the same kind of device, by store profile', 'like'],
-  ['Topology', 'Parent and child links from LLDP/CDP, so a down parent suppresses its children', 'auto'],
-  ['ServiceNow', 'Map to the CI class, category and assignment group; discovered devices pushed to the CMDB', 'like'],
-  ['Golden config', 'Add the config template and the compliance checks for the new model', 'decide'],
-  ['Pilot', 'Two stores with every new policy in Observed mode for two weeks, then roll out by region', 'decide'],
+  ['SNMP walk and MIBs', 'Full walk, vendor MIBs, resource type', 'lib'],
+  ['Template', 'From the OpsRamp library or the SDK', 'lib'],
+  ['Access', 'Credential set on the resource group', 'access'],
+  ['Discovery and assignment', 'sysObjectID or API · template-based alert definition', 'auto'],
+  ['Same metric names', 'Vendor metrics → SRS standard names', 'map'],
+  ['Thresholds', 'Same kind of device, by store profile', 'like'],
+  ['Topology', 'LLDP/CDP parent and child links', 'auto'],
+  ['ServiceNow', 'CI class, category, assignment group', 'like'],
+  ['Golden config', 'Config template and compliance checks', 'decide'],
+  ['Pilot', '2 stores · Observed · 2 weeks · then by region', 'decide'],
 ];
 
 // metric definitions per template: what is collected, from where, how the value is worked out, the warning and
