@@ -11,18 +11,25 @@ const NAME = 'SRS Network Insights and Analytics Hub';
 fs.mkdirSync('dist', { recursive: true });
 execSync('npx tailwindcss -i src/index.css -o dist/main.css --minify', { stdio: 'pipe' });
 const css = fs.readFileSync('dist/main.css', 'utf8');
+// the unbranded copy (marvell/src) has its own styles and pages, with no logos; the two sites do not link to each other
+execSync('npx tailwindcss -c marvell/tailwind.config.js -i marvell/src/index.css -o dist/marvell.css --minify', { stdio: 'pipe' });
+const mcss = fs.readFileSync('dist/marvell.css', 'utf8');
+const MNAME = 'Network Insights and Analytics Hub';
+const micon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><circle cx="18" cy="8" r="4" fill="#374151"/><circle cx="8" cy="27" r="4" fill="#374151"/><circle cx="28" cy="27" r="4" fill="#374151"/><path d="M18 12 L8 23 M18 12 L28 23 M12 27 H24" stroke="#374151" stroke-width="2.5"/></svg>')}`;
 const icon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 36"><path d="M3 17 L22 4 L41 17" fill="none" stroke="#762123" stroke-width="5"/><path d="M9 19 V33 H35 V19" fill="none" stroke="#111" stroke-width="3"/></svg>')}`;
 
 const PAGES = [
   { out: 'dist/site/index.html', edition: 'console', entry: 'src/main.jsx', title: NAME, desc: 'SRS Distribution managed network operations console – operated by Movate. Sample data; items marked illustrative are not SRS facts.' },
   { out: 'dist/site/demos/index.html', edition: 'demos', entry: 'src/main.jsx', title: `${NAME} – Live demos`, desc: 'Scripted SRS branch situations, each played on one screen with every system involved – operated by Movate. Sample data.' },
   { out: 'dist/site/dashboards/index.html', edition: 'dashboards', entry: 'src/dash/main.jsx', title: `${NAME} – Role dashboards`, desc: 'Real-time, role-based dashboards for the CIO and the network, stores, IT service, security and regional leaders, with drill-down to every branch, line, device and incident. Sample data.' },
+  { out: 'dist/site/marvell/index.html', edition: 'console', entry: 'marvell/src/main.jsx', title: MNAME, desc: 'Managed network operations console – operated by Movate. Sample data.', css: 'm' },
+  { out: 'dist/site/marvell/demos/index.html', edition: 'demos', entry: 'marvell/src/main.jsx', title: `${MNAME} – Live demos`, desc: 'Scripted branch situations, each played on one screen with every system involved – operated by Movate. Sample data.', css: 'm' },
 ];
 // jsPDF can render HTML through optional libraries the dashboards never use; leave them out of the page
 const noOptional = { name: 'no-optional', setup(b) { b.onResolve({ filter: /^(html2canvas|dompurify|canvg)$/ }, a => ({ path: a.path, namespace: 'empty' })); b.onLoad({ filter: /.*/, namespace: 'empty' }, () => ({ contents: 'export default {}', loader: 'js' })); } };
 
 for (const p of PAGES) {
-  const r = await build({ entryPoints: [p.entry], plugins: [noOptional], bundle: true, minify: true, format: 'iife', jsx: 'automatic', loader: { '.js': 'jsx', '.json': 'json' }, define: { 'process.env.NODE_ENV': '"production"', __EDITION__: JSON.stringify(p.edition) }, outdir: 'dist', write: false, logLevel: 'warning' });
+  const r = await build({ entryPoints: [p.entry], plugins: [noOptional], bundle: true, minify: true, format: 'iife', jsx: 'automatic', loader: { '.js': 'jsx', '.json': 'json', '.png': 'dataurl' }, define: { 'process.env.NODE_ENV': '"production"', __EDITION__: JSON.stringify(p.edition) }, outdir: 'dist', write: false, logLevel: 'warning' });
   const js = r.outputFiles.find(f => f.path.endsWith('.js')).text.replace(/<\/script/gi, '<\\/script');
   const html = `<!doctype html>
 <html lang="en">
@@ -31,8 +38,8 @@ for (const p of PAGES) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${p.title}</title>
 <meta name="description" content="${p.desc}" />
-<link rel="icon" href="${icon}" />
-<style>${css}</style>
+<link rel="icon" href="${p.css ? micon : icon}" />
+<style>${p.css ? mcss : css}</style>
 </head>
 <body>
 <div id="root"></div>
