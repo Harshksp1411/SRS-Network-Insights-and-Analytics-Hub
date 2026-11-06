@@ -14,6 +14,8 @@ const Src = ({ src }) => SRC_LOGO[src] ? <Logo k={SRC_LOGO[src]} h={9} /> : <b c
 const sevDot = s => s === 'Critical' ? 'bg-bad' : s === 'Major' ? 'bg-warn' : s === 'Minor' ? 'bg-info' : 'bg-ink3';
 
 // ── 1. alert storm replay ──
+// what OpsQ does at each step of the storm
+const OPSQ_STEP = { 1: 'flap merging', 2: 'seasonal and learned suppression', 3: 'learned sequence and topology', 4: 'learned first response and routing', 5: 'one ticket, alerts attached' };
 export function AlertStormReplay() {
   const { act } = useApp();
   const [sid, setSid] = useState(SCENARIOS[0].id);
@@ -38,7 +40,7 @@ export function AlertStormReplay() {
           <div className={cx('text-[22px] font-extrabold tabular-nums leading-tight mt-1', i <= st ? 'text-ink' : 'text-ink3/50')}>{i > st ? '—' : i === 5 ? (upd ? `${v} updated` : `${v} ticket`) : num(v)}</div>
           <div className="text-[11px] text-ink3 leading-tight">{i > st ? '\u00a0' : i === 0 ? 'events' : i === 1 || i === 2 ? 'alerts left' : i === 5 ? (upd ? 'no new ticket' : 'in ServiceNow') : sc.incidents ? 'incident' : 'event, no new ticket'}</div>
         </button>); })}</div>
-      <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
+      <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{OPSQ_STEP[st] && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-line bg-chip/60 px-1.5 py-[1px] text-[11.5px] text-ink align-middle"><I.Sparkles size={11} /><b>OpsQ</b> {OPSQ_STEP[st]}</span>}{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
       {st <= 2 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.rows.map((r, i) => { const f = FATE[r.fate], out = gone(r); return (
         <div key={i} className={cx('grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[72px_minmax(0,1.1fr)_minmax(0,1.6fr)_56px_minmax(0,1.1fr)] gap-x-2 gap-y-0.5 items-center px-2.5 py-1.5 text-[12px] transition-opacity duration-500', out && 'opacity-45')}>
           <span className="hidden md:block"><Src src={r.src} /></span>

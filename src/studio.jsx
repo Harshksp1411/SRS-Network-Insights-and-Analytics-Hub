@@ -7,6 +7,8 @@ import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { Card, Badge, Btn, Logo, cx } from './ui.jsx';
 import { num } from './util.js';
+import { stepsOf, tplId, templateOf, isDesk } from './srctpl.js';
+import { VENDORS } from './policies.js';
 
 const cnt = f => D.DEVICES.filter(f).length;
 // [id, name, category, connected?, devices or lines, logo key, the template it uses]
@@ -41,9 +43,9 @@ export const SRC = [
   ['bmc', 'BMC Helix', 'Service management', false, 0, null, null, 'Native'],
   ['fresh', 'Freshservice', 'Service management', false, 0, null, null, 'Native'],
   ['slack', 'Slack', 'Service management', false, 0, null, null, 'Process automation'],
-  ['cat9k', 'Cisco Catalyst', 'Other network vendors', false, 46, null, 'TPL-CX', 'Native'],
-  ['meraki', 'Cisco Meraki', 'Other network vendors', false, 61, null, 'TPL-AP', 'Native: Dashboard API'],
-  ['juniper', 'Juniper', 'Other network vendors', false, 12, null, 'TPL-AP', 'Native'],
+  ['cat9k', 'Cisco Catalyst', 'Other network vendors', false, 46, null, null, 'Native'],
+  ['meraki', 'Cisco Meraki', 'Other network vendors', false, 61, null, null, 'Native: Dashboard API'],
+  ['juniper', 'Juniper', 'Other network vendors', false, 12, null, null, 'Native'],
   ['forti', 'Fortinet', 'Other network vendors', false, 18, null, null, 'Native'],
   ['arista', 'Arista', 'Other network vendors', false, 0, null, null, 'Native'],
   ['extreme', 'Extreme Networks', 'Other network vendors', false, 0, null, null, 'Native'],
@@ -52,7 +54,17 @@ export const SRC = [
   ['snmp', 'Any SNMP device', 'Other network vendors', false, 0, null, null, 'SNMP v1/v2c/v3'],
 ];
 const CATS = ['HPE', 'Cloud', 'Monitoring tools', 'Lines and carriers', 'Service management', 'Other network vendors', 'Acquired branches'];
-const STEPS_SRC = [['Gateway', I.Server], ['Credentials', I.KeyRound], ['Discovery', I.Radar], ['Templates', I.LayoutTemplate], ['Events', I.Webhook], ['ServiceNow', I.Ticket]];
+const STEP_IC = { 'Cloud account': I.Cloud, 'Regions and services': I.Globe, 'Resource discovery': I.Radar, Template: I.LayoutTemplate, 'Alarms to events': I.Webhook, 'ServiceNow CMDB': I.Database, 'API key': I.KeyRound, 'Apps and services': I.Boxes, 'Alert webhook': I.Webhook, 'Alert mapping': I.LayoutTemplate, 'Correlation with the network': I.GitMerge, ServiceNow: I.Ticket, Connect: I.KeyRound, 'Field mapping': I.ListTree, Sync: I.RefreshCw, 'Assignment groups': I.Users, 'Test ticket': I.Ticket, 'Portal or API': I.Plug, 'Circuit IDs matched': I.Cable, 'Ticket sync': I.RefreshCw, Gateway: I.Server, Credentials: I.KeyRound, Discovery: I.Radar, Events: I.Webhook };
+// the template a connected source adds to Policies & Templates (vendor kit uses the OpsRamp library template)
+export function sourceTemplate(id, n) {
+  const v = VENDORS.find(x => x.id === (id === 'meraki' ? 'meraki-mr' : id === 'forti' ? 'fortigate' : id));
+  if (v) return { id: tplId(id), src: id, name: v.name, cls: v.cls, models: [v.name.split(' ').slice(-2).join(' ')], n, vendor: v.id, like: v.like, how: [[v.access.split(' + ')[0], 'every 5 min'], ...(v.access.includes(' + ') ? [[v.access.split(' + ')[1], 'every 15 min']] : [])], metrics: v.map.map(m => m[0]), parent: 'EdgeConnect at the same store', snow: ['Network › LAN', 'Movate NOC – L2 Network', 'Network gear (cmdb_ci_netgear)'], ver: 'v1.0' };
+  return templateOf(id, n);
+}
+export function connectedTemplates(s) {
+  const on = new Set([...SRC.filter(x => x[3]).map(x => x[0]), ...(s.studioConnected || [])]);
+  return SRC.filter(x => on.has(x[0]) && !x[6]).map(x => sourceTemplate(x[0], x[4])).filter(Boolean);
+}
 const STEPS_ACQ = [['Gateway at the site', I.Server], ['Discover legacy kit', I.Radar], ['Generic and vendor templates', I.LayoutTemplate], ['Topology', I.Network], ['ServiceNow CMDB', I.Database], ['Monitored, day one', I.CircleCheck]];
 
 export function IntegrationStudio() {
@@ -71,7 +83,7 @@ export function IntegrationStudio() {
     if (p && acqDone.has(id)) { act.toast(`${p.brand} is already monitored`); return; }
     const kind = src ? 'src' : 'acq';
     const found = src ? src[4] : (p.legacy || []).reduce((a, l) => a + (+((l[0].match(/×(\d+)/) || [])[1]) || 1), 0) + (p.carriers || []).length;
-    setRun({ id, kind, name: src ? src[1] : `${p.brand} – ${p.site}`, step: 0, steps: kind === 'src' ? STEPS_SRC : STEPS_ACQ, found, tpl: src && src[6] });
+    setRun({ id, kind, name: src ? src[1] : `${p.brand} – ${p.site}`, step: 0, steps: kind === 'src' ? stepsOf(id, src[2], found).map(([t, d]) => [t, STEP_IC[t] || I.Circle, d]) : STEPS_ACQ, found, tpl: src && (src[6] || (sourceTemplate(id, found) || {}).id || (src[2] === 'Lines and carriers' ? 'TPL-CIR' : undefined)), desk: src && isDesk(id) });
     clearInterval(tm.current);
     tm.current = setInterval(() => setRun(r => {
       if (!r) return r;
@@ -121,10 +133,10 @@ export function IntegrationStudio() {
               <li key={t} className={cx('flex items-center gap-2 text-[12.5px]', st === 'todo' && 'text-ink3')}>
                 {st === 'done' ? <I.CircleCheck size={15} className="text-ok" /> : st === 'now' ? <I.Loader2 size={15} className="text-brand animate-spin" /> : <Ic size={15} />}
                 <span className="flex-1">{t}</span>
-                {st === 'done' && i === 2 && <span className="text-[11.5px] text-ink2 tabular-nums">{run.found} found</span>}
-                {st === 'done' && i === 3 && run.tpl && <span className="text-[11.5px] font-mono text-ink2">{run.tpl}</span>}
+                {st === 'done' && run.kind === 'src' && run.steps[i][2] && <span className="text-[11.5px] text-ink2 text-right truncate max-w-[60%]" title={run.steps[i][2]}>{run.steps[i][2]}</span>}
+                {st === 'done' && run.kind === 'acq' && i === 1 && <span className="text-[11.5px] text-ink2 tabular-nums">{run.found} found</span>}
               </li>); })}</ol>
-            {run.step >= run.steps.length && <div className="flex gap-2 mt-3">{run.kind === 'acq' ? <Btn size="sm" icon={I.PackageCheck} onClick={() => act.go('biab')}>Open Branch-in-a-Box</Btn> : <Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('policies', 'templates'); act.go('policies'); }}>See its template</Btn>}</div>}
+            {run.step >= run.steps.length && <div className="flex gap-2 mt-3">{run.kind === 'acq' ? <Btn size="sm" icon={I.PackageCheck} onClick={() => act.go('biab')}>Open Branch-in-a-Box</Btn> : (run.desk ? <Btn size="sm" icon={I.Ticket} onClick={() => { act.setTab('correlation', 'live'); act.go('correlation'); }}>See tickets flow</Btn> : <Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('polTpl', run.tpl); act.setTab('policies', 'templates'); act.go('policies'); }}>See its template{run.tpl ? ` (${run.tpl})` : ''}</Btn>)}</div>}
           </div>}
         </div>
       </div>

@@ -1,7 +1,8 @@
 // OpsRamp Policies & Templates: how each kind of device and line is monitored (templates and thresholds), the
 // policies that act on alerts, who and what can reach the devices, the network policies and golden configs
 // checked every day, and how a new make or model such as Cisco is brought in.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { connectedTemplates } from './studio.jsx';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
@@ -16,14 +17,14 @@ const ESC = [['P1', [['L1 NOC', 0], ['L2 Network', 5], ['Major incident manager'
 export function Policies() {
   const { s, act } = useApp();
   const tab = s.tab.policies || 'templates', setTab = t => act.setTab('policies', t);
-  const pilots = s.pilotTemplates || [];
+  const pilots = [...connectedTemplates(s), ...(s.pilotTemplates || [])].filter((x, i, a) => a.findIndex(y => y.id === x.id) === i);
   const devs = D.DEVICES.length, covered = TEMPLATES.filter(t => t.cls !== 'Access link' && t.cls !== 'Application path').reduce((a, t) => a + t.n, 0);
   const drift = CONFIGS.reduce((a, c) => a + c.drift.length, 0);
   return (
     <div className="theme-opsramp">
       <OpsRampHead title="Policies & Templates" sub="HPE OpsRamp · templates and policies" />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
-        <Stat label="Monitoring templates" icon={I.LayoutTemplate} value={TEMPLATES.length + pilots.length} sub={pilots.length ? `${pilots.length} in pilot` : 'one per kind of device or line'} onClick={() => setTab('templates')} />
+        <Stat label="Monitoring templates" icon={I.LayoutTemplate} value={TEMPLATES.length + pilots.length} sub={`${pilots.filter(x => x.pilot).length ? `${pilots.filter(x => x.pilot).length} in pilot · ` : ''}network, cloud and app sources`} onClick={() => setTab('templates')} />
         <Stat label="Devices covered" icon={I.ShieldCheck} value={pct(covered / devs, 1)} sub={`${num(covered)} of ${num(devs)} devices on a template`} tone="green" onClick={() => setTab('templates')} />
         <Stat label="Alert policies" icon={I.Filter} value={3 + 7 + 4} sub="correlation, first response, escalation" onClick={() => setTab('policies')} />
         <Stat label="Config compliance" icon={I.FileCheck2} value={pct(1 - drift / devs, 1)} sub={`${drift} devices differ from the golden config`} tone={drift ? 'amber' : 'green'} onClick={() => setTab('network')} />
@@ -40,12 +41,14 @@ export function Policies() {
 }
 
 function Templates({ pilots }) {
-  const { act } = useApp();
-  const [sel, setSel] = useState(TEMPLATES[1].id);
+  const { s, act } = useApp();
   const all = [...TEMPLATES, ...pilots];
+  const want = s.tab.polTpl;
+  const [sel, setSel] = useState(want && all.some(x => x.id === want) ? want : TEMPLATES[1].id);
+  useEffect(() => { if (want && all.some(x => x.id === want)) setSel(want); }, [want]);
   const t = all.find(x => x.id === sel) || TEMPLATES[0];
   const vs = VENDOR_SRC[t.vendor] || {};
-  const mets = (METRICS[t.like || t.id] || []).map(m => vs[m.k] ? { ...m, src: vs[m.k] } : m);
+  const mets = (METRICS[t.like || t.id] || t.mets || []).map(m => vs[m.k] ? { ...m, src: vs[m.k] } : m);
   return (<>
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 items-stretch [&>*]:h-full mb-3">
       <Card title="Monitoring templates" sub="Assigned automatically by a template-based alert definition, by resource type and store group">
@@ -53,7 +56,7 @@ function Templates({ pilots }) {
           <button key={x.id} onClick={() => setSel(x.id)} className={cx('w-full text-left py-2 px-2 rounded flex items-center gap-3', x.id === sel ? 'bg-chip' : 'hover:bg-chip/50')}>
             <span className="w-8 h-8 rounded-md bg-brand/10 text-brand grid place-items-center shrink-0">{x.cls === 'SD-WAN edge' ? <I.Router size={15} /> : x.cls === 'Access switch' ? <I.Network size={15} /> : x.cls === 'Wi-Fi AP' ? <I.Wifi size={15} /> : x.cls === 'Access link' ? <I.Cable size={15} /> : x.cls === 'Firewall' ? <I.Shield size={15} /> : <I.AppWindow size={15} />}</span>
             <span className="flex-1 min-w-0"><span className="flex items-center gap-2"><b className="text-[13px] text-ink truncate">{x.name}</b>{x.pilot && <Badge tone="amber">pilot</Badge>}</span><span className="block text-[11.5px] text-ink3 truncate">{x.models.join(', ')} · {x.how.map(h => h[0]).join(', ')}</span></span>
-            <span className="text-right shrink-0"><b className="text-[13px] text-ink tabular-nums">{num(x.n)}</b><span className="block text-[11px] text-ink3">{x.cls === 'Access link' ? 'lines' : x.cls === 'Application path' ? 'paths' : 'devices'}</span></span>
+            <span className="text-right shrink-0"><b className="text-[13px] text-ink tabular-nums">{num(x.n)}</b><span className="block text-[11px] text-ink3">{x.cls === 'Access link' ? 'lines' : x.cls === 'Application path' ? (x.src ? 'services' : 'paths') : x.cls === 'Cloud resources' ? 'resources' : 'devices'}</span></span>
           </button>))}</div>
       </Card>
       <Card title={t.name} sub={`${t.id} · ${t.ver || 'pilot'} · ${t.cls}`} right={t.pilot ? <Badge tone="amber">Observed mode, 2 stores</Badge> : <Badge tone="green">in use</Badge>}>
@@ -65,7 +68,7 @@ function Templates({ pilots }) {
           <div><div className="text-[11px] font-bold uppercase text-ink3 mb-1">ServiceNow mapping</div><div className="text-ink">{t.snow[0]}</div><div className="text-ink2">{t.snow[1]}</div><div className="text-ink3 text-[11.5px]">CI class: {t.snow[2]}</div></div>
         </div>
         <div className="grid grid-cols-4 gap-2 mt-3 text-[12px]">{[['Metrics defined', mets.length], ['Levels by store profile', mets.filter(m => m.th && m.th.S).length], ['State checks', mets.filter(m => m.th && !Array.isArray(m.th) && !m.th.S).length], ['Fastest poll', mets.some(m => /1 min/.test(m.every)) ? '1 min' : mets.length ? '5 min' : '—']].map(([k, v]) => <div key={k} className="border border-line rounded px-2 py-1"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink tabular-nums">{v}</b></div>)}</div>
-        <div className="flex gap-2 mt-3"><Btn size="sm" icon={I.Layers} onClick={() => act.drill(t.cls === 'Access link' ? { t: 'lines', k: 'all' } : { t: 'devices', k: 'all', ...(t.models.length === 1 && t.cls !== 'Application path' ? { model: t.models[0] } : {}) })}>See what uses it</Btn></div>
+        {!t.src && <div className="flex gap-2 mt-3"><Btn size="sm" icon={I.Layers} onClick={() => act.drill(t.cls === 'Access link' ? { t: 'lines', k: 'all' } : { t: 'devices', k: 'all', ...(t.models.length === 1 && t.cls !== 'Application path' ? { model: t.models[0] } : {}) })}>See what uses it</Btn></div>}
       </Card>
     </div>
     <MetricDefs t={t} mets={mets} />
