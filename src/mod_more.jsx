@@ -15,6 +15,7 @@ import { downloadSlaReport } from './slapdf.js';
 import { basisLine } from './predictbasis.js';
 import { PredictionPipelineCard, DataCollectedCard, PredictionBasisModal } from './predictui.jsx';
 import { AnomaliesCard } from './patterns.jsx';
+import { MovaActions, PredictionActionsCard } from './predictact.jsx';
 import { CriticalReport } from './critreport.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
@@ -43,7 +44,7 @@ export function Predictive() {
       <LivePanel kind="predict" className="mb-3 mt-3" />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
       <div className="mb-3"><AnomaliesCard /></div>
-      <div className="mb-3"><PredictionPipelineCard /></div>
+      <div className="mb-3"><PredictionActionsCard list={s.predictions} onPick={id => { const el = document.getElementById(id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /></div>
       <div className="mb-3"><DataCollectedCard /></div>
       <div className="mb-3"><PreventiveCalendarCard /></div>
       <div className="flex items-center gap-2 mb-3"><Tabs size="sm" value={kind} onChange={setKind} tabs={['All', ...new Set(s.predictions.map(p => p.kind))].map(k => ({ id: k, label: k, count: k === 'All' ? s.predictions.length : s.predictions.filter(p => p.kind === k).length }))} /></div>
@@ -56,6 +57,7 @@ export function Predictive() {
             <div className="text-[12.5px] text-ink2 mt-1">{p.signal}</div><div className="mt-1"><ForecastMini p={p} /></div>
             <div className="flex items-center gap-3 mt-2 flex-wrap"><Conf value={p.conf} /><span className="text-[12px] text-ink2">Suggests: <b className="text-ink">{p.suggest}</b></span></div>
             <div className="mt-2 text-[11.5px] text-ink3 flex items-start gap-1.5"><I.Database size={12} className="mt-[2px] shrink-0" /><span>Based on {basisLine(p)}</span></div>
+            <MovaActions p={p} compact />
             <div className="flex gap-2 mt-3 flex-wrap"><Btn size="sm" kind="brand" icon={I.ShieldCheck} onClick={() => setWhy(p.id)}>Why, and how to prevent it</Btn>{!done && <><Btn op size="sm" icon={I.Eye} onClick={() => watch(p)} disabled={p.status === 'Watching'}>Create watch</Btn><Btn op size="sm" icon={I.Send} onClick={() => approval(p)}>Request approval</Btn><Btn op size="sm" kind="ghost" icon={I.ThumbsDown} onClick={() => dismiss(p)}>False positive</Btn></>}</div>
           </div></Card>); })}
       </div>
