@@ -21,6 +21,7 @@ import { TakeAction } from './TakeAction.jsx';
 import { fixPlan } from './fix.js';
 import { MovaChip } from './Mova.jsx';
 import { WorkPackView } from './WorkPack.jsx';
+import { DrillActions } from './Actions.jsx';
 import { EscalateButton, aboutOf } from '../escalate.jsx';
 
 const DISPLAY = { fontFamily: '"Aptos Display", Aptos, "Segoe UI", "Helvetica Neue", Arial, sans-serif' };
@@ -943,7 +944,7 @@ export function DrillPanel({ stack, setStack, now, scope, snap, links, root = 'D
           <span className="text-[11px] text-ink3 hidden md:inline shrink-0">Level {stack.length}</span>
           <button onClick={() => setStack([])} aria-label="Close" className="h-8 w-8 rounded-md border border-line hover:bg-chip grid place-items-center text-ink shrink-0"><I.X size={15} /></button>
         </div>
-        <div className="px-4 sm:px-6 pt-5 pb-14" key={stack.length + labelOf(n)}><DrillLinks.Provider value={links || null}><V n={n} go={go} ctx={ctx} /></DrillLinks.Provider></div>
+        <div className="px-4 sm:px-6 pt-5 pb-14" key={stack.length + labelOf(n)}><DrillLinks.Provider value={links || null}>{links && !snap && <DrillActions n={n} s={s} now={now} links={links} />}<V n={n} go={go} ctx={ctx} /></DrillLinks.Provider></div>
       </div>
     </div>
   );
