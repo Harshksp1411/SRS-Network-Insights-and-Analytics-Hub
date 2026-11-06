@@ -5,14 +5,14 @@ import * as D from './data.js';
 import { useApp, healthOf, filteredBranches, inScope, onBackupOf } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, PageHead, Dot, Tabs, OpsRampHead, cx } from './ui.jsx';
-import { OpsAIContent, AI_TABS, OpsQCard, SNow } from './mod_opsai.jsx';
+import { OpsAIContent, AI_TABS, SNow } from './mod_opsai.jsx';
 import { C } from './charts.jsx';
 import { LiveBadge, LiveFeed, AlertsPerMinCard, EventFlowCard } from './liveui.jsx';
 import { todayCounts, LiveKpis, AreaTimeline, HeartbeatGrid, AreaHourHeat, ScoreHistogram, CorrelationEngine, AlertFunnel, AlertSankey, GroupingSwimlane, CorrMatrix, AgentActivity, AgentCards, AgentStream, ToolsStrip, TopBranches } from './viz2.jsx';
 import { AGENT_DEF } from './liveext.js';
 import { AgentMixCards } from './viz3.jsx';
 import { AlertStormReplay, SuppressionRulesCard, ServiceNowSyncCard } from './stormui.jsx';
-import { PatternsCard, AnomaliesCard } from './patterns.jsx';
+import { PatternsCard } from './patterns.jsx';
 import { num, hhmmss } from './util.js';
 
 export function LiveOps() {
@@ -52,7 +52,7 @@ export function LiveOps() {
 
 export function Correlation() {
   const { s, act } = useApp(); const { L } = useLive();
-  const tab0 = s.tab.correlation || 'live', tab = ['live', 'sources'].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
+  const tab0 = s.tab.correlation || 'live', tab = ['live', ...AI_TABS.map(t => t.id)].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div className="theme-opsramp">
@@ -68,8 +68,6 @@ export function Correlation() {
       {tab !== 'live' && <OpsAIContent tab={tab} />}
       {tab === 'live' && <>
       <div><AlertStormReplay /></div>
-      <div className="mt-3"><OpsQCard /></div>
-      <div className="mt-3"><AnomaliesCard /></div>
       <div className="mt-3"><PatternsCard /></div>
       <div className="mt-3"><SuppressionRulesCard /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><div className="space-y-3"><AlertsPerMinCard /><EventFlowCard /></div></div>
