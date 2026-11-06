@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
-import { Card, Badge, Btn, PageHead, Stat, Tabs, Pri, cx } from './ui.jsx';
+import { Card, Badge, Btn, Stat, Tabs, Pri, OpsRampHead, cx } from './ui.jsx';
 import { TEMPLATES, METRICS, VENDOR_SRC, PROFILES, ACCESS, ROLES, NET_POLICIES, CONFIGS, VENDORS, ONBOARD, POLICY_ORDER } from './policies.js';
 import { num, pct } from './util.js';
 
@@ -20,8 +20,8 @@ export function Policies() {
   const devs = D.DEVICES.length, covered = TEMPLATES.filter(t => t.cls !== 'Access link' && t.cls !== 'Application path').reduce((a, t) => a + t.n, 0);
   const drift = CONFIGS.reduce((a, c) => a + c.drift.length, 0);
   return (
-    <div>
-      <PageHead icon={I.FileCog} title="Policies & Templates" right={<Badge tone="blue">OpsRamp</Badge>} />
+    <div className="theme-opsramp">
+      <OpsRampHead title="Policies & Templates" sub="HPE OpsRamp monitoring templates, alert policies, access and network policies" />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat label="Monitoring templates" icon={I.LayoutTemplate} value={TEMPLATES.length + pilots.length} sub={pilots.length ? `${pilots.length} in pilot` : 'one per kind of device or line'} onClick={() => setTab('templates')} />
         <Stat label="Devices covered" icon={I.ShieldCheck} value={pct(covered / devs, 1)} sub={`${num(covered)} of ${num(devs)} devices on a template`} tone="green" onClick={() => setTab('templates')} />

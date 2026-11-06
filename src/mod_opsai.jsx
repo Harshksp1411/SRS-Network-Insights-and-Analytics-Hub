@@ -2,11 +2,11 @@
 // into how few incidents (with each step switchable to see what the NOC would get without it), how correlation
 // uses topology, attributes, learned sequences and time, how anomaly detection works, how each SRS source connects,
 // and how incidents and the CMDB flow to and from ServiceNow.
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as I from 'lucide-react';
 import { useApp } from './store.jsx';
 import { useLive } from './live.jsx';
-import { Card, Badge, PageHead, Stat, Tabs, cx } from './ui.jsx';
+import { Card, Badge, cx } from './ui.jsx';
 import { todayCounts } from './viz2.jsx';
 import { AnomaliesCard, anomaliesOf } from './patterns.jsx';
 import { ServiceNowSyncCard } from './stormui.jsx';
@@ -204,27 +204,23 @@ function SNow() {
   </>);
 }
 
-export function OpsAI() {
-  const { s, act } = useApp(); const { L } = useLive();
+// the AI tabs, shown on the Correlation page
+export const AI_TABS = [{ id: 'where', label: 'Where the AI works' }, { id: 'correlation', label: 'Correlation and topology' }, { id: 'anomaly', label: 'Anomaly detection' }, { id: 'sources', label: 'Sources and integration' }, { id: 'servicenow', label: 'ServiceNow' }];
+export function OpsAIContent({ tab }) {
+  const { s } = useApp(); const { L } = useLive();
   const tc = todayCounts(L, s);
   const anom = anomaliesOf(), nAnom = anom.length, ex = anom.find(a => a.metric === 'lat');
-  const tab = s.tab.opsai || 'where', setTab = t => act.setTab('opsai', t);
-  return (
-    <div>
-      <PageHead icon={I.BrainCircuit} title="OpsRamp AI & Integrations" right={<Badge tone="blue">HPE OpsRamp</Badge>} />
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
-        <Stat label="Events in today" icon={I.Bell} value={num(tc.events)} sub="from every source" onClick={() => setTab('sources')} />
-        <Stat label="Removed by the AI" icon={I.Filter} value={`${Math.round(tc.noise * 100)}%`} tone="green" sub="repeats and known noise" onClick={() => setTab('where')} />
-        <Stat label="Incidents today" icon={I.Ticket} value={num(tc.inc)} sub={`${num(Math.round(tc.events / Math.max(1, tc.inc)))} events per incident`} onClick={() => setTab('correlation')} />
-        <Stat label="Lines drifting from normal" icon={I.Activity} value={nAnom} tone={nAnom ? 'amber' : 'green'} sub="still under the limit" onClick={() => setTab('anomaly')} />
-        <Stat label="Sources connected" icon={I.Plug} value={SOURCES.length} sub="ServiceNow both ways" onClick={() => setTab('servicenow')} />
-      </div>
-      <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'where', label: 'Where the AI works' }, { id: 'correlation', label: 'Correlation and topology' }, { id: 'anomaly', label: 'Anomaly detection' }, { id: 'sources', label: 'Sources and integration' }, { id: 'servicenow', label: 'ServiceNow' }]} />
-      {tab === 'where' && <><Pipeline tc={tc} nAnom={nAnom} /><div className="mt-3"><BeforeAfter /></div></>}
-      {tab === 'correlation' && <><Methods /><div className="mt-3"><TopologyCard /></div><div className="mt-3"><LearnedCard /></div></>}
-      {tab === 'anomaly' && <><AnomalyModels n={nAnom} ex={ex} /><div className="mt-3"><AnomaliesCard /></div></>}
-      {tab === 'sources' && <Integration tc={tc} />}
-      {tab === 'servicenow' && <SNow />}
-    </div>
-  );
+  return (<>
+    {tab === 'where' && <><Pipeline tc={tc} nAnom={nAnom} /><div className="mt-3"><BeforeAfter /></div></>}
+    {tab === 'correlation' && <><Methods /><div className="mt-3"><TopologyCard /></div><div className="mt-3"><LearnedCard /></div></>}
+    {tab === 'anomaly' && <><AnomalyModels n={nAnom} ex={ex} /><div className="mt-3"><AnomaliesCard /></div></>}
+    {tab === 'sources' && <Integration tc={tc} />}
+    {tab === 'servicenow' && <SNow />}
+  </>);
+}
+// the old page address now opens the Correlation page on its AI tabs
+export function OpsAI() {
+  const { act } = useApp();
+  useEffect(() => { act.setTab('correlation', 'where'); act.go('correlation'); }, []);
+  return null;
 }
