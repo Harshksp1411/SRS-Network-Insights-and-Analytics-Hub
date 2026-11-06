@@ -74,7 +74,7 @@ function TicketPreview({ sc, onOpen }) {
         <F k="Short description" v={t.short} />
         <div><div className="text-[10.5px] uppercase tracking-wide text-ink3 font-semibold">Description</div><div className="text-[12.5px] text-ink2 leading-snug">{t.desc}</div></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[12px]">{[['Events grouped', num(raw)], ['Alerts attached', sc.rows.filter(r => FATE[r.fate].stage > 1).length], ['Held back, listed', sc.rows.filter(r => FATE[r.fate].stage === 2).length], ['Duplicate tickets', 0]].map(([k, v]) => <div key={k} className="border border-line rounded px-2 py-1"><div className="text-ink3 text-[11px]">{k}</div><div className="font-bold text-ink tabular-nums">{v}</div></div>)}</div>
-        <div className="border-l-4 border-brand bg-brand/5 rounded-r px-3 py-2 text-[12px] text-ink2"><b className="text-ink">Work note from OpsRamp:</b> {sc.enrich.map(([k, v]) => `${k}: ${v}`).slice(0, 4).join('. ')}.</div>
+        <div className="border border-line bg-chip/40 rounded px-3 py-2 text-[12px] text-ink2"><b className="text-ink">Work note from OpsRamp:</b> {sc.enrich.map(([k, v]) => `${k}: ${v}`).slice(0, 4).join('. ')}.</div>
       </div>
     </div>
   );

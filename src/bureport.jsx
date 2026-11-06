@@ -10,9 +10,9 @@ import { RDonut, RHBars, RRow, RC } from './viz3.jsx';
 import { dur, dateShort, hhmm, pct, num, DAY, HR, MIN } from './util.js';
 
 // the week's changes (implemented), with the one that did not go cleanly
-const CHG_WEEK = { total: 34, ok: 33, emergency: 2, standard: 19, normal: 13, failed: [['CHG0031849', 'QoS template push to 40 branches', 'Verification failed at 3 branches; rolled back automatically in 6 minutes; no trading impact']] };
+export const CHG_WEEK = { total: 34, ok: 33, emergency: 2, standard: 19, normal: 13, failed: [['CHG0031849', 'QoS template push to 40 branches', 'Verification failed at 3 branches; rolled back automatically in 6 minutes; no trading impact']] };
 // survey responses marked dissatisfied last week (ServiceNow surveys on resolved incidents)
-const DSAT = [
+export const DSAT = [
   ['Branch 412 – Rockford, IL', 2, 'Took two calls before anyone told us the line was the carrier', 'INC0384561', 'Carrier updates now go to the branch manager every 30 minutes'],
   ['Branch 77 – West Palm Beach, FL', 2, 'Handhelds kept dropping in the yard all morning', 'INC0384598', 'Yard AP swap booked; Wi-Fi survey after close'],
   ['Branch 633 – San Antonio, TX', 3, 'Fixed fast but nobody confirmed it was done', 'INC0384620', 'Resolution message to the store added to the close runbook'],

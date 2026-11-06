@@ -105,13 +105,14 @@ function SpeedControl() {
   );
 }
 
-// the four parts of the console, each with its own colour and purpose
-const GROUP_META = {
-  Operate: { c: '#4FA3F7', tag: 'run it now', Ic: I.Activity },
-  Manage: { c: '#F0A43A', tag: 'estate and changes', Ic: I.Wrench },
-  Improve: { c: '#A98BFF', tag: 'predict and automate', Ic: I.Sparkles },
-  Govern: { c: '#3CC49A', tag: 'SLAs and reports', Ic: I.Scale },
-};
+// Back to where you were: the page, its tab, the open drill-down and the scroll position
+function BackBar() {
+  const { s, act } = useApp();
+  const h = (s.navBack || []).slice(-1)[0];
+  if (!h) return null;
+  const M = MODULES.find(m => m.id === h.module);
+  return <button onClick={act.back} className="mb-3 h-8 px-3 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5 shadow-sm"><I.ArrowLeft size={14} />Back to {M ? M.label : 'the last page'}{h.drill && h.drill.length ? ' (with the drill-down)' : ''}</button>;
+}
 function Sidebar() {
   const { s, act } = useApp();
   const [collapsed, setCollapsed] = useState(false);
@@ -121,14 +122,13 @@ function Sidebar() {
     <nav className={cx('bg-side text-white/80 flex flex-col shrink-0 sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto', collapsed ? 'w-14' : 'w-[236px]')}>
       {!collapsed && <div className="px-4 pt-4 pb-2"><div className="text-[10.5px] text-white/45 font-bold">Signed in as</div><div className="text-[13px] text-white font-semibold">{role.who}</div><div className="text-[11.5px] text-white/60">{role.name}</div></div>}
       {groups.map(g => (
-        <div key={g} className="mt-2 mx-2 rounded-lg py-1" style={{ background: `${(GROUP_META[g] || {}).c || '#888'}14`, boxShadow: `inset 3px 0 0 ${(GROUP_META[g] || {}).c || '#888'}` }}>
-          {!collapsed ? <div className="px-3 pt-1.5 pb-1 flex items-center gap-1.5">{GROUP_META[g] && React.createElement(GROUP_META[g].Ic, { size: 12, color: GROUP_META[g].c })}<span className="text-[11px] font-extrabold uppercase tracking-[0.08em]" style={{ color: (GROUP_META[g] || {}).c }}>{g}</span><span className="text-[10.5px] text-white/45 truncate">· {(GROUP_META[g] || {}).tag}</span></div> : <div className="mx-auto my-1 w-6 h-[3px] rounded" style={{ background: (GROUP_META[g] || {}).c }} />}
+        <div key={g} className="mt-3 mx-2 py-0.5">
+          {!collapsed ? <div className="px-3 pt-1 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-white/40">{g}</div> : <div className="mx-3 my-1.5 border-t border-white/10" />}
           {MODULES.filter(m => m.group === g && !m.hidden).map(m => {
             const on = s.module === m.id; const b = m.badge ? m.badge(s) : 0;
             return (
               <button key={m.id} onClick={() => act.go(m.id)} title={m.label} className={cx('w-full flex items-center gap-2.5 px-3 h-9 text-[13px] text-left relative rounded-md', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
-                {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: (GROUP_META[g] || {}).c }} />}
-                <m.icon size={16} className="shrink-0" />{!collapsed && <span className="flex-1 truncate">{m.label}</span>}
+                                <m.icon size={16} className="shrink-0" />{!collapsed && <span className="flex-1 truncate">{m.label}</span>}
                 {!collapsed && b > 0 && <span className={cx('text-[10.5px] font-bold rounded px-1.5', m.alertBadge ? 'bg-brand text-white' : 'bg-white/15 text-white')}>{b}</span>}
               </button>
             );
@@ -158,7 +158,6 @@ function FilterBar() {
   const inRegion = D.BRANCHES.filter(b => (f.region === 'All' || b.region === f.region) && (f.brand === 'All' || b.brand === f.brand));
   const cityCounts = {}; inRegion.forEach(b => { const k = cityKey(b); cityCounts[k] = (cityCounts[k] || 0) + 1; });
   const cities = Object.keys(cityCounts).sort();
-  const inCity = inRegion.filter(b => !f.city || f.city === 'All' || cityKey(b) === f.city);
   const pickBranch = id => { if (!id) { setF({ branchId: null }); return; } const b = D.BR[id]; setF({ branchId: id, city: cityKey(b) }); if (s.module === 'overview' || s.module === 'b360') act.set({ module: 'b360', b360: id }); };
   // the device level: with a branch picked, its lines and devices; otherwise device and line sets for the scope
   const devOptions = f.branchId ? [{ value: '', label: `Device: any (${D.devicesOf(f.branchId).length + D.BR[f.branchId].wan.length})` },
@@ -170,16 +169,14 @@ function FilterBar() {
     <div className="bg-panel border-b border-line px-5 py-2 flex items-center gap-1.5 flex-wrap [&_select]:max-w-[138px]">
       <span className="text-[12px] font-bold text-ink3 mr-1">Showing</span>
       {bm ? <Badge tone="brand" className="!text-[12px] !py-1"><I.Store size={13} />My branch: {D.BR[s.bmBranch].name}</Badge> : <>
-        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId && f.brand === 'All' ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
+        <button onClick={() => setF({ region: 'All', city: 'All', brand: 'All', branchId: null })} className={cx('h-8 px-3 rounded-md text-[13px] font-bold inline-flex items-center gap-1.5 border', f.region === 'All' && (!f.city || f.city === 'All') && !f.branchId ? 'bg-brand text-white border-brand' : 'bg-panel text-ink border-line hover:bg-chip')}><I.Globe2 size={14} />Overall</button>
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.MapPin} value={f.region} onChange={v => setF({ region: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Region: all' }, ...D.REGIONS.map(r => ({ value: r, label: `${r} (${D.BRANCHES.filter(b => b.region === r).length})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Building2} value={f.city || 'All'} onChange={v => setF({ city: v, branchId: null })} options={[{ value: 'All', label: `City: all (${cities.length})` }, ...cities.map(c => ({ value: c, label: `${c} (${cityCounts[c]})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
-        <Select icon={I.Store} value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${inCity.length})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
-        <I.ChevronRight size={14} className="text-ink3" />
+        {f.branchId && <><button onClick={() => pickBranch(null)} title="Clear the branch" className="h-8 px-2.5 rounded-md border border-line bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Store size={13} />{D.BR[f.branchId].name}<I.X size={13} className="text-ink3" /></button><I.ChevronRight size={14} className="text-ink3" /></>}
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
-        <Select icon={I.Tag} value={f.brand} onChange={v => setF({ brand: v, city: 'All', branchId: null })} options={[{ value: 'All', label: 'Brand: all' }, ...D.BRANDS.map(b => ({ value: b, label: `${b} (${D.BRANCHES.filter(x => x.brand === b && (f.region === 'All' || x.region === f.region)).length})` }))]} />
         <div className="relative">
           <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-36" />
           {matches.length > 0 && (
@@ -363,7 +360,7 @@ export default function App() {
         <Sidebar />
         <main className="flex-1 min-w-0">
           <div className="sticky top-[60px] z-30"><FilterBar />{!isMovate(s) && <SrsStrip />}</div>
-          <div className="p-5 max-w-[1680px]"><M.C key={M.id} /></div>
+          <div className="p-5 max-w-[1680px]"><BackBar /><M.C key={M.id} /></div>
         </main>
       </div>
       <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog />

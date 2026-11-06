@@ -631,7 +631,7 @@ function RcaView({ n, go, ctx }) {
       <Grid>
         <Panel title="Network, ISP or application" hint="each layer checked by the Diagnosis Agent">
           <ul className="space-y-2">{layers.map(l => (
-            <li key={l.layer} className={cx('border rounded-md px-3 py-2 bg-panel border-l-4', l.cause ? 'border-l-bad border-line' : 'border-l-ok border-line')}>
+            <li key={l.layer} className={cx('border border-line rounded-md px-3 py-2', l.cause ? 'bg-bad/5' : 'bg-panel')}>
               <div className="flex items-center gap-2"><b className="text-[13px] text-ink">{l.layer}</b><span className={cx('text-[11.5px] font-bold', l.cause ? 'text-bad' : 'text-ok')}>{l.cause ? 'Cause' : 'Ruled out'}</span><span className="text-[11px] text-ink3 ml-auto">{l.plain}</span></div>
               <div className="text-[12.5px] text-ink2 leading-snug mt-0.5">{l.r ? <>{l.cause && <b className="text-ink">{l.r.text} ({P(l.r.conf, 0)}). </b>}{l.r.ev}</> : 'No sign of a problem at this layer at the same time.'}</div>
             </li>))}</ul>

@@ -189,7 +189,7 @@ function Dash({ p, onOut }) {
           <button onClick={() => go({ t: 'set', k: 'all', ...(p.region ? { region: p.region } : {}) })} className="h-9 px-3 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Layers size={14} />Explore {p.region ? `all ${p.region} branches` : 'all 900 branches'}</button>
         </div>
 
-        <section id="summary" className="mt-4 bg-panel border border-line rounded-md p-4 sm:p-5 border-l-4 border-l-brand">
+        <section id="summary" className="mt-4 bg-panel border border-line rounded-md p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2">
             {ed.status ? <span className={cx('text-[11.5px] font-bold px-2 py-0.5 rounded border', STATUS_PILL[ed.status.kind])}>Network status: {ed.status.word}</span> : <span className="text-[11.5px] font-bold px-2 py-0.5 rounded border border-line text-ink2 bg-chip">{ed.label}</span>}
             <span className="text-[12px] text-ink3">{p.title} · {scope}</span>
