@@ -22,7 +22,7 @@ Every demo and runbook runs in one of three modes:
 | Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch (with a technician view: the work pack in the field app on a phone (the same phone view opens wherever a work pack opens), the route from the base and depot to the store, and the store layout with the fault and the way in), Approvals & Changes, Policies & Templates (OpsRamp monitoring templates, alert policies, access, network policies and golden configs, onboarding a new make or model) |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
 | Improve | Predictive Watchlist, Knowledge, AI & Automation Catalogue (catalogue, agents at work, runbooks and runs) |
-| Govern | SLA & KPI Tracker (Annexure B), Reports |
+| Govern | SLA & KPI Tracker (Annexure B), Reports (shift handover, daily summary, weekly service review, critical incidents P1/P2 with how each was solved, Branch-in-a-Box, audit log; each as an executive summary or in full detail) |
 
 The **live demos** are a separate page (`demos/`) with its own link; the two pages do not link to each other. Each scripted SRS branch situation plays on one screen showing every system involved (Detect → Correlate → Decide → Act → Verify → Record), with a Business view and a Technical view explanation.
 
