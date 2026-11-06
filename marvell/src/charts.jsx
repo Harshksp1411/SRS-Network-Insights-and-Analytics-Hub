@@ -1,0 +1,383 @@
+import React, { useState, useRef, useEffect, useId } from 'react';
+import MAP from './mapdata.json';
+import { cx } from './ui.jsx';
+import { SPEED } from './speed.js';
+
+// Chart palette: reference categorical order + fixed status steps (validated – see dataviz skill)
+export const C = {
+  s1: '#2F6DB5', s2: '#1D3F66', s3: '#A3ACB8', s4: '#2A9D8F', s5: '#E08A1E', s6: '#7FB3E0', s7: '#5E6B78', s8: '#16191D',
+  ok: '#2E8540', warn: '#E07B00', minor: '#F0CF6B', serious: '#E07B00', bad: '#D62D20', alert: '#D62D20', info: '#2F6DB5', ai: '#1F2937', brand: '#1F2937', grey: '#A3ACB8', teal: '#2A9D8F',
+};
+export const SEQ = ['#EEF4FB', '#D4E4F5', '#AECBEB', '#82ACDC', '#5A8CCB', '#3A6FB5', '#25549A', '#163A6E'];
+
+export function useWidth(def = 640) {
+  const ref = useRef(null); const [w, setW] = useState(def);
+  useEffect(() => { if (!ref.current || typeof ResizeObserver === 'undefined') return; const ro = new ResizeObserver(e => { const x = Math.round(e[0].contentRect.width); if (x > 40) setW(x); }); ro.observe(ref.current); return () => ro.disconnect(); }, []);
+  return [ref, w];
+}
+
+// ── smooth motion helpers ────────────────────────────────────────────
+// useSlide: returns a key that changes when the series has shifted by one point (a new live reading),
+// so the chart can slide the line left by one step over the 2-second tick instead of jumping.
+export function useSlide(arr) {
+  const prev = useRef(null), key = useRef(0);
+  const p = prev.current;
+  if (p && arr && p !== arr && arr.length === p.length && arr.length > 3) {
+    let ok = true; for (let i = 0; i < arr.length - 1; i++) if (arr[i] !== p[i + 1]) { ok = false; break; }
+    if (ok) key.current++;
+  }
+  prev.current = arr;
+  return key.current;
+}
+// useScale: eases the y range between ticks so the line does not jump when an old peak leaves the window
+export function useScale(lo, hi) {
+  const r = useRef(null);
+  if (!r.current || !isFinite(r.current[0])) r.current = [lo, hi];
+  else { const [a, b] = r.current; r.current = [lo < a ? lo : a + (lo - a) * 0.35, hi > b ? hi : b + (hi - b) * 0.35]; }
+  return r.current;
+}
+// useTween: animates a number to its new value with requestAnimationFrame (ease-out)
+export function useTween(v, ms0 = 800) {
+  const ms = Math.min(ms0, SPEED.tick * 0.85);
+  const [x, setX] = useState(v); const cur = useRef(v); const raf = useRef(0);
+  useEffect(() => {
+    const a = cur.current, b = v;
+    if (typeof b !== 'number' || !isFinite(b) || typeof a !== 'number' || !isFinite(a) || a === b) { cur.current = b; setX(b); return; }
+    const t0 = performance.now(); cancelAnimationFrame(raf.current);
+    const step = t => { const p = Math.min(1, (t - t0) / ms); const e = 1 - Math.pow(1 - p, 3); cur.current = a + (b - a) * e; setX(cur.current); if (p < 1) raf.current = requestAnimationFrame(step); };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [v]);
+  return x;
+}
+// TweenNum: counts a displayed number up or down to its new value, keeping its format ("1,234", "0.25%", "18 ms")
+const NUM_RE = /-?\d[\d,]*(\.\d+)?/;
+export function TweenNum({ value }) {
+  const str = value == null ? '' : String(value); const m = str.match(NUM_RE);
+  const target = m ? parseFloat(m[0].replace(/,/g, '')) : NaN;
+  const x = useTween(isFinite(target) ? target : 0);
+  if (!m || !isFinite(target)) return <>{str}</>;
+  const dec = m[1] ? m[1].length - 1 : 0; const comma = m[0].includes(',') || Math.abs(target) >= 10000;
+  const f = comma ? Number(x).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : Number(x).toFixed(dec);
+  return <>{str.slice(0, m.index)}{f}{str.slice(m.index + m[0].length)}</>;
+}
+const niceMax = v => { if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; };
+
+// Width of an element's parent, so fixed-size marks never spill out of narrow tiles
+export function useParentW(ref, w) {
+  const [pw, setPw] = useState(w);
+  useEffect(() => {
+    const el = ref.current && ref.current.parentElement; if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => { const cs = getComputedStyle(el); const inner = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); if (inner > 0) setPw(inner); });
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  return Math.max(30, Math.min(w, pw));
+}
+// FitText: one line that scales itself down (to 55% at most) instead of spilling past its box
+export function FitText({ children, className, min = 0.55 }) {
+  const box = useRef(null), inner = useRef(null); const [sc, setSc] = useState(1); const scRef = useRef(1);
+  useEffect(() => {
+    const b = box.current, i = inner.current; if (!b || !i || typeof ResizeObserver === 'undefined') return;
+    const fit = () => { const natural = i.offsetWidth, avail = b.clientWidth; const n = natural > avail + 0.5 ? Math.max(min, Math.floor((avail / natural) * 100) / 100) : 1; if (Math.abs(n - scRef.current) > 0.009) { scRef.current = n; setSc(n); } };
+    const ro = new ResizeObserver(fit); ro.observe(b); ro.observe(i); fit();
+    return () => ro.disconnect();
+  }, []);
+  return <div ref={box} data-fit="1" className={cx('min-w-0 max-w-full overflow-x-clip', className)}><span ref={inner} className="inline-block whitespace-nowrap origin-left" style={sc < 1 ? { transform: `scale(${sc})` } : undefined}>{children}</span></div>;
+}
+
+// x-axis labels that never overlap: evenly spaced, each kept only if it clears the one before
+export function pickLabels(labels, X, x0, x1, cw = 6) {
+  const n = labels.length; if (!n) return [];
+  const wd = l => String(l).length * cw;
+  const maxW = Math.max(...labels.map(wd));
+  const fit = Math.max(2, Math.floor((x1 - x0) / (maxW + 14)));
+  const step = Math.max(1, Math.ceil((n - 1) / (fit - 1)));
+  const out = []; let lastR = -1e9;
+  for (let i = 0; i < n; i += step) {
+    const x = X(i), w = wd(labels[i]);
+    const a = i === 0 ? 'start' : x + w / 2 > x1 ? 'end' : 'middle';
+    const left = a === 'start' ? x : a === 'end' ? x - w : x - w / 2;
+    if (left < lastR + 8) continue;
+    out.push([labels[i], i, a]); lastR = left + w;
+  }
+  return out;
+}
+
+export function Spark({ data, w: w0 = 110, h = 30, color = C.info, fill = true, min, max, className }) {
+  const ref = useRef(null); const w = useParentW(ref, w0);
+  const k = useSlide(data); const cid = useId().replace(/:/g, '');
+  const [lo0, hi0] = data && data.length ? [Math.min(...data), Math.max(...data)] : [0, 1];
+  const [elo, ehi] = useScale(lo0, hi0);
+  if (!data || !data.length) return <svg ref={ref} width={0} height={h} />;
+  const lo = min ?? elo, hi = max ?? ehi, r = hi - lo || 1;
+  const step = (w - 4) / Math.max(1, data.length - 1);
+  const pts = data.map((v, i) => [i * step + 1, h - 3 - ((v - lo) / r) * (h - 6)]);
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+  return (
+    <svg ref={ref} width={w} height={h} className={cx('min-w-0', className)} style={{ maxWidth: '100%' }} preserveAspectRatio="none" viewBox={`0 0 ${w} ${h}`}>
+      <defs><clipPath id={`sp${cid}`}><rect x="0" y="0" width={w} height={h} /></clipPath></defs>
+      <g clipPath={`url(#sp${cid})`}>
+        <g key={k} className={k ? 'slide-x' : ''} style={{ '--dx': `${step.toFixed(2)}px` }}>
+          {fill && <path d={`${d}L${pts[pts.length - 1][0]},${h}L1,${h}Z`} fill={color} opacity="0.1" />}
+          <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
+          <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.6" fill={color} className="stroke-panel" strokeWidth="1.5" />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
+// Time series with optional forecast segment (dashed) and confidence band. One y-axis only.
+export function LineChart({ series, labels, h = 180, yFmt = v => v, refLines = [], yMin, yMax, band, forecastFrom, nowLabel = 'now', padL = 44 }) {
+  const [hover, setHover] = useState(null);
+  const [wref, W] = useWidth();
+  const H = h, L = padL, Rr = 12, T = 12, B = 24;
+  const all = series.flatMap(s => s.data).concat(refLines.map(r => r.v)).concat(band ? [...band.lo, ...band.hi] : []).filter(v => v != null);
+  let lo = yMin ?? Math.min(...all), hi = yMax ?? Math.max(...all);
+  if (yMax == null) hi = yMin === 0 ? niceMax(hi) : hi + (hi - lo) * 0.08;
+  if (yMin == null) lo = lo - (hi - lo) * 0.08;
+  [lo, hi] = useScale(lo, hi);
+  const r = hi - lo || 1;
+  const sk = useSlide(series[0] && series[0].data); const cid = useId().replace(/:/g, '');
+  const live = sk > 0 && forecastFrom == null && !band;
+  const n = labels.length;
+  const X = i => L + (i / Math.max(1, n - 1)) * (W - L - Rr), Y = v => T + (1 - (v - lo) / r) * (H - T - B);
+  const ticks = [lo, lo + r / 2, hi];
+  const path = (data, a = 0, b = data.length - 1) => { let out = '', started = false; for (let i = a; i <= b; i++) { const v = data[i]; if (v == null) { started = false; continue; } out += `${started ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`; started = true; } return out; };
+  const bandPath = band ? (() => { const idx = band.hi.map((v, i) => i).filter(i => band.hi[i] != null); if (!idx.length) return ''; return idx.map((i, k) => `${k ? 'L' : 'M'}${X(i)},${Y(band.hi[i])}`).join('') + idx.slice().reverse().map(i => `L${X(i)},${Y(band.lo[i])}`).join('') + 'Z'; })() : '';
+  return (
+    <div className="relative" ref={wref}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: h }} onMouseLeave={() => setHover(null)}
+        onMouseMove={e => { const b = e.currentTarget.getBoundingClientRect(); const x = (e.clientX - b.left) / b.width * W; const i = Math.round((x - L) / (W - L - Rr) * (n - 1)); setHover(i >= 0 && i < n ? i : null); }}>
+        {ticks.map((t, i) => <g key={i}><line x1={L} x2={W - Rr} y1={Y(t)} y2={Y(t)} className="stroke-line" strokeWidth="1" /><text x={L - 7} y={Y(t) + 3.5} textAnchor="end" className="fill-ink3" fontSize="10.5">{yFmt(t)}</text></g>)}
+        {forecastFrom != null && <g><rect x={X(forecastFrom)} y={T} width={W - Rr - X(forecastFrom)} height={H - T - B} className="fill-chip" opacity="0.6" /><line x1={X(forecastFrom)} x2={X(forecastFrom)} y1={T} y2={H - B} className="stroke-ink3" strokeWidth="1" /><text x={X(forecastFrom) + 5} y={T + 11} fontSize="10.5" className="fill-ink2" fontWeight="600">{nowLabel}</text><text x={W - Rr - 4} y={T + 11} fontSize="10.5" textAnchor="end" className="fill-ink3">forecast</text></g>}
+        {band && <path d={bandPath} fill={band.color || C.info} opacity="0.15" />}
+        {refLines.map(rl => <g key={rl.label}><line x1={L} x2={W - Rr} y1={Y(rl.v)} y2={Y(rl.v)} stroke={rl.color} strokeDasharray="5 4" strokeWidth="1.3" /><text x={L + 4} y={Y(rl.v) - 4} fontSize="10.5" className="fill-ink2" fontWeight="600">{rl.label}</text></g>)}
+        {pickLabels(labels, X, L, W - Rr).map(([l, i, a]) => <text key={i} x={X(i)} y={H - 7} textAnchor={a} className="fill-ink3" fontSize="10.5">{l}</text>)}
+        <defs><clipPath id={`lc${cid}`}><rect x={L} y={0} width={Math.max(0, W - L - Rr + 6)} height={H} /></clipPath></defs>
+        <g clipPath={`url(#lc${cid})`}><g key={live ? sk : 'static'} className={live ? 'slide-x' : ''} style={{ '--dx': `${((W - L - Rr) / Math.max(1, n - 1)).toFixed(2)}px` }}>
+        {series.map(s => { const f = s.forecastFrom ?? forecastFrom; return <g key={s.name}>
+          {s.area && <path d={path(s.data) + `L${X(n - 1)},${Y(Math.max(lo, 0))}L${X(0)},${Y(Math.max(lo, 0))}Z`} fill={s.color} opacity="0.1" />}
+          {f != null ? <><path d={path(s.data, 0, f)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" /><path d={path(s.data, f)} fill="none" stroke={s.color} strokeWidth="2" strokeDasharray="5 4" strokeLinecap="round" /></> : <path d={path(s.data)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />}
+          {s.data[n - 1] != null && <circle cx={X(n - 1)} cy={Y(s.data[n - 1])} r="4" fill={s.color} className="stroke-panel" strokeWidth="2" />}
+        </g>; })}
+        </g></g>
+        {hover != null && <line x1={X(hover)} x2={X(hover)} y1={T} y2={H - B} className="stroke-ink3" strokeWidth="1" />}
+        {hover != null && series.map(s => s.data[hover] != null && <circle key={s.name} cx={X(hover)} cy={Y(s.data[hover])} r="4" fill={s.color} className="stroke-panel" strokeWidth="2" />)}
+      </svg>
+      {hover != null && (
+        <div className="absolute top-1 pointer-events-none bg-panel border border-line rounded px-2 py-1 text-[11.5px] shadow-lg z-10 min-w-[130px]" style={{ left: `${Math.min(72, (X(hover) / W) * 100)}%` }}>
+          <div className="font-semibold text-ink">{labels[hover]}{forecastFrom != null && hover > forecastFrom ? ' (forecast)' : ''}</div>
+          {series.map(s => s.data[hover] != null && <div key={s.name} className="flex items-center gap-1.5"><span className="w-2.5 h-[2px]" style={{ background: s.color }} /><span className="text-ink2">{s.name}</span><span className="font-semibold text-ink ml-auto pl-3 tabular">{yFmt(s.data[hover])}</span></div>)}
+          {band && band.lo[hover] != null && <div className="text-ink3">likely range {yFmt(band.lo[hover])} to {yFmt(band.hi[hover])}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Columns: thin (<=24px), 2px surface gaps between stacked segments, rounded data-end
+export function Bars({ data, keys, colors, h = 170, stacked = true, onBar, fmt = v => v, forecastFrom }) {
+  const [hover, setHover] = useState(null);
+  const [wref, W] = useWidth();
+  const H = h, L = 38, T = 10, B = 24;
+  const tot = d => stacked ? keys.reduce((s, k) => s + (d[k] || 0), 0) : Math.max(...keys.map(k => d[k] || 0));
+  const hi = niceMax(Math.max(1, ...data.map(tot)));
+  const bw = (W - L) / data.length;
+  const ph = H - T - B;
+  const colW = Math.min(24, bw * 0.62);
+  const bk = useSlide(data.map(tot)); const bid = useId().replace(/:/g, '');
+  const blive = bk > 0 && forecastFrom == null;
+  const col = (x, y, w, hh, rr) => `M${x},${y + hh}V${y + rr}Q${x},${y} ${x + rr},${y}H${x + w - rr}Q${x + w},${y} ${x + w},${y + rr}V${y + hh}Z`;
+  return (
+    <div className="relative" ref={wref}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: h }}>
+        {[0, 0.5, 1].map(f => <g key={f}><line x1={L} x2={W} y1={T + (1 - f) * ph} y2={T + (1 - f) * ph} className="stroke-line" strokeWidth="1" /><text x={L - 6} y={T + (1 - f) * ph + 3.5} textAnchor="end" fontSize="10.5" className="fill-ink3">{fmt(Math.round(hi * f))}</text></g>)}
+        {forecastFrom != null && <rect x={L + forecastFrom * bw} y={T} width={W - L - forecastFrom * bw} height={ph} className="fill-chip" opacity="0.7" />}
+        <defs><clipPath id={`bc${bid}`}><rect x={L} y={0} width={Math.max(0, W - L)} height={H} /></clipPath></defs>
+        <g clipPath={`url(#bc${bid})`}><g key={blive ? bk : 'static'} className={blive ? 'slide-x' : ''} style={{ '--dx': `${bw.toFixed(2)}px` }}>
+        {data.map((d, i) => {
+          let y = T + ph; const cx0 = L + i * bw + bw / 2; const isF = forecastFrom != null && i >= forecastFrom;
+          const segs = keys.map((k, j) => ({ k, j, v: d[k] || 0 })).filter(x => x.v > 0);
+          return (
+            <g key={i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => onBar && onBar(d)} className={onBar ? 'cursor-pointer' : ''}>
+              <rect x={L + i * bw} y={T} width={bw} height={ph} fill="transparent" />
+              {stacked ? segs.map((sg, idx) => { const gap = idx ? 2 : 0; const hh = Math.max(0, (sg.v / hi) * ph - gap); y -= hh + gap; const top = idx === segs.length - 1; return <path key={sg.k} d={col(cx0 - colW / 2, y, colW, hh, top ? Math.min(3, hh) : 0)} fill={colors[sg.j]} opacity={(hover == null || hover === i ? 1 : 0.55) * (isF ? 0.5 : 1)} />; })
+                : keys.map((k, j) => { const hh = ((d[k] || 0) / hi) * ph; const ww = Math.min(14, (colW + 6) / keys.length); const x = cx0 - (ww * keys.length + 2 * (keys.length - 1)) / 2 + j * (ww + 2); return <path key={k} d={col(x, T + ph - hh, ww, hh, Math.min(3, hh))} fill={colors[j]} opacity={hover == null || hover === i ? 1 : 0.55} />; })}
+              {d.label && (() => { const hw = String(d.label).length * 3; const a = cx0 + hw > W ? 'end' : cx0 - hw < L ? 'start' : 'middle'; return <text x={a === 'end' ? W - 1 : a === 'start' ? L + 1 : cx0} y={H - 8} textAnchor={a} fontSize="10.5" className="fill-ink3">{d.label}</text>; })()}
+            </g>
+          );
+        })}
+        </g></g>
+        <line x1={L} x2={W} y1={T + ph} y2={T + ph} className="stroke-ink3" strokeWidth="1" />
+      </svg>
+      {hover != null && (
+        <div className="absolute top-0 pointer-events-none bg-panel border border-line rounded px-2 py-1 text-[11.5px] shadow-lg z-10 min-w-[130px]" style={{ left: `${Math.min(70, ((L + hover * bw) / W) * 100)}%` }}>
+          <div className="font-semibold text-ink">{data[hover].tip || data[hover].label}{forecastFrom != null && hover >= forecastFrom ? ' (forecast)' : ''}</div>
+          {keys.map((k, j) => <div key={k} className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm" style={{ background: colors[j] }} /><span className="text-ink2">{k}</span><span className="font-semibold text-ink ml-auto pl-3 tabular">{fmt(data[hover][k] || 0)}</span></div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Legend({ items, className }) {
+  return <div className={cx('flex flex-wrap gap-x-3.5 gap-y-1 text-[12px] text-ink2', className)}>{items.map(([l, c, dash]) => <span key={l} className="inline-flex items-center gap-1.5">{dash ? <span className="w-3.5 border-t-2 border-dashed" style={{ borderColor: c }} /> : <span className="w-2.5 h-2.5 rounded-[2px]" style={{ background: c }} />}{l}</span>)}</div>;
+}
+
+export function Ring({ value, size = 56, stroke = 6, color = C.ok, label }) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-chip" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={`${c * value} ${c}`} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      {label && <text x="50%" y="56%" textAnchor="middle" fontSize={size > 90 ? 24 : 14} fontWeight="600" className="fill-ink" style={{ fontFamily: 'Arial' }}>{label}</text>}
+    </svg>
+  );
+}
+
+// Horizontal bars, value at the tip, optional marker (target / threshold)
+export function HBars({ rows, fmt = v => v, max, color = C.s1, onRow, labelW = 150 }) {
+  const m = max || Math.max(1, ...rows.map(r => Math.max(r.value, r.mark || 0)));
+  return (
+    <div className="space-y-2">
+      {rows.map(r => (
+        <div key={r.label} onClick={onRow ? () => onRow(r) : undefined} className={cx('flex items-center gap-2 text-[12.5px]', onRow && 'cursor-pointer hover:bg-chip/60 rounded')}>
+          <span className="text-ink truncate shrink-0 leading-tight" style={{ width: labelW }} title={r.label}>{r.label}{r.sub && <span className="block text-[11px] text-ink3 truncate">{r.sub}</span>}</span>
+          <span className="flex-1 h-3 relative"><span className="absolute inset-y-0 left-0 rounded-r-[3px]" style={{ width: `${Math.max(0.6, (r.value / m) * 100)}%`, background: r.color || color }} />{r.mark != null && <span className="absolute -top-1 -bottom-1 w-[2px] bg-ink" style={{ left: `${(r.mark / m) * 100}%` }} title={r.markLabel} />}</span>
+          <span className="w-16 text-right font-semibold text-ink tabular shrink-0">{fmt(r.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Sequential heatmap (one hue, light to dark) with hover readout
+export function Heatmap({ rows, cols, values, fmt = v => v, colLabelEvery = 1, cell = 18, onCell, max, rowW }) {
+  const [hv, setHv] = useState(null);
+  const m = max || Math.max(1, ...values.flat());
+  const colr = v => SEQ[Math.min(SEQ.length - 1, Math.floor((v / m) * (SEQ.length - 0.01)))];
+  return (
+    <div className="relative overflow-x-auto">
+      <table className="border-separate" style={{ borderSpacing: 2 }}>
+        <tbody>
+          {rows.map((r, i) => <tr key={r}><td className="text-[11.5px] text-ink2 pr-2 whitespace-nowrap" style={{ minWidth: rowW }}>{r}</td>{cols.map((c, j) => <td key={j} onMouseEnter={() => setHv([i, j])} onMouseLeave={() => setHv(null)} onClick={() => onCell && onCell(i, j)} style={{ background: colr(values[i][j]), width: cell, height: cell - 3, minWidth: cell }} className={cx('rounded-[2px] p-0', hv && hv[0] === i && hv[1] === j && 'outline outline-2 outline-ink')} />)}</tr>)}
+          <tr><td />{cols.map((c, j) => <td key={j} className="text-[10px] text-ink3 text-center pt-1 whitespace-nowrap">{j % colLabelEvery === 0 ? c : ''}</td>)}</tr>
+        </tbody>
+      </table>
+      <div className="flex items-center gap-1 mt-1.5 text-[11px] text-ink3"><span className="mr-1">Fewer</span>{SEQ.map(c => <span key={c} className="w-4 h-2.5 rounded-[2px]" style={{ background: c }} />)}<span className="ml-1">More</span>{hv && <span className="ml-auto text-ink2"><b className="text-ink">{rows[hv[0]]}</b>, {cols[hv[1]]}: <b className="text-ink tabular">{fmt(values[hv[0]][hv[1]])}</b></span>}</div>
+    </div>
+  );
+}
+
+export function Donut({ data, size = 132, stroke = 18, center, sub }) {
+  const tot = data.reduce((s, d) => s + d.value, 0) || 1; const r = (size - stroke) / 2, c = 2 * Math.PI * r; let acc = 0;
+  return (
+    <div className="flex items-center gap-4">
+      <svg width={size} height={size} className="shrink-0">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" className="stroke-chip" strokeWidth={stroke} />
+        {data.map(d => { const len = (d.value / tot) * c; const el = <circle key={d.label} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={d.color} strokeWidth={stroke} strokeDasharray={`${Math.max(0, len - 2)} ${c}`} strokeDashoffset={-acc} transform={`rotate(-90 ${size / 2} ${size / 2})`}><title>{`${d.label}: ${d.value}`}</title></circle>; acc += len; return el; })}
+        {center && <text x="50%" y="52%" textAnchor="middle" fontSize="24" fontWeight="600" className="fill-ink" style={{ fontFamily: 'Arial' }}>{center}</text>}
+        {sub && <text x="50%" y="65%" textAnchor="middle" fontSize="11" className="fill-ink3">{sub}</text>}
+      </svg>
+      <div className="space-y-1 text-[12.5px] min-w-0 flex-1">{data.map(d => <div key={d.label} className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-[2px] shrink-0" style={{ background: d.color }} /><span className="text-ink2 truncate">{d.label}</span><b className="text-ink ml-auto pl-2 tabular">{d.value.toLocaleString()}</b></div>)}</div>
+    </div>
+  );
+}
+
+// Likelihood x impact; colour = up to 3 categories
+export function RiskMatrix({ points, onPoint, h = 270 }) {
+  const [hv, setHv] = useState(null);
+  const [wref, W] = useWidth(560);
+  const H = h, L = 40, B = 34, T = 10, R = 12;
+  const X = v => L + v * (W - L - R), Y = v => T + (1 - v) * (H - T - B);
+  return (
+    <div className="relative" ref={wref}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: h }}>
+        <rect x={X(0.5)} y={Y(1)} width={X(1) - X(0.5)} height={Y(0.5) - Y(1)} fill={C.bad} opacity="0.07" />
+        {[0, 0.5, 1].map(v => <g key={v}><line x1={X(0)} x2={X(1)} y1={Y(v)} y2={Y(v)} className="stroke-line" /><line x1={X(v)} x2={X(v)} y1={Y(0)} y2={Y(1)} className="stroke-line" /></g>)}
+        <text x={X(0.5)} y={H - 8} textAnchor="middle" fontSize="11" className="fill-ink2">Likelihood within horizon</text>
+        <text x={13} y={Y(0.5)} textAnchor="middle" fontSize="11" className="fill-ink2" transform={`rotate(-90 13 ${Y(0.5)})`}>Business impact</text>
+        <text x={X(0.99)} y={Y(0.96)} textAnchor="end" fontSize="11" className="fill-ink2" fontWeight="600">Act first</text>
+        <text x={X(0.01)} y={Y(0.03)} fontSize="11" className="fill-ink3">Watch</text>
+        {points.map(p => <g key={p.id} onMouseEnter={() => setHv(p)} onMouseLeave={() => setHv(null)} onClick={() => onPoint && onPoint(p)} className="cursor-pointer"><circle cx={X(p.x)} cy={Y(p.y)} r="13" fill="transparent" /><circle cx={X(p.x)} cy={Y(p.y)} r={hv && hv.id === p.id ? 7 : 5.5} fill={p.color} className="stroke-panel" strokeWidth="2" />{p.tag && <text x={X(p.x) + 9} y={Y(p.y) + 4} fontSize="10.5" className="fill-ink2">{p.tag}</text>}</g>)}
+      </svg>
+      {hv && <div className="absolute pointer-events-none bg-panel border border-line rounded px-2 py-1 text-[11.5px] shadow-lg z-10" style={{ left: `${Math.min(66, X(hv.x) / W * 100)}%`, top: `${Math.max(0, Y(hv.y) / H * 100 - 18)}%` }}><b className="text-ink">{hv.label}</b><div className="text-ink2">likelihood {Math.round(hv.x * 100)}%, impact {Math.round(hv.y * 100)}/100</div></div>}
+    </div>
+  );
+}
+
+// zoom and pan for the maps: + / − / reset, double-click to zoom in on a spot, drag to move, pinch or Ctrl + scroll
+export function useMapZoom(base, resetKey, initZ = 1) {
+  const [z, setZ] = useState(initZ), [c, setC] = useState(null);
+  const ref = useRef(null), drag = useRef(null), moved = useRef(false);
+  useEffect(() => { setZ(initZ); setC(null); }, [resetKey]);
+  const reset = () => { setZ(initZ); setC(null); };
+  const w = base[2] / z, h = base[3] / z;
+  const clampC = (x, y, zz) => { const ww = base[2] / zz, hh = base[3] / zz; return [Math.min(base[0] + base[2] - ww / 2, Math.max(base[0] + ww / 2, x)), Math.min(base[1] + base[3] - hh / 2, Math.max(base[1] + hh / 2, y))]; };
+  const [cx, cy] = c ? clampC(c[0], c[1], z) : [base[0] + base[2] / 2, base[1] + base[3] / 2];
+  const vb = [cx - w / 2, cy - h / 2, w, h];
+  const at = e => { const r = ref.current.getBoundingClientRect(); return [vb[0] + (e.clientX - r.left) / r.width * vb[2], vb[1] + (e.clientY - r.top) / r.height * vb[3]]; };
+  const zoomTo = (nz, p) => { nz = Math.min(12, Math.max(1, nz)); if (nz === 1) { setZ(1); setC(null); return; } const [px, py] = p || [cx, cy]; const nx = px - (px - cx) * (z / nz), ny = py - (py - cy) * (z / nz); setZ(nz); setC(clampC(nx, ny, nz)); };
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const onWheel = e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(z * (e.deltaY < 0 ? 1.25 : 0.8), at(e)); };
+    el.addEventListener('wheel', onWheel, { passive: false }); return () => el.removeEventListener('wheel', onWheel);
+  });
+  const bind = {
+    ref,
+    onDoubleClick: e => { e.preventDefault(); zoomTo(z * 2, at(e)); },
+    onPointerDown: e => { if (z === 1) return; drag.current = { x: e.clientX, y: e.clientY, cx, cy }; moved.current = false; },
+    onPointerMove: e => { const d = drag.current; if (!d) return; const r = ref.current.getBoundingClientRect(); const dx = (e.clientX - d.x) / r.width * vb[2], dy = (e.clientY - d.y) / r.height * vb[3]; if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) moved.current = true; setC(clampC(d.cx - dx, d.cy - dy, z)); },
+    onPointerUp: () => { drag.current = null; }, onPointerLeave: () => { drag.current = null; },
+    onClickCapture: e => { if (moved.current) { e.stopPropagation(); moved.current = false; } },
+    style: { cursor: z > 1 ? 'grab' : undefined, touchAction: z > 1 ? 'none' : undefined },
+  };
+  const controls = (
+    <div className="absolute top-2 right-2 flex flex-col rounded-md border border-line bg-panel/95 shadow-sm overflow-hidden z-10 text-ink" onDoubleClick={e => e.stopPropagation()}>
+      <button aria-label="Zoom in" title="Zoom in" onClick={() => zoomTo(z * 1.6)} className="w-8 h-8 grid place-items-center hover:bg-chip text-[16px] font-bold">+</button>
+      <button aria-label="Zoom out" title="Zoom out" onClick={() => zoomTo(z / 1.6)} disabled={z === 1} className="w-8 h-8 grid place-items-center hover:bg-chip text-[16px] font-bold border-t border-line disabled:opacity-40">−</button>
+      <button aria-label="Reset zoom" title="Reset" onClick={reset} disabled={z === initZ && !c} className="w-8 h-8 grid place-items-center hover:bg-chip text-[11px] font-bold border-t border-line disabled:opacity-40">{`${Math.round(z / initZ * 10) / 10}×`}</button>
+    </div>
+  );
+  return { vb, z, bind, controls };
+}
+
+// US + southern Canada map; points = [{id,x,y,r,color,label,pulse,flash}]
+export function NAMap({ points, onPoint, h = 420, highlightStates = [], children, focus, legendNote }) {
+  const [hover, setHover] = useState(null);
+  let vb = [0, 0, MAP.w, MAP.h];
+  if (focus && focus.length && focus.length < 880) {
+    const xs = focus.map(p => p.x), ys = focus.map(p => p.y);
+    let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    let w = Math.max(60, x1 - x0) * 1.35, hh = Math.max(40, y1 - y0) * 1.35;
+    const ar = MAP.w / MAP.h; if (w / hh > ar) hh = w / ar; else w = hh * ar;
+    const cx0 = (x0 + x1) / 2, cy0 = (y0 + y1) / 2; vb = [cx0 - w / 2, cy0 - hh / 2, w, hh];
+  }
+  const Z = useMapZoom(vb, vb.map(v => Math.round(v)).join(','));
+  vb = Z.vb;
+  const k = vb[2] / MAP.w;
+  return (
+    <div className="relative">
+      {Z.controls}
+      <svg viewBox={vb.join(' ')} className="w-full select-none" style={{ maxHeight: h, ...Z.bind.style }} ref={Z.bind.ref} onDoubleClick={Z.bind.onDoubleClick} onPointerDown={Z.bind.onPointerDown} onPointerMove={Z.bind.onPointerMove} onPointerUp={Z.bind.onPointerUp} onPointerLeave={Z.bind.onPointerLeave} onClickCapture={Z.bind.onClickCapture}>
+        <path d={MAP.canada} className="fill-chip stroke-line" strokeWidth={0.7 * k} />
+        {MAP.states.map(st => <path key={st.id} d={st.d} className={cx('stroke-panel', highlightStates.includes(st.name) ? 'fill-warn/25' : 'fill-mapland')} strokeWidth={0.8 * k} />)}
+        {k > 0.9 && <g transform="translate(10,505)"><rect width="120" height="80" rx="4" className="fill-chip stroke-line" /><text x="8" y="17" fontSize="11" className="fill-ink3" fontWeight="600">Hawaii (Kauai)</text></g>}
+        {children}
+        {points.map(p => { const r = p.r * Math.max(k, 0.12) * (k < 0.9 ? 1.5 : 1); return (
+          <g key={p.id} transform={`translate(${p.x},${p.y})`} onMouseEnter={() => setHover(p)} onMouseLeave={() => setHover(null)} onClick={() => onPoint && onPoint(p)} className="cursor-pointer">
+            {p.pulse && <circle r={r + 6 * k} fill={p.color} opacity="0.25" className="map-pulse" />}
+            {p.flash && <circle r={r + 3 * k} fill="none" stroke={C.s1} strokeWidth={2 * k} className="map-ping" />}
+            {p.risk && <circle r={r + 3.5 * k} fill="none" stroke={C.s7} strokeWidth={1.6 * k} strokeDasharray={`${2.5 * k} ${2 * k}`} />}
+            <circle r={r} fill={p.color} fillOpacity={p.dim ? 0.18 : 0.9} className="stroke-panel" strokeWidth={0.8 * k} />
+          </g>); })}
+      </svg>
+      {hover && (
+        <div className="absolute pointer-events-none bg-panel border border-line rounded-md px-2.5 py-1.5 text-[12px] shadow-lg z-10 whitespace-nowrap" style={{ left: `${((hover.x - vb[0]) / vb[2]) * 100}%`, top: `${((hover.y - vb[1]) / vb[3]) * 100}%`, transform: 'translate(-50%, -118%)' }}>
+          {hover.label}
+        </div>
+      )}
+    </div>
+  );
+}

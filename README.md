@@ -81,6 +81,10 @@ Five branches carry scripted, connected stories so these answers are never empty
 
 Vulnerability data is matched against public HPE Aruba Networking bulletins HPESBNW04712, HPESBNW05027 and HPESBNW04943, plus the Aruba 2530 end-of-sale notice. The 2530 end-of-support date and the CX fixed build are estimates; confirm with HPE.
 
+## Unbranded copy (`marvell/`)
+
+`marvell/src` is a separate copy of the console and the live demos with no logos (no SRS mark and no owner's mark) and neutral colours. It builds to `dist/site/marvell/` (console) and `dist/site/marvell/demos/` (demos). Changes to `src/` do not reach it; the two sites do not link to each other.
+
 ## Build
 
 Requires Node 18 or newer.
