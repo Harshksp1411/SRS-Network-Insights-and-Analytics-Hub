@@ -125,15 +125,9 @@ export function ServiceNowSyncCard() {
   }, [L.feed, s.incidents, s.resolved]);
   const tone = { Created: 'green', Attached: 'blue', Assigned: 'purple', Resolved: 'gray' };
   return (
-    <Card title="Auto-ticketing to ServiceNow" sub="OpsRamp opens, updates and resolves the tickets; engineers work them in ServiceNow and the console stays in step" icon={I.Ticket}>
+    <Card title="Auto-ticketing to ServiceNow" icon={I.Ticket}>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">{[['Tickets created today', tc.inc, I.PlusCircle, 'One per branch per event'], ['Alerts attached, no new ticket', attached, I.Link2, 'Duplicate tickets prevented'], ['Resolved by OpsRamp today', tc.autoRes, I.CheckCircle2, 'Checks passed, close code set'], ['Duplicate tickets', 0, I.Copy, 'Same outage never ticketed twice']].map(([k, v, Ic, d]) => <div key={k} className="border border-line rounded-lg px-3 py-2"><div className="flex items-center gap-1.5"><Ic size={14} className="text-brand" /><span className="text-[18px] font-extrabold text-ink tabular-nums">{num(v)}</span></div><div className="text-[12px] font-semibold text-ink leading-tight">{k}</div><div className="text-[11px] text-ink3">{d}</div></div>)}</div>
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-3">
-        <div className="space-y-3">
-          <div><div className="text-[12px] font-bold uppercase tracking-wide text-ink3 mb-1.5">A ticket's life</div><ol className="space-y-1.5">{LIFE.map(([k, Ic, d], i) => <li key={k} className="flex gap-2 text-[12.5px]"><span className="w-6 h-6 rounded-full bg-brand/10 text-brand grid place-items-center shrink-0"><Ic size={13} /></span><div><b className="text-ink">{i + 1}. {k}.</b> <span className="text-ink2">{d}.</span></div></li>)}</ol></div>
-          <div><div className="text-[12px] font-bold uppercase tracking-wide text-ink3 mb-1.5">How priority is set (impact x urgency)</div>
-            <div className="overflow-x-auto"><table className="w-full text-[12px] border-collapse"><thead><tr><th className="text-left p-1.5 text-ink3 font-semibold">Impact \ urgency</th>{MATRIX.urgency.map(u => <th key={u} className="p-1.5 text-ink3 font-semibold text-center">{u}</th>)}</tr></thead>
-              <tbody>{MATRIX.impact.map((im, r) => <tr key={im} className="border-t border-line/70"><td className="p-1.5 text-ink2">{im}</td>{MATRIX.p[r].map((p, c) => <td key={c} className="p-1.5 text-center"><Pri p={p} /></td>)}</tr>)}</tbody></table></div></div>
-        </div>
+      <div>
         <div><div className="text-[12px] font-bold uppercase tracking-wide text-ink3 mb-1.5 flex items-center gap-1.5">Sync log <span className="normal-case font-normal tracking-normal">(newest first)</span></div>
           <div className="border border-line rounded-lg divide-y divide-line/70">{log.map((x, i) => <button key={i} onClick={() => act.openInc(x.inc)} className="w-full text-left flex items-start gap-2 px-2.5 py-1.5 text-[12px] hover:bg-chip/50">
             <code className="text-ink3 text-[11px] w-[54px] shrink-0 pt-[1px]">{hhmmss(x.t)}</code>

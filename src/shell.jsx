@@ -41,7 +41,7 @@ export const MODULES = [
   { id: 'dispatch', label: 'Field Dispatch', icon: I.Truck, group: 'Manage', C: Dispatch, badge: s => s.workOrders.filter(w => !w.tech).length, alertBadge: true },
   { id: 'changes', label: 'Approvals & Changes', icon: I.GitPullRequest, group: 'Manage', C: Changes, badge: s => s.approvals.filter(a => a.status === 'Pending').length, alertBadge: true },
   { id: 'policies', label: 'Policies & Templates', icon: I.FileCog, group: 'Manage', C: Policies },
-  { id: 'biab', label: 'Branch-in-a-Box', icon: I.PackageCheck, group: 'Grow', C: BiaB },
+  { id: 'biab', label: 'Branch-in-a-Box', icon: I.PackageCheck, group: 'Manage', C: BiaB },
   { id: 'predict', label: 'Predictive Watchlist', icon: I.TrendingUp, group: 'Improve', C: Predictive },
   { id: 'knowledge', label: 'Knowledge', icon: I.BookOpen, group: 'Improve', C: Knowledge },
   { id: 'agents', label: 'AI & Automation Catalogue', icon: I.Bot, group: 'Improve', C: () => <CatalogueTab tab="agents" />, hidden: true },
@@ -105,6 +105,13 @@ function SpeedControl() {
   );
 }
 
+// the four parts of the console, each with its own colour and purpose
+const GROUP_META = {
+  Operate: { c: '#4FA3F7', tag: 'run it now', Ic: I.Activity },
+  Manage: { c: '#F0A43A', tag: 'estate and changes', Ic: I.Wrench },
+  Improve: { c: '#A98BFF', tag: 'predict and automate', Ic: I.Sparkles },
+  Govern: { c: '#3CC49A', tag: 'SLAs and reports', Ic: I.Scale },
+};
 function Sidebar() {
   const { s, act } = useApp();
   const [collapsed, setCollapsed] = useState(false);
@@ -114,13 +121,13 @@ function Sidebar() {
     <nav className={cx('bg-side text-white/80 flex flex-col shrink-0 sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto', collapsed ? 'w-14' : 'w-[236px]')}>
       {!collapsed && <div className="px-4 pt-4 pb-2"><div className="text-[10.5px] text-white/45 font-bold">Signed in as</div><div className="text-[13px] text-white font-semibold">{role.who}</div><div className="text-[11.5px] text-white/60">{role.name}</div></div>}
       {groups.map(g => (
-        <div key={g} className="mt-2">
-          {!collapsed && <div className="px-4 py-1.5 text-[10.5px] text-white/45 font-bold">{g}</div>}
+        <div key={g} className="mt-2 mx-2 rounded-lg py-1" style={{ background: `${(GROUP_META[g] || {}).c || '#888'}14`, boxShadow: `inset 3px 0 0 ${(GROUP_META[g] || {}).c || '#888'}` }}>
+          {!collapsed ? <div className="px-3 pt-1.5 pb-1 flex items-center gap-1.5">{GROUP_META[g] && React.createElement(GROUP_META[g].Ic, { size: 12, color: GROUP_META[g].c })}<span className="text-[11px] font-extrabold uppercase tracking-[0.08em]" style={{ color: (GROUP_META[g] || {}).c }}>{g}</span><span className="text-[10.5px] text-white/45 truncate">· {(GROUP_META[g] || {}).tag}</span></div> : <div className="mx-auto my-1 w-6 h-[3px] rounded" style={{ background: (GROUP_META[g] || {}).c }} />}
           {MODULES.filter(m => m.group === g && !m.hidden).map(m => {
             const on = s.module === m.id; const b = m.badge ? m.badge(s) : 0;
             return (
-              <button key={m.id} onClick={() => act.go(m.id)} title={m.label} className={cx('w-full flex items-center gap-2.5 px-4 h-9 text-[13px] text-left relative', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
-                {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#b23a3f] rounded-r" />}
+              <button key={m.id} onClick={() => act.go(m.id)} title={m.label} className={cx('w-full flex items-center gap-2.5 px-3 h-9 text-[13px] text-left relative rounded-md', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
+                {on && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: (GROUP_META[g] || {}).c }} />}
                 <m.icon size={16} className="shrink-0" />{!collapsed && <span className="flex-1 truncate">{m.label}</span>}
                 {!collapsed && b > 0 && <span className={cx('text-[10.5px] font-bold rounded px-1.5', m.alertBadge ? 'bg-brand text-white' : 'bg-white/15 text-white')}>{b}</span>}
               </button>

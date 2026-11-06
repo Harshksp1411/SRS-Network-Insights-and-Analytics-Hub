@@ -11,6 +11,7 @@ import { rankTechs } from './dash/fix.js';
 import { packOf, readingOk, tickStep, addPhoto, setReading, setFindings, returnCheck, acceptHandoff } from './dash/workpack.js';
 import { hhmm, MIN } from './util.js';
 import { StoreLayout, planOf } from './storeplan.jsx';
+import { useMapZoom } from './charts.jsx';
 
 const MILES = 2.9; // map units to road miles, the same scale the technician matching uses
 const ROADS = { TX: ['I-35', 'I-45', 'I-20', 'US-75'], FL: ['I-75', 'I-4', 'I-95'], GA: ['I-75', 'I-85', 'I-20'], IL: ['I-55', 'I-90', 'I-294'], AZ: ['I-10', 'I-17'], NC: ['I-85', 'I-77', 'I-40'], SC: ['I-26', 'I-85'], CO: ['I-25', 'I-70'], PA: ['I-76', 'I-476', 'I-95'], WA: ['I-5', 'I-405'], TN: ['I-40', 'I-24', 'I-65'], AL: ['I-65', 'I-20'], OH: ['I-71', 'I-75'], VA: ['I-64', 'I-95'], LA: ['I-10', 'I-12'], OK: ['I-35', 'I-44'], MO: ['I-70', 'I-44'], IN: ['I-65', 'I-70'], MI: ['I-75', 'I-96'], NJ: ['I-95', 'NJ Turnpike'], NY: ['I-87', 'I-90'], CA: ['I-5', 'I-405'], NV: ['I-15', 'US-95'], UT: ['I-15', 'I-80'], KS: ['I-35', 'I-70'], MN: ['I-94', 'I-35W'] };
@@ -53,24 +54,26 @@ export function tripOf(s, wo, now) {
 const bend = (a, z, k) => { const mx = (a.x + z.x) / 2, my = (a.y + z.y) / 2, dx = z.x - a.x, dy = z.y - a.y, o = 0.18 * (k % 2 ? 1 : -1); return `M${a.x},${a.y} Q${mx - dy * o},${my + dx * o} ${z.x},${z.y}`; };
 const quadAt = (a, z, k, t) => { const mx = (a.x + z.x) / 2, my = (a.y + z.y) / 2, dx = z.x - a.x, dy = z.y - a.y, o = 0.18 * (k % 2 ? 1 : -1), cx = mx - dy * o, cy = my + dx * o; return { x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * cx + t * t * z.x, y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * cy + t * t * z.y }; };
 
-export function RouteMap({ trip, h = 300, aspect = 3.4, pxw = 900 }) {
-  if (!trip) return null;
+export const RouteMap = props => props.trip ? <RouteMapInner {...props} /> : null;
+function RouteMapInner({ trip, h = 300, aspect = 3.4, pxw = 900 }) {
   const xs = trip.pts.map(p => p.x), ys = trip.pts.map(p => p.y);
   const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
   // fit the whole trip with a margin, in the shape of the frame it is drawn in
   const w0 = Math.max(60, (x1 - x0) * 1.35), h0 = Math.max(36, (y1 - y0) * 1.5 + 24);
   const W = Math.max(w0, h0 * aspect), hh = W / aspect;
   const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  const vb = [cx - W / 2, cy - hh / 2, W, hh];
-  const r = 8.5 * W / pxw; // markers and labels keep the same size on screen whatever the zoom
+  // zoom: starts fitted to the trip; zoom out (4×) for the region, in for the streets
+  const Z = useMapZoom([cx - W * 2, cy - hh * 2, W * 4, hh * 4], `${Math.round(cx)},${Math.round(cy)},${Math.round(W)}`, 4);
+  const vb = Z.vb;
+  const r = 8.5 * vb[2] / pxw; // markers and labels keep the same size on screen whatever the zoom
   // the technician's position along the whole trip
   const lens = trip.legs.map(l => l.min), tot = lens.reduce((a, v) => a + v, 0) || 1;
   let rem = trip.at * tot, pos = trip.pts[0];
   for (let i = 0; i < trip.legs.length; i++) { if (rem <= lens[i] || i === trip.legs.length - 1) { pos = quadAt(trip.legs[i].from, trip.legs[i].to, i, Math.min(1, rem / lens[i])); break; } rem -= lens[i]; }
   const near = D.BRANCHES.filter(x => x.x > vb[0] && x.x < vb[0] + vb[2] && x.y > vb[1] && x.y < vb[1] + vb[3]);
   const MK = { tech: [I.HardHat, '#2F6DB5'], depot: [I.Warehouse, '#E07B00'], store: [I.Store, '#762123'] };
-  return (
-    <svg viewBox={vb.join(' ')} className="w-full rounded-md bg-[#dfeaf3] dark:bg-[#1b2633]" style={{ height: h }} preserveAspectRatio="xMidYMid meet">
+  return (<div className="relative">{Z.controls}
+    <svg viewBox={vb.join(' ')} className="w-full rounded-md bg-[#dfeaf3] dark:bg-[#1b2633] select-none" style={{ height: h, ...Z.bind.style }} preserveAspectRatio="xMidYMid meet" ref={Z.bind.ref} onDoubleClick={Z.bind.onDoubleClick} onPointerDown={Z.bind.onPointerDown} onPointerMove={Z.bind.onPointerMove} onPointerUp={Z.bind.onPointerUp} onPointerLeave={Z.bind.onPointerLeave} onClickCapture={Z.bind.onClickCapture}>
       {MAP.states.map(st => <path key={st.id} d={st.d} className="fill-mapland stroke-line" strokeWidth={1} vectorEffect="non-scaling-stroke" />)}
       {near.map(x => <circle key={x.id} cx={x.x} cy={x.y} r={r * 0.3} fill="#A3ACB8" opacity={0.7} />)}
       {trip.legs.map((l, i) => <g key={i}>
@@ -84,7 +87,7 @@ export function RouteMap({ trip, h = 300, aspect = 3.4, pxw = 900 }) {
       </g>; })}
       {trip.at > 0 && trip.at < 1 && <g transform={`translate(${pos.x},${pos.y})`}><circle r={r * 2.4} fill="#2F6DB5" opacity={0.2}><animate attributeName="r" values={`${r * 1.4};${r * 2.8};${r * 1.4}`} dur="2s" repeatCount="indefinite" /></circle><circle r={r * 0.9} fill="#2F6DB5" stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" /></g>}
     </svg>
-  );
+  </div>);
 }
 
 export function RouteCard({ wo }) {

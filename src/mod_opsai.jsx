@@ -10,6 +10,9 @@ import { Card, Badge, cx } from './ui.jsx';
 import { todayCounts } from './viz2.jsx';
 import { AnomaliesCard, anomaliesOf } from './patterns.jsx';
 import { ServiceNowSyncCard } from './stormui.jsx';
+import { IntegrationStudio } from './studio.jsx';
+import { TicketSimulator } from './snowsim.jsx';
+import { DeviceOnboarding } from './onboard.jsx';
 import { num } from './util.js';
 
 const KIND = { ml: ['Machine learning', 'bg-ai/10 text-ai border-ai/30'], topo: ['Topology', 'bg-info/10 text-info border-info/30'], rule: ['Rules', 'bg-chip text-ink2 border-line'], agent: ['Mova iO agents', 'bg-brand/10 text-brand border-brand/30'] };
@@ -173,11 +176,9 @@ const SOURCES = [
   ['Microsoft Teams and email', 'Notifications', ['Outbound'], 'Low', 0],
 ];
 function Integration({ tc }) {
-  const steps = [['NextGen gateway', 'OVA · ISO · Kubernetes', '2 h', I.Server], ['Credentials', 'SNMPv3 · API keys', '1 h', I.KeyRound], ['Discovery', 'SNMP · vendor APIs', 'Overnight', I.Radar], ['Templates', 'by type and store group', 'Automatic', I.LayoutTemplate], ['Event sources', 'webhook URL + token', '30 min each', I.Webhook], ['ServiceNow', 'Store app · OAuth 2.0', 'Half a day', I.Ticket]];
   return (<>
-    <Card title="Connecting a source" className="mb-3" right={<Badge tone="blue">2,500+ integrations in the OpsRamp library</Badge>}>
-      <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{steps.map(([t, d, h, Ic], i) => <React.Fragment key={t}>{i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-3"><div className="flex items-center gap-1.5"><Ic size={15} className="text-brand" /><b className="text-[12.5px] text-ink">{t}</b></div><div className="text-[11.5px] text-ink3 mt-1">{d}</div><div className="text-[16px] font-bold text-ink mt-2">{h}</div></div></React.Fragment>)}</div>
-    </Card>
+    <div className="mb-3"><IntegrationStudio /></div>
+    <div className="mb-3"><DeviceOnboarding /></div>
     <Card title="SRS sources" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SOURCES.length}</b> connected · <b className="text-ink">{num(tc.events)}</b> events today</span>}>
       <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line"><Th>Source</Th><Th>Data</Th><Th>Connects by</Th><Th>Effort</Th><Th r>Events today</Th></tr></thead>
         <tbody>{SOURCES.map(([n, w, h, e, f]) => <tr key={n} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 font-semibold text-ink"><span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-ok" />{n}</span></td><td className="py-1.5 pr-3 text-ink2">{w}</td><td className="py-1.5 pr-3"><span className="flex flex-wrap gap-1">{h.map(x => <span key={x} className="text-[11px] px-1.5 py-[1px] rounded border border-line bg-chip text-ink2">{x}</span>)}</span></td><td className="py-1.5 pr-3"><Badge tone={e === 'Low' ? 'green' : 'amber'}>{e}</Badge></td><td className="py-1.5 text-right tabular-nums">{f ? num(Math.round(tc.events * f)) : '—'}</td></tr>)}</tbody></table></div>
@@ -187,25 +188,7 @@ function Integration({ tc }) {
 
 // ---------- ServiceNow ----------
 function SNow() {
-  const map = [['Correlated group subject', 'Short description'], ['Priority (P1–P4)', 'Priority, impact, urgency'], ['Root-cause resource', 'Configuration item'], ['Template assignment group', 'Assignment group'], ['Correlated alerts', 'Work notes, same ticket'], ['Root cause and confidence', 'Description'], ['Branch', 'Location'], ['State', 'State, both ways'], ['Close code', 'Resolution code, both ways']];
-  const flow = [['Alert group', 'OpsRamp', I.GitMerge], ['Incident', 'ServiceNow', I.Ticket], ['Assigned and worked', 'both ways', I.ArrowLeftRight], ['More alerts', 'work notes', I.MessageSquarePlus], ['Resolved', 'closes in both', I.CircleCheck]];
-  const Chip = ({ children }) => <span className="text-[11.5px] px-2 py-0.5 rounded-full border border-line bg-chip text-ink2">{children}</span>;
-  return (<>
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mb-3 items-stretch [&>*]:h-full">
-      <Card title="Incidents, both ways">
-        <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{flow.map(([a, b, Ic], i) => <React.Fragment key={a}>{i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={16} /></div>}<div className="flex-1 border border-line rounded-lg p-2.5 text-center"><Ic size={18} className="mx-auto text-brand" /><b className="block text-[12.5px] text-ink mt-1">{a}</b><span className="text-[11px] text-ink3">{b}</span></div></React.Fragment>)}</div>
-        <div className="flex flex-wrap gap-1.5 mt-3"><Chip>One ticket per group</Chip><Chip>Right CI and group</Chip><Chip>Certified Store app</Chip><Chip>OAuth 2.0</Chip><Chip>ITIL integration user</Chip></div>
-      </Card>
-      <Card title="CMDB">
-        <div className="grid grid-cols-3 gap-2">{[['4,075', 'devices pushed'], ['1,800', 'circuits pushed'], ['Nightly', 'reconciliation']].map(([v, l]) => <div key={l} className="rounded-lg border border-line p-2.5"><div className="text-[20px] font-bold text-ink tabular-nums leading-none">{v}</div><div className="text-[11.5px] text-ink3 mt-1">{l}</div></div>)}</div>
-        <div className="flex flex-wrap gap-1.5 mt-3"><Chip>CI class from the template</Chip><Chip>Relationships in OpsRamp topology</Chip><Chip>CI on every incident</Chip></div>
-      </Card>
-    </div>
-    <Card title="Field mapping" className="mb-3">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">{map.map(([a, b]) => <div key={a} className="flex items-center gap-2 text-[12.5px] py-1 border-b border-line/60"><span className="text-ink flex-1">{a}</span><I.ArrowRight size={13} className="text-ink3 shrink-0" /><span className="text-ink2 flex-1">{b}</span></div>)}</div>
-    </Card>
-    <ServiceNowSyncCard />
-  </>);
+  return (<><TicketSimulator /><div className="mt-3"><ServiceNowSyncCard /></div></>);
 }
 
 // the AI tabs, shown on the Correlation page

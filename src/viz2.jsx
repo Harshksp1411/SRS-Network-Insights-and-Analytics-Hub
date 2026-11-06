@@ -510,7 +510,7 @@ export function MapFlows() {
   return (
     <g>
       {all.map((b, i) => { const h = hubs[i % hubs.length][1]; const hl = healthOf(s, b); const mx = (b.x + h.x) / 2, my = Math.min(b.y, h.y) - Math.abs(b.x - h.x) * 0.22 - 10; const col = hl === 'down' ? C.bad : hl === 'degraded' ? C.warn : C.s1;
-        return <path key={b.id} d={`M${b.x},${b.y} Q${mx},${my} ${h.x},${h.y}`} fill="none" stroke={col} strokeWidth={hl === 'up' ? 1.1 : 1.6} strokeOpacity={hl === 'up' ? 0.55 : 0.85} strokeDasharray="3 5" className="flow-dash" style={{ animationDuration: `${1.4 + (i % 5) * 0.3}s` }} />; })}
+        return <path key={b.id} d={`M${b.x},${b.y} Q${mx},${my} ${h.x},${h.y}`} fill="none" stroke={col} strokeWidth={hl === 'up' ? 1.1 : 1.6} vectorEffect="non-scaling-stroke" strokeOpacity={hl === 'up' ? 0.55 : 0.85} strokeDasharray="3 5" className="flow-dash" style={{ animationDuration: `${1.4 + (i % 5) * 0.3}s` }} />; })}
       {hubs.map(([n, h]) => <g key={n} transform={`translate(${h.x},${h.y})`}><rect x="-6" y="-6" width="12" height="12" fill="rgb(var(--ink))" transform="rotate(45)" /><text x="10" y="4" fontSize="11" fontWeight="700" fill="rgb(var(--ink))" stroke="rgb(var(--panel))" strokeWidth="3" paintOrder="stroke">{n}</text></g>)}
     </g>
   );

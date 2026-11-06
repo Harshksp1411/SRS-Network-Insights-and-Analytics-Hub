@@ -307,6 +307,42 @@ export function RiskMatrix({ points, onPoint, h = 270 }) {
   );
 }
 
+// zoom and pan for the maps: + / − / reset, double-click to zoom in on a spot, drag to move, pinch or Ctrl + scroll
+export function useMapZoom(base, resetKey, initZ = 1) {
+  const [z, setZ] = useState(initZ), [c, setC] = useState(null);
+  const ref = useRef(null), drag = useRef(null), moved = useRef(false);
+  useEffect(() => { setZ(initZ); setC(null); }, [resetKey]);
+  const reset = () => { setZ(initZ); setC(null); };
+  const w = base[2] / z, h = base[3] / z;
+  const clampC = (x, y, zz) => { const ww = base[2] / zz, hh = base[3] / zz; return [Math.min(base[0] + base[2] - ww / 2, Math.max(base[0] + ww / 2, x)), Math.min(base[1] + base[3] - hh / 2, Math.max(base[1] + hh / 2, y))]; };
+  const [cx, cy] = c ? clampC(c[0], c[1], z) : [base[0] + base[2] / 2, base[1] + base[3] / 2];
+  const vb = [cx - w / 2, cy - h / 2, w, h];
+  const at = e => { const r = ref.current.getBoundingClientRect(); return [vb[0] + (e.clientX - r.left) / r.width * vb[2], vb[1] + (e.clientY - r.top) / r.height * vb[3]]; };
+  const zoomTo = (nz, p) => { nz = Math.min(12, Math.max(1, nz)); if (nz === 1) { setZ(1); setC(null); return; } const [px, py] = p || [cx, cy]; const nx = px - (px - cx) * (z / nz), ny = py - (py - cy) * (z / nz); setZ(nz); setC(clampC(nx, ny, nz)); };
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const onWheel = e => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(z * (e.deltaY < 0 ? 1.25 : 0.8), at(e)); };
+    el.addEventListener('wheel', onWheel, { passive: false }); return () => el.removeEventListener('wheel', onWheel);
+  });
+  const bind = {
+    ref,
+    onDoubleClick: e => { e.preventDefault(); zoomTo(z * 2, at(e)); },
+    onPointerDown: e => { if (z === 1) return; drag.current = { x: e.clientX, y: e.clientY, cx, cy }; moved.current = false; },
+    onPointerMove: e => { const d = drag.current; if (!d) return; const r = ref.current.getBoundingClientRect(); const dx = (e.clientX - d.x) / r.width * vb[2], dy = (e.clientY - d.y) / r.height * vb[3]; if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4) moved.current = true; setC(clampC(d.cx - dx, d.cy - dy, z)); },
+    onPointerUp: () => { drag.current = null; }, onPointerLeave: () => { drag.current = null; },
+    onClickCapture: e => { if (moved.current) { e.stopPropagation(); moved.current = false; } },
+    style: { cursor: z > 1 ? 'grab' : undefined, touchAction: z > 1 ? 'none' : undefined },
+  };
+  const controls = (
+    <div className="absolute top-2 right-2 flex flex-col rounded-md border border-line bg-panel/95 shadow-sm overflow-hidden z-10 text-ink" onDoubleClick={e => e.stopPropagation()}>
+      <button aria-label="Zoom in" title="Zoom in" onClick={() => zoomTo(z * 1.6)} className="w-8 h-8 grid place-items-center hover:bg-chip text-[16px] font-bold">+</button>
+      <button aria-label="Zoom out" title="Zoom out" onClick={() => zoomTo(z / 1.6)} disabled={z === 1} className="w-8 h-8 grid place-items-center hover:bg-chip text-[16px] font-bold border-t border-line disabled:opacity-40">−</button>
+      <button aria-label="Reset zoom" title="Reset" onClick={reset} disabled={z === initZ && !c} className="w-8 h-8 grid place-items-center hover:bg-chip text-[11px] font-bold border-t border-line disabled:opacity-40">{`${Math.round(z / initZ * 10) / 10}×`}</button>
+    </div>
+  );
+  return { vb, z, bind, controls };
+}
+
 // US + southern Canada map; points = [{id,x,y,r,color,label,pulse,flash}]
 export function NAMap({ points, onPoint, h = 420, highlightStates = [], children, focus, legendNote }) {
   const [hover, setHover] = useState(null);
@@ -318,10 +354,13 @@ export function NAMap({ points, onPoint, h = 420, highlightStates = [], children
     const ar = MAP.w / MAP.h; if (w / hh > ar) hh = w / ar; else w = hh * ar;
     const cx0 = (x0 + x1) / 2, cy0 = (y0 + y1) / 2; vb = [cx0 - w / 2, cy0 - hh / 2, w, hh];
   }
+  const Z = useMapZoom(vb, vb.map(v => Math.round(v)).join(','));
+  vb = Z.vb;
   const k = vb[2] / MAP.w;
   return (
     <div className="relative">
-      <svg viewBox={vb.join(' ')} className="w-full transition-all" style={{ maxHeight: h }}>
+      {Z.controls}
+      <svg viewBox={vb.join(' ')} className="w-full select-none" style={{ maxHeight: h, ...Z.bind.style }} ref={Z.bind.ref} onDoubleClick={Z.bind.onDoubleClick} onPointerDown={Z.bind.onPointerDown} onPointerMove={Z.bind.onPointerMove} onPointerUp={Z.bind.onPointerUp} onPointerLeave={Z.bind.onPointerLeave} onClickCapture={Z.bind.onClickCapture}>
         <path d={MAP.canada} className="fill-chip stroke-line" strokeWidth={0.7 * k} />
         {MAP.states.map(st => <path key={st.id} d={st.d} className={cx('stroke-panel', highlightStates.includes(st.name) ? 'fill-warn/25' : 'fill-mapland')} strokeWidth={0.8 * k} />)}
         {k > 0.9 && <g transform="translate(10,505)"><rect width="120" height="80" rx="4" className="fill-chip stroke-line" /><text x="8" y="17" fontSize="11" className="fill-ink3" fontWeight="600">Hawaii (Kauai)</text></g>}
