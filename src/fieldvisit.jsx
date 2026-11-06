@@ -8,7 +8,7 @@ import MAP from './mapdata.json';
 import { useApp, useNow } from './store.jsx';
 import { Card, Badge, Btn, Pri, cx } from './ui.jsx';
 import { rankTechs } from './dash/fix.js';
-import { packOf, readingOk, tickStep, addPhoto, setReading, returnCheck } from './dash/workpack.js';
+import { packOf, readingOk, tickStep, addPhoto, setReading, setFindings, returnCheck, acceptHandoff } from './dash/workpack.js';
 import { hhmm, MIN } from './util.js';
 
 const MILES = 2.9; // map units to road miles, the same scale the technician matching uses
@@ -190,66 +190,98 @@ export function StoreLayoutCard({ wo }) {
 }
 
 // ---------- the work pack in the field app ----------
-export function PhoneApp({ wo }) {
-  const { s, act } = useApp(); const now = useNow();
-  const [tab, setTab] = useState('job');
+// One work pack, as the technician carries it on the phone. It holds all six parts Mova iO assembles: site context,
+// before arrival, diagnostic history, the approved checklist, evidence, and verify + hand-off, with Mova iO's summary
+// on top. The Field Technician works the checklist and evidence and runs the return check; the NOC owner accepts the
+// hand-off; everyone else reads it. It takes the state and actions as props so the drill-down can use it too.
+export const PHONE_TABS = [['brief', 'Brief', I.Sparkles], ['site', 'Site', I.Store], ['travel', 'Travel', I.Navigation], ['work', 'Work', I.ListChecks], ['done', 'Hand-off', I.ShieldCheck]];
+const DONE_IC = { bad: [I.XCircle, 'text-bad'], ok: [I.CheckCircle2, 'text-ok'], info: [I.Clock, 'text-info'] };
+const PATH_COL = { ok: 'bg-ok/15 border-ok/40 text-ok', warn: 'bg-warn/15 border-warn/50 text-warn', bad: 'bg-bad/15 border-bad/50 text-bad', fixed: 'bg-ok/15 border-ok/40 text-ok' };
+const Box = ({ title, right, children, tone }) => <div className={cx('bg-panel rounded-xl border p-3', tone === 'bad' ? 'border-bad/40' : tone === 'ok' ? 'border-ok/40' : tone === 'brand' ? 'border-brand/40' : 'border-line')}>{title && <div className="flex items-center gap-1.5 mb-1.5"><span className={cx('text-[10.5px] font-bold uppercase tracking-wide flex-1', tone === 'bad' ? 'text-bad' : tone === 'brand' ? 'text-brand' : 'text-ink3')}>{title}</span>{right}</div>}{children}</div>;
+const Row = ({ k, v }) => <div className="flex justify-between gap-3 py-1 border-b border-line/60 last:border-0 text-[12px]"><span className="text-ink3 shrink-0">{k}</span><span className="text-ink text-right min-w-0 break-words">{v}</span></div>;
+
+export function PhoneApp({ wo, s, now, act, role, go, tab: tabIn, setTab: setTabIn }) {
+  const [tabLocal, setTabLocal] = useState('brief');
+  const tab = tabIn || tabLocal, setTab = setTabIn || setTabLocal;
   const P = packOf(s, wo, now);
   const trip = tripOf(s, wo, now);
-  const canWork = s.role === 'tech' && wo.status !== 'Completed';
+  const closed = wo.status === 'Completed';
+  const canWork = !!(act && role === 'tech' && !closed), canAccept = !!(act && ['noc', 'l3'].includes(role) && !closed);
   const demarc = (P.site.find(x => x[0] === 'Demarc') || [])[1];
+  const pk = P.pk, check = pk.check;
+  const [txt, setTxt] = useState(pk.findings || '');
   const adv = st => { act.upd('workOrders', wo.id, { status: st }); act.audit(`${wo.id} → ${st} (field app)`, wo.id); act.toast(`${wo.id}: ${st}`); };
-  const TABS = [['job', 'Job', I.Briefcase], ['route', 'Route', I.Navigation], ['store', 'Store', I.Map], ['steps', 'Steps', I.ListChecks], ['done', 'Hand-off', I.ShieldCheck]];
-  const doneN = Object.keys(P.pk.steps || {}).length;
-  const Row = ({ k, v }) => <div className="flex justify-between gap-2 py-1 border-b border-line/60 last:border-0 text-[12px]"><span className="text-ink3">{k}</span><span className="text-ink text-right">{v}</span></div>;
+  const doneN = Object.keys(pk.steps || {}).length;
+  const got = Object.fromEntries((pk.photos || []).map(x => [x.label, x]));
+  const h = P.history, br = P.brief;
+  const link = (n, label, cls) => go ? <button onClick={() => go(n)} className={cx('text-left hover:underline', cls)}>{label}</button> : <span className={cls}>{label}</span>;
   return (
     <div className="mx-auto w-[318px] shrink-0">
       <div className="rounded-[40px] bg-[#16191D] p-[10px] shadow-2xl ring-1 ring-black/10 dark:ring-white/20">
-        <div className="rounded-[32px] overflow-hidden bg-canvas h-[640px] flex flex-col relative">
-          {/* status bar */}
-          <div className="h-8 px-6 flex items-center justify-between text-[11.5px] font-semibold text-ink bg-panel"><span>{hhmm(now, P.b.tz)}</span><span className="absolute left-1/2 -translate-x-1/2 top-1.5 w-24 h-5 rounded-full bg-[#16191D]" /><span className="flex items-center gap-1"><I.Signal size={12} /><I.Wifi size={12} /><I.BatteryFull size={14} /></span></div>
-          {/* app bar */}
-          <div className="bg-brand text-white px-4 py-2.5">
-            <div className="flex items-center gap-2 text-[11px] opacity-90"><I.HardHat size={13} />Mova iO Field<span className="flex-1" />{P.tech ? P.tech.name : 'Unassigned'}</div>
+        <div className="rounded-[32px] overflow-hidden bg-canvas h-[660px] flex flex-col relative">
+          <div className="h-8 px-6 flex items-center justify-between text-[11.5px] font-semibold text-ink bg-panel shrink-0"><span>{hhmm(now, P.b.tz)}</span><span className="absolute left-1/2 -translate-x-1/2 top-1.5 w-24 h-5 rounded-full bg-[#16191D]" /><span className="flex items-center gap-1"><I.Signal size={12} /><I.Wifi size={12} /><I.BatteryFull size={14} /></span></div>
+          <div className="bg-brand text-white px-4 py-2.5 shrink-0">
+            <div className="flex items-center gap-2 text-[11px] opacity-90"><I.HardHat size={13} />Mova iO Field · work pack<span className="flex-1" />{P.tech ? P.tech.name : 'Unassigned'}</div>
             <div className="flex items-center gap-2 mt-1"><b className="text-[15px] font-mono">{wo.id}</b><Pri p={wo.priority} /><span className="flex-1" /><span className="text-[11px] bg-white/20 rounded px-1.5 py-0.5">{wo.status}</span></div>
             <div className="text-[12.5px] mt-0.5 font-semibold leading-snug">{P.service}</div>
             <div className="text-[11.5px] opacity-90">{P.b.name}</div>
+            <div className="flex gap-1 mt-2">{[['Site', true], ['Before', true], ['History', true], ['Steps', doneN === P.plan.steps.length], ['Evidence', (pk.photos || []).length >= Math.min(2, P.plan.photos.length)], ['Hand-off', !!pk.accepted]].map(([l, d], i) => <span key={l} title={l} className={cx('flex-1 h-1.5 rounded-full', d && i > 2 ? 'bg-white' : i <= 2 ? 'bg-white/70' : 'bg-white/25')} />)}</div>
           </div>
-          {/* content */}
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 text-ink">
-            {tab === 'job' && <>
-              <div className="bg-panel rounded-xl border border-line p-3"><Row k="Brand" v={P.b.brand} /><Row k="Local time" v={`${P.clk.local}, ${P.clk.open ? 'open' : 'closed'}`} /><Row k="Window" v={wo.window || '—'} /><Row k="Status" v={P.status} />{(P.before.appointment || []).filter(x => x[0] === 'Arrives').map(x => <Row key={x[0]} k="Arrive by" v={x[1]} />)}</div>
-              <div className="bg-panel rounded-xl border border-line p-3"><div className="text-[11px] font-bold uppercase text-ink3 mb-1">Bring</div>{P.before.parts.map(p => <div key={p.part} className="flex items-center gap-2 text-[12.5px] py-0.5"><I.Package size={13} className="text-info" /><span className="flex-1">{p.part}</span><span className={cx('text-[11px]', p.reserved ? 'text-ok' : 'text-warn')}>{p.reserved ? `reserved, ${p.from}` : p.from}</span></div>)}{P.before.tools.slice(0, 4).map(t => <div key={t} className="flex items-center gap-2 text-[12px] text-ink2 py-0.5"><I.Wrench size={12} className="text-ink3" />{t}</div>)}</div>
-              {P.brief && <div className="bg-panel rounded-xl border border-line p-3"><div className="text-[11px] font-bold uppercase text-ai mb-1 flex items-center gap-1"><I.Sparkles size={12} />Mova iO checked remotely</div>{(P.brief.done || []).slice(0, 4).map((d, i) => <div key={i} className="text-[12px] py-0.5 flex gap-1.5"><span className={cx('w-1.5 h-1.5 rounded-full mt-1.5 shrink-0', d.tone === 'bad' ? 'bg-bad' : d.tone === 'ok' ? 'bg-ok' : 'bg-info')} /><span><b className="font-semibold">{d.what}.</b> <span className="text-ink2">{d.found}</span></span></div>)}</div>}
-              <div className="bg-panel rounded-xl border border-line p-3"><div className="text-[11px] font-bold uppercase text-ink3 mb-1">On arrival</div>{P.before.access.slice(0, 3).map(a => <div key={a} className="text-[12px] text-ink2 py-0.5">{a}</div>)}</div>
+            {tab === 'brief' && <>
+              {br ? <>
+                <Box title={`Probable problem · ${br.problem.layer} · ${Math.round(br.problem.conf * 100)}%`} tone="bad"><div className="text-[13px] font-semibold leading-snug">{P.inc ? link({ t: 'rca', id: P.inc.id }, br.problem.text) : br.problem.text}</div>{br.problem.ev && <div className="text-[11.5px] text-ink2 mt-0.5">{br.problem.ev}</div>}{br.unlikely.length > 0 && <div className="text-[11px] text-ink3 mt-1">Less likely: {br.unlikely.map(u => `${u.text} (${Math.round(u.conf * 100)}%)`).join('; ')}</div>}</Box>
+                <Box title="Mova iO checked remotely">{br.done.map((d, i) => { const [Ic, c] = DONE_IC[d.tone] || DONE_IC.info; return <div key={i} className="flex gap-1.5 text-[12px] py-0.5"><Ic size={14} className={cx('mt-[1px] shrink-0', c)} /><span><b className="font-semibold">{d.what}.</b> <span className="text-ink2">{d.found}</span></span></div>; })}</Box>
+                <Box title="Fix on site" tone="brand"><div className="text-[12.5px] font-bold flex gap-1.5"><I.Wrench size={14} className="text-brand mt-[1px] shrink-0" />{br.fix}</div><div className="text-[11.5px] text-ink2 mt-1"><b className="text-ink">Plan B:</b> {br.ifNot}</div></Box>
+              </> : <Box title="Planned work"><div className="text-[12.5px]">{wo.task}</div><div className="text-[11.5px] text-ink3 mt-1">Nothing has failed, so there is nothing to diagnose.</div></Box>}
+              <Box title="Bring">{P.before.parts.map(p => <div key={p.part} className="flex items-center gap-2 text-[12.5px] py-0.5"><I.Package size={13} className="text-info" /><span className="flex-1">{p.qty} × {p.part}</span><span className={cx('text-[11px]', p.reserved ? 'text-ok' : 'text-warn')}>{p.reserved ? `reserved, ${p.from}` : p.from}</span></div>)}{br && br.extra.length > 0 && <div className="text-[12px] text-ink2 py-0.5"><b className="text-ink">Also:</b> {br.extra.join(', ')}</div>}<div className="flex flex-wrap gap-1 mt-1">{P.before.tools.map(t => <span key={t} className="text-[10.5px] px-1.5 py-[1px] rounded border border-line bg-chip text-ink2">{t}</span>)}</div></Box>
+              {h && <>
+                <Box title="Diagnostic history · OpsRamp findings">{h.findings.map((x, i) => <div key={i} className="grid grid-cols-[38px_minmax(0,1fr)] gap-1.5 text-[11.5px] py-0.5"><span className="font-mono text-ink3">{hhmm(x.t)}</span><span>{x.text}<span className="text-ink3"> · {x.src}</span></span></div>)}{h.tried.length > 0 && <><div className="text-[10.5px] font-bold uppercase text-ink3 mt-2 mb-0.5">Already tried</div>{h.tried.map(x => <div key={x} className="text-[11.5px] text-ink2 py-0.5">{x}</div>)}</>}</Box>
+                <Box title="Earlier incidents here, 90 days">{h.prior.length ? h.prior.map(x => <div key={x.id} className="text-[11.5px] py-0.5">{link({ t: 'incident', id: x.id }, <><span className="font-mono text-ink2">{x.id}</span> {x.title}</>)}<span className="text-ink3"> · {x.closeCode}</span></div>) : <div className="text-[11.5px] text-ink3">None in the last 90 days.</div>}</Box>
+              </>}
             </>}
-            {tab === 'route' && trip && <>
-              <div className="rounded-xl overflow-hidden border border-line"><RouteMap trip={trip} h={230} aspect={1.25} pxw={290} /></div>
-              <div className="bg-panel rounded-xl border border-line p-3 flex items-center gap-3"><I.Clock size={18} className="text-info" /><div className="flex-1"><b className="text-[15px]">{trip.fly ? 'Next day' : trip.total >= 60 ? `${Math.floor(trip.total / 60)} h ${trip.total % 60} min` : `${trip.total} min`}</b><div className="text-[11.5px] text-ink3">{trip.miles} mi{trip.depot ? `, via ${trip.depot.city.split(',')[0]} depot` : ''}</div></div><Btn size="sm" kind="primary" icon={I.Navigation} onClick={() => act.toast('Opening directions in the maps app')}>Go</Btn></div>
-              <div className="bg-panel rounded-xl border border-line px-3 py-1">{trip.dirs.map((d, i) => <div key={i} className="flex items-center gap-2 py-1.5 border-b border-line/60 last:border-0 text-[12px]"><d.icon size={13} className="text-info shrink-0" /><span className="flex-1">{d.text}</span>{d.mi ? <span className="text-ink3 text-[11px]">{d.mi} mi</span> : null}</div>)}</div>
+            {tab === 'site' && <>
+              <Box title="Site">{P.site.map(([k, v]) => <Row key={k} k={k} v={v} />)}</Box>
+              <Box title="Network path"><div className="flex items-center gap-0.5">{P.path.map((x, i) => <React.Fragment key={x.label}>{i > 0 && <span className="w-1.5 h-px bg-ink3" />}<span className={cx('flex-1 text-center text-[10px] font-semibold rounded border px-0.5 py-1', PATH_COL[x.st] || PATH_COL.ok)}>{x.label}</span></React.Fragment>)}</div></Box>
+              <Box title="Store layout"><StoreLayout b={P.b} inc={P.inc} demarc={demarc} compact /></Box>
+              <Box title="Key devices">{P.devices.map(d => <div key={d.id} className={cx('py-1 border-b border-line/60 last:border-0 text-[12px]', d.fault && 'text-bad')}>{link({ t: 'device', id: d.id }, <><b>{d.kind}</b> <span className="font-mono text-[11px]">{d.id}</span>{d.fault ? ' · fault' : ''}</>)}<div className="text-[11px] text-ink3">{d.model} · {d.where}</div></div>)}</Box>
             </>}
-            {tab === 'store' && <>
-              <div className="bg-panel rounded-xl border border-line p-2"><StoreLayout b={P.b} inc={P.inc} demarc={demarc} compact /></div>
-              <div className="bg-panel rounded-xl border border-line p-3">{P.devices.map(d => <div key={d.id} className={cx('flex items-center gap-2 py-1 text-[12px] border-b border-line/60 last:border-0', P.inc && d.id === P.inc.ci && 'text-bad font-semibold')}><span className="flex-1">{d.kind} <span className="font-mono text-[11px]">{d.id.split('-').pop()}</span></span><span className="text-ink3 text-[11px]">{d.where}</span></div>)}<div className="flex items-center gap-2 py-1 text-[12px]"><span className="flex-1">Demarc</span><span className="text-ink3 text-[11px]">{demarc}</span></div></div>
+            {tab === 'travel' && <>
+              <Box title="Authorised access">{P.before.access.map(a => <div key={a} className="flex gap-1.5 text-[12px] py-0.5"><I.CheckCircle2 size={13} className="text-ok mt-[2px] shrink-0" />{a}</div>)}</Box>
+              <Box title="Appointment">{P.before.appointment.map(([k, v]) => <Row key={k} k={k} v={v} />)}</Box>
+              {trip && <>
+                <div className="rounded-xl overflow-hidden border border-line"><RouteMap trip={trip} h={200} aspect={1.45} pxw={290} /></div>
+                <div className="bg-panel rounded-xl border border-line p-3 flex items-center gap-3"><I.Clock size={18} className="text-info" /><div className="flex-1"><b className="text-[15px]">{trip.fly ? 'Next day' : trip.total >= 60 ? `${Math.floor(trip.total / 60)} h ${trip.total % 60} min` : `${trip.total} min`}</b><div className="text-[11.5px] text-ink3">{trip.miles} mi{trip.depot ? `, via ${trip.depot.city.split(',')[0]} depot` : ''}</div></div>{act && <Btn size="sm" kind="primary" icon={I.Navigation} onClick={() => act.toast('Opening directions in the maps app')}>Go</Btn>}</div>
+                <Box>{trip.dirs.map((d, i) => <div key={i} className="flex items-center gap-2 py-1.5 border-b border-line/60 last:border-0 text-[12px]"><d.icon size={13} className="text-info shrink-0" /><span className="flex-1">{d.text}</span>{d.mi ? <span className="text-ink3 text-[11px]">{d.mi} mi</span> : null}</div>)}</Box>
+              </>}
             </>}
-            {tab === 'steps' && <>
-              <div className="text-[11.5px] text-ink3">{doneN} of {P.plan.steps.length} done</div>
-              {P.plan.steps.map((st, i) => { const ok = (P.pk.steps || {})[i]; return <button key={i} disabled={!canWork} onClick={() => tickStep(act, wo, i, act.me())} className={cx('w-full text-left bg-panel rounded-xl border p-2.5 flex gap-2 text-[12.5px]', ok ? 'border-ok/50' : 'border-line')}><span className={cx('w-5 h-5 rounded-full border-2 grid place-items-center shrink-0', ok ? 'bg-ok border-ok text-white' : 'border-ink3')}>{ok && <I.Check size={12} />}</span><span className={ok ? 'text-ink2 line-through' : ''}>{st}</span></button>; })}
-              <div className="grid grid-cols-2 gap-2">{P.plan.photos.map(l => { const has = (P.pk.photos || []).some(x => x.label === l); return <button key={l} disabled={!canWork} onClick={() => addPhoto(act, wo, l)} className={cx('rounded-xl border-2 border-dashed h-16 text-[11px] flex flex-col items-center justify-center gap-0.5 px-1 text-center', has ? 'border-ok text-ok' : 'border-line text-ink3')}>{has ? <I.ImageIcon size={15} /> : <I.Camera size={15} />}{l}</button>; })}</div>
-              {P.plan.readings.map(r => { const v = (P.pk.readings || {})[r.key], ok = readingOk(r, v); return <div key={r.key} className="bg-panel rounded-xl border border-line p-2.5 text-[12px]"><div className="flex items-center"><span className="flex-1">{r.label}</span>{ok != null && <Badge tone={ok ? 'green' : 'red'}>{ok ? 'in range' : 'out of range'}</Badge>}</div>
+            {tab === 'work' && <>
+              <Box tone="ok"><div className="text-[11.5px] flex gap-1.5"><I.ShieldCheck size={14} className="text-ok mt-[1px] shrink-0" /><span><b>Approved scope</b> by {P.scope.by.replace(/ \(NOC Engineer\)| \(Network Engineer L3\)/, '')} at {hhmm(P.scope.at)} CT. Anything outside these steps needs the NOC engineer's OK.</span></div></Box>
+              <div className="text-[11.5px] text-ink3">{doneN} of {P.plan.steps.length} steps done</div>
+              {P.plan.steps.map((st, i) => { const d = (pk.steps || {})[i]; return <button key={i} disabled={!canWork} onClick={() => tickStep(act, wo, i, act.me())} className={cx('w-full text-left bg-panel rounded-xl border p-2.5 flex gap-2 text-[12.5px]', d ? 'border-ok/50' : 'border-line')}><span className={cx('w-5 h-5 rounded-full border-2 grid place-items-center shrink-0', d ? 'bg-ok border-ok text-white' : 'border-ink3 text-ink3')}>{d ? <I.Check size={12} /> : <span className="text-[10px] font-bold">{i + 1}</span>}</span><span className="min-w-0"><span className={d ? 'text-ink2 line-through' : ''}>{st}</span>{d && <span className="block text-[10.5px] text-ink3">Done {hhmm(d.t)} CT</span>}</span></button>; })}
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-ink3 pt-1">Photos</div>
+              <div className="grid grid-cols-2 gap-2">{P.plan.photos.map(l => got[l] ? <div key={l} className="rounded-xl border border-ok/50 overflow-hidden bg-panel"><div className="h-12 bg-gradient-to-br from-ink3/30 to-ink3/10 grid place-items-center"><I.ImageIcon size={18} className="text-ink2" /></div><div className="px-2 py-1 text-[10.5px]"><b>{l}</b><span className="block text-ink3">{hhmm(got[l].t)} CT</span></div></div>
+                : <button key={l} disabled={!canWork} onClick={() => addPhoto(act, wo, l)} className="rounded-xl border-2 border-dashed border-line h-[70px] text-[10.5px] flex flex-col items-center justify-center gap-0.5 px-1 text-center text-ink3"><I.Camera size={15} />{l}</button>)}</div>
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-ink3 pt-1">Readings</div>
+              {P.plan.readings.map(r => { const v = (pk.readings || {})[r.key], ok = readingOk(r, v); return <div key={r.key} className="bg-panel rounded-xl border border-line p-2.5 text-[12px]"><div className="flex items-center gap-2"><span className="flex-1">{r.label}{r.unit && <span className="text-ink3"> ({r.lo === r.hi ? r.hi : `${r.lo} to ${r.hi}`} {r.unit})</span>}</span>{ok != null && <Badge tone={ok ? 'green' : 'red'}>{ok ? 'in range' : 'out'}</Badge>}</div>
                 {r.kind === 'pass' ? <div className="flex gap-1.5 mt-1">{['Pass', 'Fail'].map(o => <button key={o} disabled={!canWork} onClick={() => setReading(act, wo, r.key, o)} className={cx('flex-1 rounded-lg border py-1', v === o ? (o === 'Pass' ? 'bg-ok text-white border-ok' : 'bg-bad text-white border-bad') : 'border-line')}>{o}</button>)}</div>
-                  : <input disabled={!canWork} value={v ?? ''} onChange={e => setReading(act, wo, r.key, e.target.value)} placeholder={r.unit ? `${r.lo} to ${r.hi} ${r.unit}` : 'Enter'} className="mt-1 w-full rounded-lg border border-line bg-canvas px-2 py-1" />}</div>; })}
+                  : <input disabled={!canWork} value={v ?? ''} onChange={e => setReading(act, wo, r.key, e.target.value)} inputMode={r.kind === 'text' ? 'text' : 'decimal'} placeholder={r.kind === 'text' ? 'Type it' : r.unit} className="mt-1 w-full rounded-lg border border-line bg-canvas px-2 py-1" />}</div>; })}
+              <div className="text-[10.5px] font-bold uppercase tracking-wide text-ink3 pt-1">Findings</div>
+              <textarea disabled={!canWork} value={canWork ? txt : (pk.findings || '')} onChange={e => setTxt(e.target.value)} onBlur={() => canWork && setFindings(act, wo, txt)} rows={3} placeholder={canWork ? 'What you found and what you did' : 'Written by the technician on site'} className="w-full rounded-xl border border-line bg-panel text-[12px] px-2.5 py-2" />
             </>}
             {tab === 'done' && <>
-              <div className="bg-panel rounded-xl border border-line p-3"><div className="text-[11px] font-bold uppercase text-ink3 mb-1">Return to service</div>{P.verify.map(v => <div key={v} className="flex items-center gap-2 text-[12px] py-0.5"><I.CircleCheck size={13} className={P.pk.check && P.pk.check.pass ? 'text-ok' : 'text-ink3'} />{v}</div>)}</div>
-              {P.pk.check && <div className={cx('rounded-xl border p-3 text-[12px]', P.pk.check.pass ? 'border-ok/50 bg-ok/10' : 'border-warn/50 bg-warn/10')}><b>{P.pk.check.pass ? 'Check passed: the NOC accepts the hand-off' : 'Not passed yet'}</b>{!P.pk.check.pass && P.pk.check.missing.slice(0, 4).map(m => <div key={m} className="text-ink2">{m}</div>)}</div>}
-              {P.pk.accepted && <div className="rounded-xl border border-ok/50 bg-ok/10 p-3 text-[12px]"><b>Accepted by {P.pk.accepted.by}</b></div>}
-              <Btn kind="brand" className="w-full justify-center" icon={I.ShieldCheck} disabled={!canWork} onClick={() => returnCheck(act, s, wo, P)}>Run the return check</Btn>
+              <Box title="Return-to-service check">{P.verify.map(v => <div key={v} className="flex items-center gap-2 text-[12px] py-0.5">{check && check.pass ? <I.CheckCircle2 size={14} className="text-ok" /> : <I.Circle size={14} className="text-ink3" />}{v}</div>)}</Box>
+              {check && <div className={cx('rounded-xl border p-3 text-[12px]', check.pass ? 'border-ok/50 bg-ok/10' : 'border-warn/50 bg-warn/10')}><b>{check.pass ? `Passed at ${hhmm(check.t)} CT` : 'Not passed yet'}</b>{!check.pass && check.missing.slice(0, 5).map(m => <div key={m} className="text-ink2">{m}</div>)}</div>}
+              {canWork && !pk.accepted && <Btn kind="brand" className="w-full justify-center" icon={I.ShieldCheck} onClick={() => returnCheck(act, s, wo, P)}>Run the return check</Btn>}
+              <Box title="Receiving owner"><div className="text-[12px]">{P.owner ? <><b>{P.owner}</b>{P.team ? ` (${P.team.name})` : ''} accepts the work.</> : 'The NOC accepts the work.'}</div></Box>
+              {pk.accepted ? <div className="rounded-xl border border-ok/50 bg-ok/10 p-3 text-[12px]"><b>Accepted by {pk.accepted.by}</b>{pk.accepted.for ? ` for ${pk.accepted.for}` : ''} at {hhmm(pk.accepted.t)} CT. {wo.id} closed{P.inc ? `; ${P.inc.id} resolved` : ''}.</div>
+                : canAccept && <Btn kind="ok" className="w-full justify-center" icon={I.BadgeCheck} disabled={!(check && check.pass)} title={check && check.pass ? undefined : 'Waits for the return check to pass'} onClick={() => acceptHandoff(act, s, wo, P)}>Accept the hand-off</Btn>}
+              {wo.parts.length > 0 && <Box title="Returns"><div className="text-[12px] text-ink2">The faulty {wo.parts.join(', ')} goes back {P.inc && P.inc.vendorCase ? `to HPE on case ${P.inc.vendorCase}` : 'to the depot'} with the RMA label.</div></Box>}
             </>}
-            {!canWork && wo.status !== 'Completed' && <div className="text-[11px] text-ink3 text-center">The technician works this on the phone; the Field Technician role can tick it here.</div>}
+            {!closed && !canWork && <div className="text-[11px] text-ink3 text-center px-2">{canAccept ? 'You accept the hand-off here; the technician works the steps and evidence.' : role === 'tech' ? '' : 'Read-only: the Field Technician works this pack on the phone.'}</div>}
           </div>
-          {/* travel buttons and the tab bar */}
-          {canWork && ['Assigned', 'Dispatched', 'Scheduled', 'En route'].includes(wo.status) && <div className="px-3 pb-2"><Btn kind="primary" className="w-full justify-center" icon={wo.status === 'En route' ? I.MapPinCheck : I.Navigation} onClick={() => adv(wo.status === 'En route' ? 'On site' : 'En route')}>{wo.status === 'En route' ? "I've arrived" : 'Start travel'}</Btn></div>}
-          <div className="h-14 border-t border-line bg-panel grid grid-cols-5">{TABS.map(([k, l, Ic]) => <button key={k} onClick={() => setTab(k)} className={cx('flex flex-col items-center justify-center gap-0.5 text-[10.5px]', tab === k ? 'text-brand font-bold' : 'text-ink3')}><Ic size={17} />{l}</button>)}</div>
+          {canWork && ['Assigned', 'Dispatched', 'Scheduled', 'En route'].includes(wo.status) && <div className="px-3 pb-2 shrink-0"><Btn kind="primary" className="w-full justify-center" icon={wo.status === 'En route' ? I.MapPinCheck : I.Navigation} onClick={() => adv(wo.status === 'En route' ? 'On site' : 'En route')}>{wo.status === 'En route' ? "I've arrived" : 'Start travel'}</Btn></div>}
+          <div className="h-14 border-t border-line bg-panel grid grid-cols-5 shrink-0">{PHONE_TABS.map(([k, l, Ic]) => <button key={k} onClick={() => setTab(k)} className={cx('flex flex-col items-center justify-center gap-0.5 text-[10.5px]', tab === k ? 'text-brand font-bold' : 'text-ink3')}><Ic size={17} />{l}</button>)}</div>
         </div>
       </div>
     </div>
@@ -257,6 +289,8 @@ export function PhoneApp({ wo }) {
 }
 
 // ---------- the technician view on Field Dispatch ----------
+function FieldPhone({ wo }) { const { s, act } = useApp(); const now = useNow(); return <PhoneApp wo={wo} s={s} now={now} act={act} role={s.role} go={act.drill} />; }
+
 export function FieldVisit() {
   const { s, act } = useApp();
   const open = s.workOrders.filter(w => w.status !== 'Completed');
@@ -270,7 +304,7 @@ export function FieldVisit() {
         <div className="text-[12px] text-ink mt-0.5 truncate">{b.name.replace(/ – .*/, '')}, {b.city}</div>
       </button>); })}</div>
     <div className="grid grid-cols-1 xl:grid-cols-[338px_minmax(0,1fr)] gap-3 items-start">
-      <PhoneApp key={sel.id} wo={sel} />
+      <FieldPhone key={sel.id} wo={sel} />
       <div className="space-y-3 min-w-0">
         <RouteCard wo={sel} />
         <StoreLayoutCard wo={sel} />
