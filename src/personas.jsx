@@ -3,6 +3,7 @@
 // and experience. The operations manager: backlog, ageing, what is at risk now, repeats, workload. The network lead:
 // top offenders, capacity, firmware and config drift. Every figure drills into the detail.
 import React from 'react';
+import * as HIST from './history.js';
 import * as D from './data.js';
 import { slaClock, onBackupOf } from './store.jsx';
 import { actionsOf } from './predictact.jsx';
@@ -174,17 +175,27 @@ export function LeadReport({ s, now, H, T, act }) {
 }
 
 // the SLA & KPI Tracker for the CEO: what the service delivered for the business, provider performance in one line
-export function BusinessView({ s, now, act, rev = REV_HOUR }) {
-  const B = businessWeek(s, now, rev), X = shared(s, now);
+// store hours one ticket would have cost with no backup line and no automation, by cause
+const RAW_IMPACT = { circuit: 3.5, apdown: 1, backup: 0, jitter: 0.8, crc: 0.3, lte: 0, scanner: 0.6, pos: 1.4, dhcp: 0.6, cpu: 1 };
+const SVC = [['Card payments', ['pos']], ['ERP and ordering', ['jitter', 'dhcp']], ['Warehouse Wi-Fi', ['apdown', 'scanner']], ['Store network', ['circuit', 'cpu', 'crc', 'lte']]];
+// the CEO view of Performance, for the period picked (3, 6, 9 or 12 months)
+export function BusinessView({ act, rev = REV_HOUR, P }) {
+  const cap = D.BRANCHES.length * HIST.TRADE_H * P.n;
+  const lost = P.branches.reduce((a, x) => a + x.lost, 0), delivered = 1 - lost / cap;
+  const lastLost = P.branches.reduce((a, x) => a + x.hrsPer[x.hrsPer.length - 1], 0), lastDel = 1 - lastLost / (D.BRANCHES.length * HIST.TRADE_H);
+  const saved = P.drivers.reduce((a, d) => a + d.tickets * Math.max(0, RAW_IMPACT[d.k] - HIST.IMPACT[d.k]), 0);
+  const met = P.sla.filter(x => x.status === 'Meets ESL').length, below = P.sla.filter(x => x.status === 'Below MSL').length;
+  const svc = SVC.map(([k, ks]) => { const ds = P.drivers.filter(d => ks.includes(d.k)); const h = ds.reduce((a, d) => a + d.tickets * HIST.IMPACT[d.k], 0); return { k, v: 1 - h / cap, top: [...ds].sort((x, y) => y.tickets - x.tickets)[0] }; });
+  const per = `last ${P.n} months`;
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 mb-3">
       <div style={grid(4)}>
-        <Tile go={() => act.drill({ t: 'set', k: 'all' })} k="Store trading hours delivered" v={pct(B.delivered, 2)} sub="this week" tone={B.delivered > 0.999 ? RC.green : RC.amber} />
-        <Tile go={() => act.drill({ t: 'incidents', k: 'open' })} k="Sales at risk from network problems" v={money(B.lostRev)} sub={`${num(Math.round(B.lost))} trading hours lost`} tone={RC.red} />
-        <Tile go={() => act.drill({ t: 'incidents', k: 'open' })} k="Sales protected" v={money(B.protectedRev)} sub="backup lines and automation kept stores trading" tone={RC.green} />
-        <Tile go={() => act.drill({ t: 'sla', per: 3 })} k="Movate delivered" v={`${X.slaMet} of ${D.SLA.length}`} sub={`service levels met · ${X.belowMsl} below minimum`} tone={X.belowMsl ? RC.red : RC.amber} />
+        <Tile go={() => act.drill({ t: 'storeperf', per: P.n, f: 'all' })} k="Store trading hours delivered" v={pct(delivered, 2)} sub={`${per} · ${P.months[P.months.length - 1].m} ${pct(lastDel, 2)}`} tone={delivered > 0.999 ? RC.green : RC.amber} />
+        <Tile go={() => act.drill({ t: 'storeperf', per: P.n, f: 'all', sort: 'lost' })} k="Sales at risk from network problems" v={money(lost * rev)} sub={`${num(Math.round(lost))} trading hours lost, ${per}`} tone={RC.red} />
+        <Tile go={() => act.drill({ t: 'automation', id: 'all', per: P.n })} k="Sales protected" v={money(saved * rev)} sub={`${num(Math.round(saved))} hours kept trading by backup lines and automation`} tone={RC.green} />
+        <Tile go={() => act.drill({ t: 'sla', per: P.n })} k="Movate delivered" v={`${met} of ${P.sla.length}`} sub={`service levels met, ${per} · ${below} below minimum`} tone={below ? RC.red : RC.amber} />
       </div>
-      <div style={grid(4)}>{[['Card payments', B.svc.pos], ['ERP and ordering', B.svc.erp], ['Warehouse Wi-Fi', B.svc.wifi], ['Store network', B.svc.wan]].map(([k, v]) => <Tile key={k} go={() => act.drill({ t: 'incidents', k: 'open' })} k={k} v={pct(v, 2)} sub="of trading hours working" tone={v > 0.999 ? RC.green : v > 0.995 ? RC.amber : RC.red} />)}</div>
+      <div style={grid(4)}>{svc.map(x => <Tile key={x.k} go={() => x.top && act.drill({ t: 'driver', k: x.top.k, per: P.n, label: x.top.label, tickets: x.top.tickets })} k={x.k} v={pct(x.v, 2)} sub={`of trading hours working, ${per}`} tone={x.v > 0.999 ? RC.green : x.v > 0.995 ? RC.amber : RC.red} />)}</div>
     </div>
   );
 }

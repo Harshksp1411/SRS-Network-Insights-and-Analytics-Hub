@@ -47,7 +47,7 @@ export const MODULES = [
   { id: 'agents', label: 'AI & Automation Catalogue', icon: I.Bot, group: 'Improve', C: () => <CatalogueTab tab="agents" />, hidden: true },
   { id: 'automation', label: 'AI & Automation Catalogue', icon: I.Workflow, group: 'Improve', C: () => <CatalogueTab tab="runbooks" />, hidden: true },
   { id: 'catalogue', label: 'AI & Automation Catalogue', icon: I.LibraryBig, group: 'Improve', C: Catalogue },
-  { id: 'sla', label: 'SLA & KPI Tracker', icon: I.Gauge, group: 'Govern', C: SLATracker },
+  { id: 'sla', label: 'Performance', icon: I.Gauge, group: 'Govern', C: SLATracker },
   { id: 'reports', label: 'Reports', icon: I.FileText, group: 'Govern', C: Reports },
 ];
 
