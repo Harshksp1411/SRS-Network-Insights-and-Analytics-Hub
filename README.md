@@ -19,7 +19,7 @@ Every demo and runbook runs in one of three modes:
 | Area | Screens |
 |---|---|
 | Operate | Operations Overview (all 900 branches on the map, business services, error budgets, unified timeline), Live Operations, Correlation, Branch 360, Branch Readiness, Live Incidents |
-| Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch (with a technician view: the work pack in the field app on a phone, the route from the base and depot to the store, and the store layout with the fault and the way in), Approvals & Changes, Policies & Templates (OpsRamp monitoring templates, alert policies, access, network policies and golden configs, onboarding a new make or model) |
+| Manage | Device & Circuit Inventory, Lifecycle & Vulnerabilities, Carrier Management, Field Dispatch (with a technician view: the work pack in the field app on a phone (the same phone view opens wherever a work pack opens), the route from the base and depot to the store, and the store layout with the fault and the way in), Approvals & Changes, Policies & Templates (OpsRamp monitoring templates, alert policies, access, network policies and golden configs, onboarding a new make or model) |
 | Grow | Branch-in-a-Box (greenfield and acquired branches, cutover weekend gates, Day-1 parity) |
 | Improve | Predictive Watchlist, Knowledge, AI & Automation Catalogue (catalogue, agents at work, runbooks and runs) |
 | Govern | SLA & KPI Tracker (Annexure B), Reports |
