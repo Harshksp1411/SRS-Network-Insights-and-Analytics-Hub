@@ -20,6 +20,7 @@ import { CriticalReport } from './critreport.jsx';
 import { BUWeekly } from './bureport.jsx';
 import { AUD, audOf, AudiencePicker } from './audience.jsx';
 import { CEOReport, CIOReport, OpsMgrReport, LeadReport, BusinessView, REV_HOUR } from './personas.jsx';
+import { StoresPerf, AutomationsCard, DriversCard, AITiles, STORE_TARGET } from './perf.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -211,8 +212,8 @@ function CallDriversCard({ P }) {
 function ProblemBranchesCard({ P }) {
   const { s, act } = useApp();
   return (
-    <Card title="Branches with the most problems" icon={I.Store} sub={`Network tickets in the last ${P.n} months. Click a branch to open Branch 360.`} pad={false}>
-      <div className="p-2"><Table dense sortable={false} rows={P.branches.slice(0, 12).map((x, i) => ({ ...x, id: x.b.id, rank: i + 1 }))} onRow={x => act.openBranch(x.b.id)} cols={[
+    <Card title="Branches with the most problems" icon={I.Store} sub={`Network tickets in the last ${P.n} months. Click a branch to drill in and act.`} pad={false}>
+      <div className="p-2"><Table dense sortable={false} rows={P.branches.slice(0, 12).map((x, i) => ({ ...x, id: x.b.id, rank: i + 1 }))} onRow={x => act.drill({ t: 'branch', id: x.b.id })} cols={[
         { key: 'rank', label: '#', render: x => <span className="text-ink3">{x.rank}</span> },
         { key: 'b', label: 'Branch', render: x => <div><div className="font-semibold">{x.b.name}</div><div className="text-[11px] text-ink3">{x.b.brand} · {x.b.region}</div></div> },
         { key: 'driver', label: 'Main cause', render: x => <div><div className="text-[12px]">{x.driver}</div>{x.repeat && <Badge tone="amber">Repeat-offender line</Badge>}</div> },
@@ -224,14 +225,22 @@ function ProblemBranchesCard({ P }) {
 }
 
 const VIEW = {
-  service: { label: 'Service SLAs and KPIs', icon: I.Headset, sub: 'Response, resolution, alerts, credits', lines: l => /Operations & Incident|Monitoring & Event/.test(l) },
-  network: { label: 'Network performance', icon: I.Network, sub: 'Availability, firmware, backups', lines: l => /Device Management/.test(l) },
-  ai: { label: 'AI and automation', icon: I.Sparkles, sub: 'Triage, auto-resolution, AIOps, knowledge', lines: l => HIST.AI_LINE.test(l) },
+  network: { label: 'Network', icon: I.Network, sub: 'Availability, lines, firmware, backups', lines: l => /Device Management/.test(l) },
+  stores: { label: 'Stores and branches', icon: I.Store, sub: 'Store availability, hours lost, problem branches', lines: () => false },
+  ai: { label: 'AI and automation', icon: I.Sparkles, sub: 'Fixed by Mova iO, noise, predictions, knowledge', lines: l => HIST.AI_LINE.test(l) },
+  service: { label: 'Services and engagement', icon: I.Headset, sub: 'SLAs and KPIs: response, resolution, credits', lines: l => /Operations & Incident|Monitoring & Event/.test(l) },
 };
+// the page as it is on screen, with the console's own styles, as one HTML file
+function downloadPage(name, title) {
+  const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
+  const main = document.querySelector('main');
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${css}</style></head><body class="bg-canvas"><div style="max-width:1400px;margin:24px auto;padding:0 16px">${main ? main.innerHTML : ''}</div></body></html>`;
+  downloadFile(name, html, 'text/html');
+}
 export function SLATracker() {
   const { s, act } = useApp();
   const now = useNow();
-  const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'service');
+  const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'network');
   const [sel, setSel] = useState(0);
   const [per, setPer] = useState(6);
   const aud = AUD[audOf(s)], exec = aud.depth === 'exec' || aud.depth === 'business', business = aud.depth === 'business';
@@ -254,9 +263,10 @@ export function SLATracker() {
   const avail = L.find(x => x.n === 29), availNow = D.SLA.find(x => x.n === 29);
   // three views of the same service levels; each shows only its own metrics and the cards that matter for it
   const vcount = k => L.filter(x => VIEW[k].lines(x.line));
+  const storesBelow = useMemo(() => P.branches.filter(x => x.avail < STORE_TARGET).length, [P]);
   const LV = vcount(view).map(x => ({ ...x, _i: D.SLA.findIndex(y => y.n === x.n && y.name === x.name) }));
-  const selV = LV.findIndex(x => x._i === sel) >= 0 ? sel : LV[0]._i;
-  const onSelV = k => { setSel(LV[k]._i); if (exec) act.drill({ t: 'metric', i: LV[k]._i, per }); };
+  const selV = !LV.length ? sel : LV.findIndex(x => x._i === sel) >= 0 ? sel : LV[0]._i;
+  const onSelV = k => { if (!LV[k]) return; setSel(LV[k]._i); if (exec) act.drill({ t: 'metric', i: LV[k]._i, per }); };
   const mv = D.SLA[selV];
   const vMeets = LV.filter(x => status(x) === 'Meets ESL').length, vDipped = dipped.filter(x => VIEW[view].lines(x.m.line));
   const tileOf = (n, name, label) => { const x = L.find(y => y.n === n && (!name || name.test(y.name))); if (!x) return null; const st = status(x); return <Stat key={label} label={`${label}, ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.indexOf(D.SLA.find(y => y.n === x.n && y.name === x.name)), per })} value={f(x.act, x)} sub={`${x.lower ? '≤ ' : ''}ESL ${f(x.esl, x)}; this month ${f(x.month, x)}`} tone={tone(st)} />; };
@@ -269,19 +279,20 @@ export function SLATracker() {
     ] : view === 'network' ? [
       <Stat key="av" label={`Critical availability (#29), ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29), per })} value={f(avail.act, { fmt: 3 })} sub={`this month ${f(availNow.act, { fmt: 3 })}; MSL 99%, ESL 99.99%`} tone={tone(status(avail))} />,
       tileOf(32, null, 'Firmware compliance (#32)'), tileOf(33, null, 'Config backup success (#33)'),
-    ] : [
-      tileOf(37, /Auto-resolution/, 'Auto-resolution rate'), tileOf(38, /noise/, 'Alert noise reduction'), tileOf(38, /Predictive/, 'Predictive alert accuracy'),
-    ])].filter(Boolean);
+    ] : view === 'ai' ? [
+      ...AITiles({ P, act }), tileOf(38, /noise/, 'Alert noise reduction'),
+    ] : [])].filter(Boolean);
   return (
     <div>
-      <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Pick what to look at: the service SLAs and KPIs, network performance, or the AI and automation SLAs. Every figure is the average of the 3, 6, 9 or 12 months you pick, with this month alongside." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
+      <PageHead icon={I.Gauge} title="Performance" right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF</Btn><Btn size="sm" icon={I.FileCode2} onClick={() => { downloadPage(`srs-performance-${view}-${per}-months.html`, `SRS performance: ${VIEW[view].label}, last ${per} months`); act.toast('Page downloaded as HTML'); }}>Download HTML</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
       <AudiencePicker s={s} act={act} />
-      {business ? <BusinessView s={s} now={now} act={act} rev={s.tab.revHour || REV_HOUR} /> : <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{Object.entries(VIEW).map(([k, v]) => { const xs = vcount(k), met = xs.filter(x => status(x) === 'Meets ESL').length, on = view === k; return (
+      {business && <BusinessView act={act} P={P} rev={s.tab.revHour || REV_HOUR} />}<>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">{Object.entries(VIEW).map(([k, v]) => { const xs = vcount(k), met = xs.filter(x => status(x) === 'Meets ESL').length, on = view === k; return (
         <button key={k} onClick={() => { setView(k); act.setTab('sla', k); }} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
-          <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{met}/{xs.length} meet ESL</span></div>
+          <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', k === 'stores' ? (storesBelow ? 'bg-warn/15 text-warn' : 'bg-ok/15 text-ok') : met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{k === 'stores' ? `${storesBelow} below target` : `${met}/${xs.length} meet ESL`}</span></div>
           <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{v.sub}</div>
         </button>); })}</div>
+      {view === 'stores' ? <StoresPerf P={P} s={s} act={act} exec={exec} /> : <>
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{head}</div>
       <div className="mb-3"><SLAScorecard sel={LV.findIndex(x => x._i === selV)} onSel={onSelV} list={LV} when={when} /></div>
       {!exec && <>
@@ -296,14 +307,15 @@ export function SLATracker() {
         </div>)}</div>
       </Card>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><CallDriversCard P={P} /><ProblemBranchesCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><DriversCard P={P} act={act} /><ProblemBranchesCard P={P} /></div>
       </>}
       {view === 'network' && <>
                 <div className="mb-3"><ErrorBudgets /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><CallDriversCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><DriversCard P={P} act={act} /></div>
       </>}
       {view === 'ai' && <>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch"><TicketsAutoCard P={P} /><MTTRTrendCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch"><TicketsAutoCard P={P} /><AutomationsCard act={act} s={s} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><DriversCard P={P} act={act} /><MTTRTrendCard P={P} /></div>
       </>}
       </>}
       {exec && <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
@@ -334,6 +346,7 @@ export function SLATracker() {
       </div>
       </>}
       </>}
+      </>
     </div>
   );
 }

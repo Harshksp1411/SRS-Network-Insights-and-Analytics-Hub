@@ -70,6 +70,10 @@ const BYDRV = MONTHS12.map((_, mi) => {
   return Object.fromEntries(DRIVERS.map((d, i) => [d.k, out[i]]));
 });
 
+// trading hours a store is open in a month, and the store hours one ticket costs by cause (after failover and auto-fix)
+export const TRADE_H = 312;
+export const IMPACT = { circuit: 0.35, apdown: 0.15, backup: 0, jitter: 0.3, crc: 0.1, lte: 0.05, scanner: 0.2, pos: 0.9, dhcp: 0.35, cpu: 0.6 };
+const IMPACT_AVG = DRIVERS.reduce((a, d) => a + IMPACT[d.k] * d.w, 0) / 30;
 // ── one period, everything the tracker cards and the PDF need ──
 export function period(n) {
   const idx = MONTHS12.map((_, i) => i).slice(-n), months = idx.map(i => MONTHS12[i]);
@@ -80,7 +84,11 @@ export function period(n) {
     const autoable = DRIVERS.filter(x => x.auto).reduce((a, x) => a + idx.reduce((s, i) => s + BYDRV[i][x.k], 0), 0);
     return { ...d, tickets: t, share: t / Math.max(1, tickets), storeCalls: Math.round(t * d.calls), autoFixed: d.auto ? Math.round(auto * t / Math.max(1, autoable)) : 0, first: per[0], last: per[per.length - 1], per };
   }).sort((a, b) => b.tickets - a.tickets);
-  const branches = BRW.map((x, bi) => ({ b: x.b, tickets: idx.reduce((a, i) => a + BYBR[bi][i], 0), driver: DRV[x.main].label, driverKey: x.main, repeat: repeat.has(x.b.id) }))
+  const branches = BRW.map((x, bi) => { const per = idx.map(i => BYBR[bi][i]), tickets = per.reduce((a, v) => a + v, 0);
+    // store hours lost: half the tickets follow the branch's main cause, the rest the estate mix; the backup line absorbs most outages
+    const hrs = per.map(t => t * (0.5 * IMPACT[x.main] + 0.5 * IMPACT_AVG));
+    const lost = hrs.reduce((a, v) => a + v, 0);
+    return { b: x.b, tickets, per, hrsPer: hrs, lost, avail: 1 - lost / (TRADE_H * n), availPer: hrs.map(h => 1 - h / TRADE_H), driver: DRV[x.main].label, driverKey: x.main, repeat: repeat.has(x.b.id) }; })
     .sort((a, b) => b.tickets - a.tickets || a.b.num - b.b.num);
   const sla = SLA12.map(({ m, series }) => {
     const s = idx.map(i => series[i]), avg = s.reduce((a, v) => a + v, 0) / s.length;

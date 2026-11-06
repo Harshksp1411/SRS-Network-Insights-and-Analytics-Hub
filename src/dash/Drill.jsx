@@ -39,7 +39,7 @@ const regionOrder = bs => [...new Set(bs.map(b => b.region))].sort((a, b) => D.R
 // In the console, the drill-down can hand over to the console's own screens (Branch 360, the incident record, a
 // screen); on the dashboards page there is no console, so these buttons do not show.
 export { DrillLinks };
-const OPEN_LABEL = { branch: 'Open Branch 360', incident: 'Open the incident record', incidents: 'Open Live Incidents', carriers: 'Open Carrier Management', vuln: 'Open Lifecycle & Vulnerabilities', inventory: 'Open Device & Circuit Inventory', changes: 'Open Approvals & Changes', sla: 'Open SLA & KPI Tracker', biab: 'Open Branch-in-a-Box', predict: 'Open Predictive Watchlist', readiness: 'Open Branch Readiness', dispatch: 'Open Field Dispatch' };
+const OPEN_LABEL = { branch: 'Open Branch 360', incident: 'Open the incident record', incidents: 'Open Live Incidents', carriers: 'Open Carrier Management', vuln: 'Open Lifecycle & Vulnerabilities', inventory: 'Open Device & Circuit Inventory', changes: 'Open Approvals & Changes', sla: 'Open Performance', slaOld: 'Open SLA & KPI Tracker', biab: 'Open Branch-in-a-Box', predict: 'Open Predictive Watchlist', readiness: 'Open Branch Readiness', dispatch: 'Open Field Dispatch' };
 function OpenIn({ what, id }) {
   const L = useContext(DrillLinks);
   if (!L) return null;
@@ -914,8 +914,97 @@ function CasesView({ n, go, ctx }) {
       rows={list.map(c => ({ key: c.id, id: c.circuit, cells: [<Name t={`${c.carrier} ${c.id}`} sub={c.circuit} />, <span className="text-ink2">{D.BR[c.branchId].name}</span>, <span className="text-ink2">{c.status}</span>, c.eta ? <b className={c.eta < now ? 'text-bad' : 'text-ink'}>{hhmm(c.eta)} CT{c.eta < now ? ' (late)' : ''}</b> : '—'] }))} /></div></div>);
 }
 
+
+// ---------- performance: stores, call drivers, automations ----------
+const PA = (v, d = 2) => `${(v * 100).toFixed(d)}%`;
+const HRS = v => v >= 100 ? num(Math.round(v)) : v.toFixed(1);
+function StorePerfView({ n, go }) {
+  const P = HIST.period(n.per || 6);
+  let rows = P.branches.filter(x => (!n.region || x.b.region === n.region) && (!n.segment || x.b.segment === n.segment) && (!n.brand || x.b.brand === n.brand));
+  const all = rows;
+  if (n.f === 'below') rows = rows.filter(x => x.avail < 0.995);
+  if (n.f === 'repeat') rows = rows.filter(x => x.repeat);
+  const key = n.month != null ? (x => x.hrsPer[n.month]) : (x => x.lost);
+  rows = [...rows].sort((a, b) => key(b) - key(a));
+  const lost = sum(all, x => x.lost), av = 1 - lost / Math.max(1, all.length * HIST.TRADE_H * P.n);
+  const mo = P.months.map((m, i) => ({ m: m.m, v: 1 - sum(all, x => x.hrsPer[i]) / Math.max(1, all.length * HIST.TRADE_H) }));
+  const scope = n.region || n.segment || n.brand || 'All branches';
+  return (
+    <div>
+      <Head kicker="Store performance" title={`${scope}${n.f === 'below' ? ': below target' : n.f === 'repeat' ? ': repeat problems' : ''}`} sub={`Last ${P.n} months, ${P.from} to ${P.to}${n.month != null ? `. Ranked by store hours lost in ${P.months[n.month].label}` : '. Ranked by store hours lost'}.`} right={<div className="pt-5"><OpenIn what="sla" /></div>} />
+      <Kpis go={go} items={[
+        { label: 'Store availability', value: PA(av), tone: av >= 0.995 ? 'ok' : 'warn', sub: 'target 99.5%' },
+        { label: 'Store hours lost', value: HRS(lost), tone: 'warn' },
+        { label: 'Branches', value: num(all.length), go: n.f ? { ...n, f: null } : undefined },
+        { label: 'Below target', value: num(all.filter(x => x.avail < 0.995).length), tone: 'bad', go: { ...n, f: 'below' } },
+        { label: 'Repeat problems', value: num(all.filter(x => x.repeat).length), tone: 'warn', go: { ...n, f: 'repeat' } },
+      ]} />
+      <Grid>
+        <Panel title="Availability, month by month" hint="share of trading hours"><LineChart h={170} labels={mo.map(x => x.m)} yFmt={v => `${(v * 100).toFixed(2)}%`} refLines={[{ v: 0.995, label: 'target', color: C.warn }]} series={[{ name: 'Availability', color: C.s1, data: mo.map(x => x.v) }]} /></Panel>
+        <Panel title="Main causes" hint="click a cause"><Clickable go={go} items={Object.entries(rows.reduce((a, x) => { a[x.driverKey] = a[x.driverKey] || { label: x.driver, n: 0, t: 0 }; a[x.driverKey].n++; a[x.driverKey].t += x.tickets; return a; }, {})).sort((a, b) => b[1].t - a[1].t).slice(0, 6).map(([k, v]) => ({ title: v.label, sub: `${v.n} branches · ${num(v.t)} tickets`, go: { t: 'driver', k, per: P.n, label: v.label, tickets: v.t } }))} /></Panel>
+      </Grid>
+      <div className="mt-6"><Panel title={`${num(rows.length)} branches`} hint="click a branch to drill in and act">
+        <Rows cols={['Branch', 'Availability', 'Hours lost', 'Tickets', 'Main cause']} onRow={r => go({ t: 'branch', id: r.id })} page={15}
+          rows={rows.map(x => ({ key: x.b.id, id: x.b.id, cells: [<Name t={x.b.name} sub={`${x.b.brand} · ${x.b.region}`} />, <b className={x.avail < 0.995 ? 'text-warn' : 'text-ok'}>{PA(x.avail)}</b>, HRS(n.month != null ? x.hrsPer[n.month] : x.lost), x.tickets, <span className="text-ink2">{x.driver}{x.repeat ? ' · repeat' : ''}</span>] }))} />
+      </Panel></div>
+    </div>
+  );
+}
+function DriverView({ n, go }) {
+  const P = HIST.period(n.per || 6);
+  const d = P.drivers.find(x => x.k === n.k); if (!d) return null;
+  const bs = P.branches.filter(x => x.driverKey === n.k).sort((a, b) => b.tickets - a.tickets);
+  return (
+    <div>
+      <Head kicker="What the tickets were about" title={d.label} sub={`${num(d.tickets)} tickets in the last ${P.n} months, ${(d.share * 100).toFixed(0)}% of all network tickets. ${d.auto ? 'Mova iO fixes most of these on its own.' : 'These need an engineer or the carrier today.'}`} right={<div className="pt-5"><OpenIn what="sla" /></div>} />
+      <Kpis go={go} items={[
+        { label: 'Tickets', value: num(d.tickets) },
+        { label: 'Came in as store calls', value: num(d.storeCalls), tone: 'warn' },
+        { label: 'Fixed by Mova iO', value: num(d.autoFixed), tone: d.auto ? 'ok' : 'muted', go: d.auto ? { t: 'automation', id: 'all', per: P.n } : undefined },
+        { label: 'Branches where it is the main cause', value: num(bs.length) },
+        { label: `Change, ${P.months[0].m} to ${P.months[P.months.length - 1].m}`, value: `${d.last - d.first > 0 ? '+' : ''}${d.last - d.first}`, tone: d.last <= d.first ? 'ok' : 'warn' },
+      ]} />
+      <Grid>
+        <Panel title="Tickets each month"><LineChart h={170} labels={P.months.map(x => x.m)} series={[{ name: d.label, color: C.warn, area: true, data: d.per }]} /></Panel>
+        <Panel title="Branches hit hardest" hint="click to drill in"><Clickable go={go} items={bs.slice(0, 6).map(x => ({ title: x.b.name, sub: `${x.tickets} tickets · ${HRS(x.lost)} store hours lost`, go: { t: 'branch', id: x.b.id } }))} /></Panel>
+      </Grid>
+      <div className="mt-6"><Panel title={`All ${num(bs.length)} branches`}><Rows cols={['Branch', 'Tickets', 'Hours lost', 'Availability']} onRow={r => go({ t: 'branch', id: r.id })} rows={bs.map(x => ({ key: x.b.id, id: x.b.id, cells: [<Name t={x.b.name} sub={`${x.b.brand} · ${x.b.region}`} />, x.tickets, HRS(x.lost), PA(x.avail)] }))} /></Panel></div>
+    </div>
+  );
+}
+function AutomationView({ n, go, ctx }) {
+  const { s } = ctx;
+  if (n.id === 'all') {
+    const P = HIST.period(n.per || 6);
+    return (
+      <div>
+        <Head kicker="AI and automation" title={`${num(P.auto)} tickets fixed by Mova iO`} sub={`Last ${P.n} months: ${(P.autoShare * 100).toFixed(0)}% of ${num(P.tickets)} network tickets closed with no engineer, about ${num(Math.round(P.auto * 0.75))} engineer hours saved.`} right={<div className="pt-5"><OpenIn what="catalogue" /></div>} />
+        <Kpis go={go} items={[{ label: 'Fixed automatically', value: num(P.auto), tone: 'ok' }, { label: 'Needed an engineer', value: num(P.tickets - P.auto) }, { label: 'Engineer hours saved', value: num(Math.round(P.auto * 0.75)), tone: 'ok' }, { label: 'Automations', value: D.RUNBOOKS.length }]} />
+        <Grid>
+          <Panel title="Fixed automatically, month by month"><LineChart h={170} labels={P.byMonth.map(x => x.label)} series={[{ name: 'Mova iO', color: C.ok, area: true, data: P.byMonth.map(x => x.auto) }, { name: 'Engineer', color: C.s3, data: P.byMonth.map(x => x.engineer) }]} /></Panel>
+          <Panel title="Causes Mova iO fixes" hint="click a cause"><Clickable go={go} items={P.drivers.filter(d => d.auto).map(d => ({ title: d.label, sub: `${num(d.autoFixed)} fixed of ${num(d.tickets)}`, go: { t: 'driver', k: d.k, per: P.n, label: d.label, tickets: d.tickets } }))} /></Panel>
+        </Grid>
+        <div className="mt-6"><Panel title="Automations" hint="click one to see it and widen it"><Rows cols={['Automation', 'Autonomy', 'Runs, 30 days', 'Success', 'Takes']} onRow={r => go({ t: 'automation', id: r.id })} rows={D.RUNBOOKS.map(r => ({ key: r.id, id: r.id, cells: [<Name t={r.name} sub={r.desc} />, r.autonomy, num(r.runs30), PA(r.success, 1), r.avg] }))} /></Panel></div>
+      </div>
+    );
+  }
+  const r = D.RB[n.id]; if (!r) return null;
+  const runs = s.runs.filter(x => x.rb === r.id);
+  return (
+    <div>
+      <Head kicker="Automation" title={r.name} sub={r.desc} right={<div className="pt-5"><OpenIn what="catalogue" /></div>} />
+      <Kpis go={go} items={[{ label: 'Runs, 30 days', value: num(r.runs30 + runs.length) }, { label: 'Success', value: PA(r.success, 1), tone: r.success >= 0.95 ? 'ok' : 'warn' }, { label: 'Takes', value: r.avg }, { label: 'Autonomy', value: r.autonomy, sub: r.kind === 'readonly' ? 'read-only check' : 'makes a change' }]} />
+      <Grid>
+        <Panel title="What it does"><ol className="list-decimal ml-5 text-[12.5px] text-ink2 space-y-1">{(r.steps || []).map(x => <li key={x}>{x}</li>)}</ol></Panel>
+        <Panel title="How it is checked"><KV items={[['Checks after', (r.verify || []).join('; ') || 'n/a'], ['Rollback', r.rollback || 'n/a'], ['Approval', r.autonomy >= 'L3' ? 'runs on its own' : 'needs an engineer to approve']]} /></Panel>
+      </Grid>
+      <div className="mt-6"><Panel title="Runs from this console" hint="click to open the branch"><Rows empty="Not run from the console yet. Use Take action above." cols={['When', 'Branch', 'By', 'Result']} onRow={x => x.id && go({ t: 'branch', id: x.id })} rows={runs.map((x, i) => ({ key: i, id: x.branchId, go: x.branchId ? undefined : false, cells: [hhmm(x.t), x.branch, x.by, x.res] }))} /></Panel></div>
+    </div>
+  );
+}
+
 const WorkPack = props => <WorkPackView {...props} ui={{ Head, Kpis }} />;
-const VIEWS = { workpack: WorkPack, rca: RcaView, set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
+const VIEWS = { storeperf: StorePerfView, driver: DriverView, automation: AutomationView, workpack: WorkPack, rca: RcaView, set: SetView, branch: BranchView, circuit: CircuitView, carrier: CarrierView, lines: LinesView, device: DeviceView, devices: DevicesView, incident: IncidentView, incidents: IncidentsView, changes: ChangesView, change: ChangeView, approvals: ApprovalsView, approval: ApprovalView, sla: SlaView, metric: MetricView, mttr: MttrView, projects: ProjectsView, project: ProjectView, predictions: PredictionsView, prediction: PredictionView, drift: DriftView, cases: CasesView };
 
 // The panel: slides in from the right over the dashboard; Escape closes it, the breadcrumb or Back steps out a level.
 export function DrillPanel({ stack, setStack, now, scope, snap, links, root = 'Dashboard' }) {
