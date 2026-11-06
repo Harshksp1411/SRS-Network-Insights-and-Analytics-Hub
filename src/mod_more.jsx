@@ -17,6 +17,8 @@ import { PredictionPipelineCard, DataCollectedCard, PredictionBasisModal } from 
 import { AnomaliesCard } from './patterns.jsx';
 import { MovaActions, PredictionActionsCard } from './predictact.jsx';
 import { CriticalReport } from './critreport.jsx';
+import { BUWeekly } from './bureport.jsx';
+import { AUD, audOf, AudiencePicker } from './audience.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -231,6 +233,7 @@ export function SLATracker() {
   const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'service');
   const [sel, setSel] = useState(0);
   const [per, setPer] = useState(6);
+  const aud = AUD[audOf(s)], exec = aud.depth === 'exec';
   const P = useMemo(() => HIST.period(per), [per]);
   const status = m => { if (m.lower) return m.act <= m.esl ? 'Meets ESL' : 'Below target'; if (m.act >= m.esl) return 'Meets ESL'; if (m.msl != null && m.act >= m.msl) return 'Above MSL'; return m.msl == null ? 'Below target' : 'Below MSL'; };
   const tone = st => ({ 'Meets ESL': 'green', 'Above MSL': 'amber', 'Below MSL': 'red', 'Below target': 'amber' }[st]);
@@ -252,7 +255,7 @@ export function SLATracker() {
   const vcount = k => L.filter(x => VIEW[k].lines(x.line));
   const LV = vcount(view).map(x => ({ ...x, _i: D.SLA.findIndex(y => y.n === x.n && y.name === x.name) }));
   const selV = LV.findIndex(x => x._i === sel) >= 0 ? sel : LV[0]._i;
-  const onSelV = k => setSel(LV[k]._i);
+  const onSelV = k => { setSel(LV[k]._i); if (exec) act.drill({ t: 'metric', i: LV[k]._i, per }); };
   const mv = D.SLA[selV];
   const vMeets = LV.filter(x => status(x) === 'Meets ESL').length, vDipped = dipped.filter(x => VIEW[view].lines(x.m.line));
   const tileOf = (n, name, label) => { const x = L.find(y => y.n === n && (!name || name.test(y.name))); if (!x) return null; const st = status(x); return <Stat key={label} label={`${label}, ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.indexOf(D.SLA.find(y => y.n === x.n && y.name === x.name)), per })} value={f(x.act, x)} sub={`${x.lower ? '≤ ' : ''}ESL ${f(x.esl, x)}; this month ${f(x.month, x)}`} tone={tone(st)} />; };
@@ -271,6 +274,7 @@ export function SLATracker() {
   return (
     <div>
       <PageHead icon={I.Gauge} title="SLA & KPI Tracker" sub="Pick what to look at: the service SLAs and KPIs, network performance, or the AI and automation SLAs. Every figure is the average of the 3, 6, 9 or 12 months you pick, with this month alongside." right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF report</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
+      <AudiencePicker s={s} act={act} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">{Object.entries(VIEW).map(([k, v]) => { const xs = vcount(k), met = xs.filter(x => status(x) === 'Meets ESL').length, on = view === k; return (
         <button key={k} onClick={() => { setView(k); act.setTab('sla', k); }} aria-pressed={on} className={cx('text-left rounded-md border p-3 bg-panel', on ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
           <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{met}/{xs.length} meet ESL</span></div>
@@ -278,6 +282,7 @@ export function SLATracker() {
         </button>); })}</div>
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{head}</div>
       <div className="mb-3"><SLAScorecard sel={LV.findIndex(x => x._i === selV)} onSel={onSelV} list={LV} when={when} /></div>
+      {!exec && <>
       {view === 'service' && <>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
       <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
@@ -298,6 +303,9 @@ export function SLATracker() {
       {view === 'ai' && <>
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch"><TicketsAutoCard P={P} /><MTTRTrendCard P={P} /></div>
       </>}
+      </>}
+      {exec && <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
+      {!exec && <>
       {view === 'network' ? <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mb-3 items-stretch [&>*]:h-full"><CalendarHeat P={P} /><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
         : <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full">
@@ -322,6 +330,7 @@ export function SLATracker() {
             { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
           ]} /></div>)}</div></Card>
       </div>
+      </>}
     </div>
   );
 }
@@ -330,15 +339,18 @@ export function SLATracker() {
 export function Reports() {
   const { s, act } = useApp();
   const now = useNow();
-  const [tab, setTab] = useState(s.tab.reports || 'handover');
+  const [tab0, setTab] = useState(s.tab.reports || 'bu');
   React.useEffect(() => { if (s.tab.reports) setTab(s.tab.reports); }, [s.tab.reports]);
   const ref = useRef(null);
   // executive summary for leaders (CEO, CIO): the picture and the key points; full detail adds every table and timeline
-  const brief = s.tab.reportsLevel === 'exec';
+  const aud = AUD[audOf(s)];
+  const tab = aud.reports.includes(tab0) ? tab0 : aud.reports[0];
+  const brief = (s.tab.reportsLevel || aud.level) === 'exec';
   const [critDays, setCritDays] = useState(30);
   const open = s.incidents.filter(i => i.state !== 'Resolved');
   const res24 = s.resolved.filter(i => i.resolved > now - DAY);
-  const titles = { handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', critical: 'Critical incidents (P1 / P2)', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
+  const titles = { bu: 'BU head weekly', handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', critical: 'Critical incidents (P1 / P2)', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
+  if (['ceo', 'cio'].includes(audOf(s))) titles.bu = 'Executive weekly';
   const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
   const H = ({ children }) => <h2 className="text-[15px] font-extrabold text-ink border-b-2 border-brand pb-1 mt-5 mb-2">{children}</h2>;
   const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => <tr key={k}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>)}</tbody></table>;
@@ -350,7 +362,8 @@ export function Reports() {
     <div>
       <PageHead icon={I.FileText} title="Reports" sub="Built from live console data. Download as HTML (opens in Word or a browser), CSV, or print to PDF."
         right={tab !== 'audit' ? <><Btn icon={I.Download} onClick={exportHtml}>Download HTML</Btn><Btn icon={I.Printer} onClick={() => window.print()}>Print / PDF</Btn></> : <ExportBtn onClick={() => exportCSV('srs-audit-log.csv', s.audit, [{ label: 'Time', get: a => dt(a.t) }, { label: 'Who', key: 'who' }, { label: 'What', key: 'what' }, { label: 'Ref', key: 'ref' }])} />} />
-      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={Object.entries(titles).map(([id, label]) => ({ id, label }))} />
+      <AudiencePicker s={s} act={act} onPick={k => { act.setTab('reportsLevel', AUD[k].level); if (!AUD[k].reports.includes(tab)) { setTab(AUD[k].reports[0]); act.setTab('reports', AUD[k].reports[0]); } }} />
+      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={aud.reports.map(id => ({ id, label: titles[id] }))} />
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="Level of detail">{[['exec', 'Executive summary'], ['full', 'Full detail']].map(([k, l]) => <button key={k} aria-pressed={(brief ? 'exec' : 'full') === k} onClick={() => act.setTab('reportsLevel', k)} className={cx('px-3 py-1.5 rounded', (brief ? 'exec' : 'full') === k ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>{l}</button>)}</div>
         <span className="text-[12px] text-ink3">{brief ? 'For leaders: the picture and the key points.' : 'Every table and timeline.'}</span>
@@ -408,6 +421,7 @@ export function Reports() {
           <H>Problems and improvements</H>
           <T rows={s.problems} cols={[['Problem', p => p.id], ['Title', p => p.title], ['State', p => p.state], ['Owner', p => p.owner]]} /></>}
         </>}
+        {tab === 'bu' && <BUWeekly s={s} now={now} brief={brief} H={H} T={T} act={act} />}
         {tab === 'critical' && <CriticalReport s={s} now={now} days={critDays} brief={brief} H={H} T={T} openInc={act.openInc} />}
         {tab === 'biab' && <>
           <RRow>
