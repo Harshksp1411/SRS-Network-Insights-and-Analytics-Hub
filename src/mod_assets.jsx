@@ -8,7 +8,7 @@ import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
 import { CmdbTab } from './mod_cmdb.jsx';
-import { CmdbOverview, CmdbDiscovery, CmdbRelationships, CmdbMappings, CmdbSync } from './cmdblite.jsx';
+import { CmdbOverview, CmdbDiscovery, CmdbRelationships, CmdbMappings, CmdbSync, CmdbJourney } from './cmdblite.jsx';
 import { relsOf } from './cmdb.js';
 import { Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, dt, hhmm, exportCSV, MIN, HR, DAY, T0, rng } from './util.js';
@@ -103,7 +103,7 @@ export function Inventory() {
         <Stat label="Support contracts (EdgeConnect)" icon={I.CalendarClock} value={<span><span className="text-bad">{expired}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{expiring}</span></span>} sub="lapsed / renewing in 90 days. Switches and APs have a lifetime warranty" onClick={() => { setTab('devices'); setWar('Expired'); }} />
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'discovery', label: 'Discovery' }, { id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'rels', label: 'Relationships' }, { id: 'mappings', label: 'Mappings' }, { id: 'sync', label: 'ServiceNow sync' }, { id: 'recon', label: 'Reconciliation' }, { id: 'cmdb', label: 'CMDB tables' }]} />
+        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'journey', label: 'Asset journey' }, { id: 'discovery', label: 'Discovery' }, { id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'rels', label: 'Relationships' }, { id: 'mappings', label: 'Mappings' }, { id: 'sync', label: 'ServiceNow sync' }, { id: 'recon', label: 'Reconciliation' }, { id: 'cmdb', label: 'CMDB tables' }]} />
         <div className="flex-1" />
         {(tab === 'devices' || tab === 'circuits') && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
       </div>
@@ -158,6 +158,7 @@ export function Inventory() {
       </div>
       <div className="mb-3"><DeviceRiskCard /></div>
       </>}
+      {tab === 'journey' && <CmdbJourney go={setTab} />}
       {tab === 'discovery' && <CmdbDiscovery />}
       {tab === 'rels' && <CmdbRelationships />}
       {tab === 'mappings' && <CmdbMappings />}

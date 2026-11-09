@@ -104,7 +104,7 @@ export function CmdbOverview({ go }) {
   const { s } = useApp(); const { q } = useCmdbQueue();
   const C = classes(s), H = health(s, q), total = C.reduce((a, c) => a + c.n, 0), open = q.filter(x => x.status === 'Review');
   const flow = [
-    ['Sources', '7 discovery profiles', 'SNMPv3, Orchestrator, Aruba Central, carrier feeds, New Relic, Azure', I.Plug, 'discovery'],
+    ['Sources', '7 discovery profiles', 'SNMPv3, Orchestrator, Aruba Central, carrier feeds, New Relic, Azure', I.Plug, 'journey'],
     ['Discovery', '4 gateways and collectors', 'Reach, probe, classify, identify, reconcile, relate', I.ScanSearch, 'discovery'],
     ['CMDB Lite', `${num(total)} CIs, ${num(RELS.length)} relationships`, `${C.length} classes, each with a monitoring template`, I.Database, 'rels'],
     ['ServiceNow CMDB', 'One way, through the IRE', 'Incidents and changes point at the same CIs', I.RefreshCw, 'sync'],
@@ -295,6 +295,89 @@ export function CmdbSync() {
           <div><b className="text-ink">Added for SRS</b><ul className="mt-1 space-y-1 text-ink2">{['Relationships written through the IRE API, for impact analysis', 'Custom attributes (brand, region, store hours) to u_ fields', 'Retired CIs marked non-operational, never deleted'].map(x => <li key={x} className="flex gap-2"><I.Plus size={14} className="text-info mt-0.5 shrink-0" />{x}</li>)}</ul></div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────── Asset journey ───────────────────────────────
+// One asset, end to end: the monitoring tool reports it, the tool onboards it as a resource, CMDB Lite classifies,
+// identifies, reconciles and relates it, maps it field by field and writes it to the ServiceNow CMDB.
+function samples() {
+  const b = D.storeOf(D.HERO.config) || D.BRANCHES[213], b2 = D.storeOf(D.HERO.autoAP) || D.BRANCHES[308], b3 = D.storeOf(D.HERO.bandwidth) || D.BRANCHES[44];
+  const net = n => `10.${(n % 200) + 20}.0`;
+  return {
+    sw: { label: 'Aruba CX switch', tool: 'Aruba Central', via: 'Webhook: device added', prof: 'DP-02', b, host: `${b.code}-sw03`, ip: `${net(b.number || 214)}.13`, make: 'HPE Aruba Networking', model: 'CX 6100 24G CL4 (JL679A)', serial: 'CN4BKSP0Q2', mac: '88:3a:30:9c:41:e2', fw: '10.16.1030', type: 'Network switch', cls: 'Switch', snow: 'cmdb_ci_ip_switch', tpl: 'TPL-CX v5.1', group: 'Movate NOC – L2 Network', kind: 'Switch',
+      rels: [[`${b.code}-sw01`, 'Connects to::Connected by', 'Uplink 1/1/49 by LLDP'], [b.name, 'Contains::Contained by', 'Site from the Central group'], [`${b.code}-ap05`, 'Powers::Powered by', 'PoE port 1/1/7']] },
+    ap: { label: 'Aruba access point', tool: 'Aruba Central', via: 'API poll: new AP joined', prof: 'DP-03', b: b2, host: `${b2.code}-ap09`, ip: `${net(b2.number || 309)}.59`, make: 'HPE Aruba Networking', model: 'AP-635 (R7J27A)', serial: 'CNR4KX20B7', mac: '20:4c:03:7a:18:c4', fw: '10.6.0.2', type: 'Wireless access point', cls: 'Access point', snow: 'cmdb_ci_wap_network', tpl: 'TPL-AP v3.0', group: 'Movate NOC – L1', kind: 'Access point',
+      rels: [[`${b2.code}-sw02`, 'Powers::Powered by', 'PoE port 1/1/18 by LLDP'], [b2.name, 'Contains::Contained by', 'Site from the Central group']] },
+    ec: { label: 'EdgeConnect appliance', tool: 'Orchestrator', via: 'REST API: appliance approved', prof: 'DP-01', b: b3, host: `${b3.code}-ec02`, ip: `${net(b3.number || 45)}.2`, make: 'HPE Aruba Networking', model: 'EdgeConnect EC-XS', serial: '001BBC2F7D44', mac: '00:1b:bc:2f:7d:44', fw: 'ECOS 9.5.4.1', type: 'EdgeConnect appliance', cls: 'SD-WAN edge', snow: 'cmdb_ci_ip_router', tpl: 'TPL-EC v4.2', group: 'Movate NOC – L2 Network', kind: 'SD-WAN',
+      rels: [[b3.name, 'Contains::Contained by', 'Site from the Orchestrator group'], [b3.wan[0], 'Uses::Used by', 'WAN1 path'], [b3.wan[1], 'Uses::Used by', 'WAN2 path'], [`${b3.code}-sw01`, 'Connects to::Connected by', 'LAN port lan0']] },
+    cir: { label: 'ISP circuit', tool: 'Carrier portal + Orchestrator', via: 'Webhook: circuit turned up', prof: 'DP-04', b, host: `${b.code}-wan3`, ip: '—', make: 'Lumen', model: 'DIA 500 Mb/s', serial: 'LMN/DIA/77310482', mac: '—', fw: '—', type: 'Circuit', cls: 'WAN circuit', snow: 'cmdb_ci_circuit', tpl: 'TPL-CIR v2.6', group: 'Movate NOC – Carrier', kind: 'Circuit',
+      rels: [[`${b.code}-ec01`, 'Uses::Used by', 'Seen as a new path on the edge'], [b.name, 'Contains::Contained by', 'Site from the order']] },
+    vm: { label: 'Azure virtual machine', tool: 'Azure Monitor', via: 'API: resource created', prof: 'DP-07', b: null, host: 'srs-pricing-vm03', ip: '10.240.4.23', make: 'Microsoft Azure', model: 'Standard_D4s_v5', serial: '/subscriptions/…/srs-pricing-vm03', mac: '00:0d:3a:91:5e:20', fw: 'Ubuntu 22.04', type: 'Azure resource', cls: 'Cloud resource', snow: 'cmdb_ci_vm_instance', tpl: 'TPL-AZ-VM v1.2', group: 'SRS Cloud', kind: 'Cloud VM',
+      rels: [['Pricing & quoting', 'Depends on::Used by', 'Tag app=pricing'], ['SRS Azure subscription', 'Hosted on::Hosts', 'Azure resource group']] },
+  };
+}
+const JSTEPS = [
+  ['Seen', 'The monitoring tool reports it', I.Radio],
+  ['Onboarded', 'Becomes a resource in the tool', I.PackagePlus],
+  ['Classified', 'Type, class, template, routing', I.Tags],
+  ['Identified', 'New CI or one we already have', I.Fingerprint],
+  ['Reconciled', 'Each value from its owner', I.GitMerge],
+  ['Related', 'How it connects to other CIs', I.Share2],
+  ['Mapped', 'Field by field to ServiceNow', I.ArrowRightLeft],
+  ['In the CMDB', 'Written through the IRE', I.Database],
+];
+export function CmdbJourney({ go }) {
+  const { s, act } = useApp();
+  const S = useMemo(samples, []);
+  const [k, setK] = useState('sw'), [st, setSt] = useState(0), [play, setPlay] = useState(false);
+  const a = S[k], site = a.b ? a.b.name : 'Azure (SRS tenant)', rid = `R-${(a.serial.replace(/\W/g, '').slice(-6) || '000000').toUpperCase()}`;
+  const sysId = useMemo(() => Array.from({ length: 32 }, (_, i) => '0123456789abcdef'[(a.serial.charCodeAt(i % a.serial.length) * (i + 7)) % 16]).join(''), [k]);
+  const done = (s.journeyDone || {})[k];
+  useEffect(() => { if (!play) return; if (st >= JSTEPS.length - 1) { setPlay(false); return; } const t = setTimeout(() => setSt(x => x + 1), 1700); return () => clearTimeout(t); }, [play, st]);
+  useEffect(() => { if (st === JSTEPS.length - 1 && !done) {
+    act.addInventory([{ id: `J-${a.host}`, name: a.host, kind: a.kind, vendor: a.make.split(' ')[0], model: a.model, ip: a.ip === '—' ? null : a.ip, site: a.b ? `${a.b.brand} – ${a.b.name}` : site, source: `${a.tool} (${a.prof})`, template: a.tpl, via: 'CMDB Lite', t: Date.now() }]);
+    act.set(x => ({ journeyDone: { ...(x.journeyDone || {}), [k]: { sysId, t: Date.now() } } }));
+    act.audit(`${a.host} onboarded from ${a.tool}, classified ${a.cls}, written to ServiceNow ${a.snow} (${sysId.slice(0, 8)}…)`, a.host);
+  } }, [st, k]);
+  const pick = x => { setK(x); setSt(0); setPlay(false); };
+  const KV = ({ rows }) => <dl className="grid grid-cols-[150px_minmax(0,1fr)] gap-x-3 text-[12.5px]">{rows.map(([kk, v]) => <React.Fragment key={kk}><dt className="text-ink3 py-1 border-b border-line/60">{kk}</dt><dd className="text-ink py-1 border-b border-line/60 break-words">{v}</dd></React.Fragment>)}</dl>;
+  const Code = ({ o }) => <pre className="bg-chip/60 border border-line rounded-md p-3 text-[11.5px] font-mono text-ink overflow-x-auto max-h-[300px]">{JSON.stringify(o, null, 2)}</pre>;
+  const body = [
+    () => <><p className="text-[12.5px] text-ink2 mb-2"><b className="text-ink">{a.tool}</b> sends: <b className="text-ink">{a.via}</b>. Nothing in the CMDB knows this asset yet.</p>
+      <Code o={k === 'vm' ? { eventType: 'Microsoft.Resources.ResourceWriteSuccess', subject: a.serial, data: { resourceName: a.host, vmSize: a.model, location: 'centralus', tags: { app: 'pricing', env: 'prod' } } } : k === 'cir' ? { event: 'circuit.active', carrier: a.make, circuitId: a.serial, service: a.model, siteRef: a.b.code, handoff: `${a.b.code}-ec01 wan3` } : { event: k === 'ec' ? 'appliance.approved' : 'device.added', serial: a.serial, macaddr: a.mac, model: a.model, firmware: a.fw, name: a.host, ip_address: a.ip, group: a.b ? `SRS/${a.b.region}/${a.b.code}` : '' }} /></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">Discovery profile <b className="text-ink">{a.prof}</b> picks it up and the tool creates a resource for client SRS Distribution.</p>
+      <KV rows={[['Resource ID', rid], ['Name', a.host], ['Resource type', a.type], ['IP address', a.ip], ['Make', a.make], ['Model', a.model], ['Serial number', a.serial], ['Firmware / OS', a.fw], ['Site', site], ['Client', 'SRS Distribution'], ['Discovered by', `${a.prof} via ${a.tool}`]]} /></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">Make and model decide the class. The class brings the monitoring template and where its alerts go.</p>
+      <div className="flex items-center gap-2 flex-wrap mb-3">{[[a.type, 'Resource type'], [a.cls, 'CMDB Lite class'], [a.snow, 'ServiceNow class']].map(([v, l], i) => <React.Fragment key={l}>{i > 0 && <I.ArrowRight size={15} className="text-ink3" />}<span className="rounded-md border border-line px-2.5 py-1.5"><span className="block text-[10.5px] text-ink3">{l}</span><b className="text-[12.5px] text-ink font-mono">{v}</b></span></React.Fragment>)}</div>
+      <KV rows={[['Monitoring template', a.tpl], ['Alerts go to', a.group], ['Monitoring started', 'Yes, first poll in under a minute']]} /></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">The identification rules for <code>{a.snow}</code> run in order. No match on any rule, so this is a new CI.</p>
+      <ol className="space-y-1.5 text-[12.5px]">{[['Serial number', a.serial], ['MAC address', a.mac], ['Name + IP address', `${a.host} / ${a.ip}`]].map(([r, v], i) => <li key={r} className="flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-chip text-ink2 grid place-items-center text-[11px] font-bold">{i + 1}</span><b className="w-40 text-ink">{r}</b><code className="text-[11.5px] text-ink2 flex-1 truncate">{v}</code><Badge tone="gray">no match</Badge></li>)}
+        <li className="flex items-center gap-2 pt-1"><I.CornerDownRight size={14} className="text-ink3" /><Badge tone="blue">New CI</Badge><span className="text-ink2">would be an update if any rule had matched; two matches would go to review as a duplicate</span></li></ol></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">Each attribute keeps the value from the source that owns it.</p>
+      <table className="w-full text-[12.5px]"><thead><tr className="text-left text-ink3 text-[11.5px] border-b border-line"><th className="py-1.5">Attribute</th><th>Value kept</th><th>From</th></tr></thead><tbody>{[['Serial number', a.serial, a.tool], ['Firmware / OS', a.fw, a.tool], ['Location', site, 'ServiceNow (owns locations)'], ['Support group', a.group, 'ServiceNow'], ['Operational status', 'Operational', 'Monitoring'], ['Brand / region', a.b ? `${a.b.brand} / ${a.b.region}` : 'Cloud', 'SRS store master']].map(([x, v, f]) => <tr key={x} className="border-b border-line/60 last:border-0"><td className="py-1.5 font-semibold text-ink">{x}</td><td className="text-ink2">{v}</td><td><Badge tone="green">{f}</Badge></td></tr>)}</tbody></table></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">Discovery finds how it connects, so impact analysis works from day one.</p>
+      <div className="space-y-1.5">{a.rels.map(([to, t, how]) => <div key={to + t} className="flex items-center gap-2 text-[12.5px] rounded-md border border-line px-2.5 py-1.5"><b className="text-ink font-mono">{a.host}</b><I.ArrowRight size={14} className="text-ink3" /><code className="text-[11.5px] text-info">{t}</code><I.ArrowRight size={14} className="text-ink3" /><b className="text-ink">{to}</b><span className="ml-auto text-[11.5px] text-ink3">{how}</span></div>)}</div></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">The attribute mapping turns the resource into a <code>{a.snow}</code> record.</p>
+      <table className="w-full text-[12.5px]"><thead><tr className="text-left text-ink3 text-[11.5px] border-b border-line"><th className="py-1.5">In the tool</th><th>Value</th><th>ServiceNow field</th></tr></thead><tbody>{[['Resource ID', rid, 'u_opsramp_resource_id'], ['Name', a.host, 'name'], ['Serial number', a.serial, 'serial_number'], ['MAC address', a.mac, 'mac_address'], ['IP address', a.ip, 'ip_address'], ['Make', a.make, 'manufacturer'], ['Model', a.model, 'model_id'], ['Firmware / OS', a.fw, 'firmware_version'], ['Site', site, 'location'], ['Support group', a.group, 'support_group'], ['Brand', a.b ? a.b.brand : '—', 'u_srs_brand']].map(([x, v, f]) => <tr key={x} className="border-b border-line/60 last:border-0"><td className="py-1.5 text-ink">{x}</td><td className="text-ink2 font-mono text-[11.5px]">{v}</td><td><code className="text-[11.5px] text-info">{f}</code></td></tr>)}</tbody></table></>,
+    () => <><p className="text-[12.5px] text-ink2 mb-2">Sent to ServiceNow through the IRE. It inserts the CI and its relationships, and the asset is now in CMDB Lite too.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3"><Code o={{ items: [{ className: a.snow, values: { name: a.host, serial_number: a.serial, mac_address: a.mac, ip_address: a.ip, firmware_version: a.fw, u_opsramp_resource_id: rid } }], relations: a.rels.map(([to, t]) => ({ parent: 0, type: t, child: to })) }} />
+        <div><KV rows={[['Operation', 'INSERT'], ['ServiceNow class', a.snow], ['sys_id', sysId], ['Relationships created', a.rels.length], ['In CMDB Lite', done ? `yes, ${ago(done.t)}` : 'yes']]} />
+          <div className="flex gap-2 mt-3 flex-wrap"><Btn size="sm" icon={I.PackagePlus} onClick={() => go('onboarded')}>See it in Added by onboarding</Btn><Btn size="sm" icon={I.Share2} onClick={() => go('rels')}>Relationships</Btn><Btn size="sm" icon={I.RefreshCw} onClick={() => go('sync')}>ServiceNow sync</Btn></div></div></div></>,
+  ];
+  return (
+    <div className="space-y-3">
+      <Card title="From the monitoring tool to the CMDB" sub="Follow one asset through onboarding, classification, identification, reconciliation, relationships and mapping"
+        right={<div className="flex items-center gap-2"><Btn size="sm" icon={I.RotateCcw} onClick={() => { setSt(0); setPlay(false); }}>Reset</Btn><Btn size="sm" kind="brand" icon={play ? I.Pause : I.Play} onClick={() => { if (st >= JSTEPS.length - 1) setSt(0); setPlay(p => !p); }}>{play ? 'Pause' : 'Play'}</Btn><Btn size="sm" icon={I.SkipForward} onClick={() => setSt(x => Math.min(JSTEPS.length - 1, x + 1))} disabled={st >= JSTEPS.length - 1}>Next step</Btn></div>}>
+        <div className="flex items-center gap-2 flex-wrap mb-3"><span className="text-[12px] font-semibold text-ink3">Asset</span><Tabs size="sm" value={k} onChange={pick} tabs={Object.entries(S).map(([id, x]) => ({ id, label: x.label }))} /><span className="text-[12px] text-ink3">{a.host} · {site}</span>{done && <Badge tone="green">In the CMDB</Badge>}</div>
+        <div className="grid grid-cols-4 lg:grid-cols-8 gap-1.5">{JSTEPS.map(([t, sub, Ic], i) => (
+          <button key={t} onClick={() => { setSt(i); setPlay(false); }} className={cx('text-left rounded-md border px-2 py-1.5', i === st ? 'border-[#01A982] bg-[#01A982]/10' : i < st ? 'border-line bg-chip/50' : 'border-line bg-panel hover:bg-chip/40')}>
+            <span className="flex items-center gap-1.5"><span className={cx('w-5 h-5 rounded-full grid place-items-center text-[10.5px] font-bold shrink-0', i < st ? 'bg-ok/15 text-ok' : i === st ? 'bg-[#01A982] text-white' : 'bg-chip text-ink3')}>{i < st ? <I.Check size={11} /> : i + 1}</span><b className="text-[12px] text-ink truncate">{t}</b></span>
+            <span className="block text-[10.5px] text-ink3 mt-0.5 leading-tight">{sub}</span>
+          </button>))}</div>
+      </Card>
+      <Card title={`${st + 1}. ${JSTEPS[st][0]}: ${a.host}`} sub={JSTEPS[st][1]} icon={JSTEPS[st][2]}>{body[st]()}</Card>
     </div>
   );
 }

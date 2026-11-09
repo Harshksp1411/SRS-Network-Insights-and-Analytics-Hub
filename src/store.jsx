@@ -6,7 +6,7 @@ import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete, clou
 
 // What is saved so a refresh keeps the console as it was. DURABLE always comes back: settings and the records people
 // create. LIVE is the operational picture the simulation keeps moving; it comes back when the save is under 12 hours old.
-const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog', 'savedReports', 'ruleDrafts', 'autoTicket', 'cmdbQueue', 'discRuns', 'snowSync'];
+const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog', 'savedReports', 'ruleDrafts', 'autoTicket', 'cmdbQueue', 'discRuns', 'snowSync', 'journeyDone'];
 const LIVE = ['incidents', 'resolved', 'approvals', 'changes', 'freezes', 'drift', 'workOrders', 'techs', 'cases', 'predictions', 'runs', 'audit', 'notif', 'proact'];
 const FRESH = 12 * 36e5;
 // each page keeps its own saved copy (the console and the OpsRamp view open on different pages)
