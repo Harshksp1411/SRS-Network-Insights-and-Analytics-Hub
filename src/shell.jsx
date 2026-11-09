@@ -415,7 +415,6 @@ function OpsRampApp() {
         <button onClick={() => act.go('copilot')} className="h-8 px-2.5 rounded-[4px] bg-[#01A982] hover:brightness-110 text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><I.Sparkles size={14} />Copilot</button>
         <button onClick={() => act.set({ notifOpen: !s.notifOpen })} className={ib + ' relative'} title="Notifications"><I.Bell size={16} />{s.notif > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#e5484d] text-[10px] font-bold grid place-items-center">{s.notif}</span>}</button>
         <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={ib} title="Light or dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
-        <button onClick={() => act.set({ storageOpen: true })} className={ib} title="Where the data is saved"><I.Settings size={16} /></button>
         <span className="hidden xl:inline text-[12px] text-white/70 tabular-nums whitespace-nowrap">{hhmm(now)} CT</span>
         <span className="inline-flex items-center gap-2 pl-2 border-l border-white/15"><span className="w-7 h-7 rounded-full bg-[#01A982] text-white text-[11px] font-bold grid place-items-center">{role.who.split(' ').map(x => x[0]).join('')}</span><span className="hidden xl:block leading-tight"><span className="block text-[12px] text-white">{role.who}</span><span className="block text-[10.5px] text-white/55">{role.name}</span></span></span>
       </header>
@@ -431,7 +430,6 @@ function OpsRampApp() {
                 </button>); })}
             </div>); })}
           <div className="flex-1" />
-          <button onClick={() => act.set({ storageOpen: true })} className="flex items-center gap-2 px-4 h-9 text-[13px] hover:bg-white/5 hover:text-white"><I.Settings2 size={16} />{!railMin && 'Setup'}</button>
           <button onClick={() => setRailMin(v => !v)} className="flex items-center gap-2 px-4 h-9 text-[12px] text-white/50 hover:text-white border-t border-white/10">{railMin ? <I.PanelLeftOpen size={15} /> : <><I.PanelLeftClose size={15} />Collapse</>}</button>
         </nav>
         <main className="flex-1 min-w-0">

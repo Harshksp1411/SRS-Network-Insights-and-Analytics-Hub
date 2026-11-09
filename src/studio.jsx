@@ -137,7 +137,7 @@ export function IntegrationStudio() {
             <div className="mx-auto w-16 h-16 rounded-full bg-[#263040] grid place-items-center ring-4 ring-brand/30"><Logo k="opsramp" h={14} className="!border-0" /></div>
             <div className="text-[14px] font-bold text-ink mt-2">{busy ? `Connecting ${run.name}` : 'Drop a source or a branch here'}</div>
             <div className="text-[11.5px] text-ink3">{busy ? `${run.step} of ${run.steps.length}` : 'or press Connect'}</div>
-            <button onClick={() => act.set({ storageOpen: true })} className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink2 hover:underline"><I.Database size={12} />Saved to {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'} · {num((s.invAdded || []).length)} in inventory</button>
+            <button onClick={() => act.go('inventory')} className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink2 hover:underline"><I.Boxes size={12} />{num((s.invAdded || []).length)} added to the inventory</button>
           </div>
           {run && <div className="mt-3 rounded-lg border border-line p-3">
             <div className="flex items-center gap-2 mb-2"><b className="text-[13px] text-ink flex-1 truncate">{run.name}</b>{run.step >= run.steps.length ? <Badge tone="green">{run.kind === 'src' ? 'Connected' : 'Monitored'}</Badge> : <Badge tone="blue">Running</Badge>}</div>
@@ -150,7 +150,7 @@ export function IntegrationStudio() {
                 {st === 'done' && run.kind === 'acq' && i === 1 && <span className="text-[11.5px] text-ink2 tabular-nums">{run.found} found</span>}
               </li>); })}</ol>
             {run.step >= run.steps.length && run.added && (run.added.length ? <div className="mt-3 border-t border-line pt-2">
-              <div className="flex items-center gap-2 text-[12.5px] mb-1"><I.Database size={13} className="text-ink2" /><b className="text-ink">{run.added.length} added to the inventory</b><span className="text-ink3">and stored in {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'}</span></div>
+              <div className="flex items-center gap-2 text-[12.5px] mb-1"><I.Boxes size={13} className="text-ink2" /><b className="text-ink">{run.added.length} added to the inventory</b></div>
               <ul className="text-[12px] space-y-0.5">{run.added.slice(0, 5).map(x => <li key={x.id} className="flex gap-2"><span className="font-mono text-ink truncate">{x.name}</span><span className="text-ink3 truncate">{x.model} · {x.site}</span></li>)}{run.added.length > 5 && <li className="text-ink3">and {run.added.length - 5} more</li>}</ul>
               <Btn size="sm" className="mt-2" icon={I.Boxes} onClick={() => { act.setTab('inventory', 'onboarded'); act.go('inventory'); }}>Open in inventory</Btn>
             </div> : <div className="mt-3 text-[12px] text-ink3">No new resources: this connection carries tickets or notices, not devices.</div>)}
