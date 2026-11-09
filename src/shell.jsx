@@ -22,7 +22,7 @@ import { hhmmss, hhmm, ago, dt, num, MIN } from './util.js';
 import { Overview, Readiness } from './mod_ops.jsx';
 import { Incidents } from './mod_incidents.jsx';
 import { Inventory, Carriers, Dispatch } from './mod_assets.jsx';
-import { CMDB } from './mod_cmdb.jsx';
+import { StorageModal } from './mod_cmdb.jsx';
 import { Changes } from './mod_changes.jsx';
 import { BiaB } from './mod_biab.jsx';
 import { Predictive, Knowledge, Automation, SLATracker, Reports } from './mod_more.jsx';
@@ -37,7 +37,6 @@ export const MODULES = [
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
   { id: 'inventory', label: 'Device & Circuit Inventory', icon: I.Boxes, group: 'Manage', C: Inventory },
-  { id: 'cmdb', label: 'CMDB & Database', icon: I.Database, group: 'Manage', C: CMDB },
   { id: 'vuln', label: 'Lifecycle & Vulnerabilities', icon: I.ShieldAlert, group: 'Manage', C: Vulns, badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length, alertBadge: true },
   { id: 'carriers', label: 'Carrier Management', icon: I.RadioTower, group: 'Manage', C: Carriers, badge: s => s.cases.filter(c => !c.closed).length },
   { id: 'dispatch', label: 'Field Dispatch', icon: I.Truck, group: 'Manage', C: Dispatch, badge: s => s.workOrders.filter(w => !w.tech).length, alertBadge: true },
@@ -365,7 +364,7 @@ export default function App() {
           <div className="p-5 max-w-[1680px]"><BackBar /><M.C key={M.id} /></div>
         </main>
       </div>
-      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog />
+      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog /><StorageModal />
       </OpsCtx.Provider>
     </div>
   );

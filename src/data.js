@@ -315,6 +315,8 @@ export const teamOf = group => TEAMS.find(t => t.group === group) || null;
 const NOC_PEOPLE = { [GROUPS.P1]: TEAM.mim.people, [GROUPS.P2]: TEAM.l2.people, [GROUPS.P4]: TEAM.l1.people };
 let incN = 384512;
 export const nextInc = () => `INC${String(++incN).padStart(7, '0')}`;
+// after a saved console is restored, new incidents carry on from the highest number in it
+export const bumpInc = n => { if (n > incN) incN = n; };
 
 function agentStepsFor(t, b, conf) {
   const steps = [

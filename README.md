@@ -65,22 +65,30 @@ Three views: **Live now** (what is happening right now: who is down, what is due
 
 The accounts are demo accounts shown on the sign-in screen: the page is static with sample data, so the sign-in shows how access is split by role; it is not a security control. Roles, their access and their insights are in `src/dash/personas.js`; each insight is an Ask Mova iO question, so the dashboards, the PDF export and the console agree.
 
-## CMDB and database
+## Saved automatically, and the inventory as the CMDB
 
-**CMDB & Database** (Manage) holds the console's data as 11 structured tables, each with typed columns:
-- **CMDB:** branches (`cmdb_ci_site`), network devices (`cmdb_ci_netgear`), circuits (`cmdb_ci_circuit`), resources added by onboarding (`cmdb_ci_onboarded`) and CI relationships (`cmdb_rel_ci`: contains, uses, feeds, powers).
-- **Operations:** incidents, changes, problems, work orders, carrier cases and the audit log.
+**Nothing is lost on refresh.** The console saves itself a moment after anything changes, in the browser's own database (IndexedDB).
 
-The page has three tabs:
-- **Tables:** browse and search each table, with CSV export.
-- **CI explorer:** a CI's attributes, its upstream and downstream relationships, and its incidents.
-- **Database:** where the data is stored.
+| After a refresh | What comes back |
+|---|---|
+| Always | Settings and the records people create: onboarding, OpsQ promotions, Copilot tiles, knowledge articles, problems, filters, the page and tab you were on |
+| If saved within the last 12 hours | The live picture: incidents, approvals, changes, work orders, carrier cases, the audit log |
 
-**Onboarding feeds the inventory.** Connecting a source in the Integration studio, or adding devices from a discovery scan or CSV import, adds records to Device & Circuit Inventory → *Added by onboarding* and to the CMDB.
+New incident numbers carry on from the saved ones.
 
-**Storage:**
-- **This browser (IndexedDB):** always on, so onboarding survives a reload.
-- **A free Supabase Postgres project (optional):** run the schema SQL from the Database tab in the Supabase SQL editor, then paste the project URL and the anon key (they are kept in the browser only). *Sync all tables* writes every table, and new onboarding is written as it happens. The schema's policy is for demos only: anyone with the anon key can read and write.
+The *Saved* indicator on Device & Circuit Inventory opens the storage settings. There you can also connect a free Supabase Postgres project:
+1. Run the schema SQL in the Supabase SQL editor.
+2. Paste the project URL and the anon key (they are kept in the browser only).
+
+The console then saves itself there too, in `console_state`, and every table can be synced. The schema's policy is for demos only: anyone with the anon key can read and write.
+
+**Device & Circuit Inventory is the CMDB:**
+- **A device's or circuit's detail** shows:
+  - its CMDB record: class, management IP, location, owner, support group, monitoring template, lifecycle;
+  - its relationships: a branch contains its EdgeConnect, which uses both circuits and feeds the core switch, and switches power the access points;
+  - related incidents, carrier cases and changes.
+- **The CMDB tab** has every table (branches, devices, circuits, onboarded resources, relationships, incidents, changes, problems, work orders, cases, audit log), with search and CSV, and a CI explorer.
+- **Added by onboarding** lists what the Integration studio, discovery scans and CSV imports added.
 
 ## Ask Mova iO
 

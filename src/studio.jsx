@@ -136,7 +136,7 @@ export function IntegrationStudio() {
             <div className="mx-auto w-16 h-16 rounded-full bg-[#263040] grid place-items-center ring-4 ring-brand/30"><Logo k="opsramp" h={14} className="!border-0" /></div>
             <div className="text-[14px] font-bold text-ink mt-2">{busy ? `Connecting ${run.name}` : 'Drop a source or a branch here'}</div>
             <div className="text-[11.5px] text-ink3">{busy ? `${run.step} of ${run.steps.length}` : 'or press Connect'}</div>
-            <button onClick={() => { act.setTab('cmdb', 'db'); act.go('cmdb'); }} className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink2 hover:underline"><I.Database size={12} />Saved to {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'} · {num((s.invAdded || []).length)} in inventory</button>
+            <button onClick={() => act.set({ storageOpen: true })} className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink2 hover:underline"><I.Database size={12} />Saved to {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'} · {num((s.invAdded || []).length)} in inventory</button>
           </div>
           {run && <div className="mt-3 rounded-lg border border-line p-3">
             <div className="flex items-center gap-2 mb-2"><b className="text-[13px] text-ink flex-1 truncate">{run.name}</b>{run.step >= run.steps.length ? <Badge tone="green">{run.kind === 'src' ? 'Connected' : 'Monitored'}</Badge> : <Badge tone="blue">Running</Badge>}</div>

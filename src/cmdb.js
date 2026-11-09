@@ -47,5 +47,5 @@ export const relsOf = id => ({ up: RELS.filter(r => r.child === id), down: RELS.
 
 // the SQL for every table, ready for the Supabase SQL editor (demo policy: anyone with the anon key can read and write)
 export function schemaSQL() {
-  return TABLES.map(t => `create table if not exists ${t.name} (\n${t.cols.map(([c, ty], i) => `  ${c} ${ty}${i === 0 ? ' primary key' : ''}`).join(',\n')}\n);\nalter table ${t.name} enable row level security;\ncreate policy "${t.name} demo" on ${t.name} for all using (true) with check (true);`).join('\n\n');
+  return TABLES.map(t => `create table if not exists ${t.name} (\n${t.cols.map(([c, ty], i) => `  ${c} ${ty}${i === 0 ? ' primary key' : ''}`).join(',\n')}\n);\nalter table ${t.name} enable row level security;\ncreate policy "${t.name} demo" on ${t.name} for all using (true) with check (true);`).join('\n\n') + `\n\n-- the whole console as one saved document (restored after a refresh)\ncreate table if not exists console_state (\n  id text primary key,\n  saved_at timestamptz,\n  data jsonb\n);\nalter table console_state enable row level security;\ncreate policy "console_state demo" on console_state for all using (true) with check (true);`;
 }
