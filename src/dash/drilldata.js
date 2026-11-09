@@ -219,7 +219,7 @@ export function labelOf(n) {
     case 'prediction': return n.id;
     case 'drift': return 'Differences from the standard setup';
     case 'cases': return 'Carrier repairs';
-    case 'storeperf': return `Store performance${n.region || n.segment || n.brand ? ` · ${n.region || n.segment || n.brand}` : ''}${n.f === 'below' ? ' · below target' : n.f === 'repeat' ? ' · repeat problems' : ''}`;
+    case 'storeperf': return `Branch performance${n.region || n.segment || n.brand ? ` · ${n.region || n.segment || n.brand}` : ''}${n.f === 'below' ? ' · below target' : n.f === 'repeat' ? ' · repeat problems' : ''}`;
     case 'driver': return n.label || 'Call driver';
     case 'automation': return n.id === 'all' ? 'Fixed by Mova iO' : (D.RB[n.id] || {}).name || n.id;
     default: return 'Detail';

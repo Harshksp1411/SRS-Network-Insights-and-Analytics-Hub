@@ -113,7 +113,7 @@ function BackBar() {
   const { s, act } = useApp();
   const h = (s.navBack || []).slice(-1)[0];
   if (!h) return null;
-  const M = MODULES.find(m => m.id === h.module), O = OPSRAMP && OPS_NAV.find(n => n.id === h.module);
+  const M = MODULES.find(m => m.id === h.module), O = OPSRAMP && (OPS_NAV.find(n => isOn(n, h.module)) || OPS_HIDDEN[h.module]);
   return <button onClick={act.back} className="mb-3 h-8 px-3 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5 shadow-sm"><I.ArrowLeft size={14} />Back to {O ? O.label : M ? M.label : 'the last page'}{h.drill && h.drill.length ? ' (with the drill-down)' : ''}</button>;
 }
 function Sidebar() {
@@ -359,13 +359,15 @@ function ConsoleDrill() {
 const OPS_GROUPS = [
   { g: 'Integrations', icon: I.Plug, items: [{ id: 'integrations', label: 'Integration studio' }] },
   { g: 'Infrastructure', icon: I.Server, items: [{ id: 'inventory', label: 'Asset inventory' }, { id: 'policies', label: 'Policies and rules' }] },
-  { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation' }, { id: 'incidents', label: 'Alert Browser', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
+  { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
   { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
   { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
   { g: 'AI & Automation', icon: I.BrainCircuit, items: [{ id: 'catalogue', label: 'AI and automation library' }, { id: 'knowledge', label: 'Knowledge base' }] },
   { g: 'Reporting', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Dashboards and reports', also: ['reports'] }] },
 ];
 const OPS_NAV = OPS_GROUPS.flatMap(g => g.items.map(x => ({ ...x, group: g.g })));
+// pages not in the menu that links still open (a ticket from a prediction or a drill-down)
+const OPS_HIDDEN = { incidents: { label: 'Tickets', group: 'Alerts' }, changes: { label: 'Approvals and changes', group: 'Alerts' }, b360: { label: 'Branch', group: 'Infrastructure' } };
 const isOn = (n, m) => n.id === m || (n.also || []).includes(m);
 // dashboards and reports are one page: the live dashboard and the reports built from the same figures
 const DASH_TABS = [{ id: 'sla', label: 'Dashboard', icon: I.LayoutDashboard }, { id: 'reports', label: 'Reports', icon: I.FileBarChart }];
@@ -398,7 +400,7 @@ function OpsRampApp() {
   const { s, act } = useApp();
   const now = useNow();
   const M = MODULES.find(m => m.id === s.module) || MODULES.find(m => m.id === 'sla');
-  const nav = OPS_NAV.find(n => isOn(n, s.module));
+  const nav = OPS_NAV.find(n => isOn(n, s.module)) || OPS_HIDDEN[s.module];
   const [railMin, setRailMin] = useState(false);
   const head = useCallback(t => DASH_TITLES[t] && ['sla', 'reports'].includes(s.module) ? { title: 'Dashboards and reports', below: <div className="flex items-center gap-0 mt-3 border-b border-line">{DASH_TABS.map(x => { const on = s.module === x.id; return <button key={x.id} onClick={() => act.nav(x.id)} className={cx('h-9 px-4 -mb-px inline-flex items-center gap-1.5 text-[13px] border-b-2', on ? 'border-[#01A982] text-ink font-semibold' : 'border-transparent text-ink3 hover:text-ink')}><x.icon size={14} />{x.label}</button>; })}</div> } : null, [s.module]);
   const role = ROLES.find(r => r.id === s.role);
