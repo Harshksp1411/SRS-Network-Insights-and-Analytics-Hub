@@ -7,7 +7,7 @@ export const cx = (...a) => a.filter(Boolean).join(' ');
 
 export function Card({ title, sub, icon: I, right, children, className, pad = true, onClick, flush }) {
   return (
-    <section onClick={onClick} className={cx('card bg-panel border border-line rounded-lg', onClick && 'cursor-pointer hover:border-ink3', className)}>
+    <section onClick={onClick} className={cx('card bg-panel border border-line rounded-lg flex flex-col', onClick && 'cursor-pointer hover:border-ink3', className)}>
       {(title || right) && (
         <header className="flex flex-wrap items-start gap-x-3 gap-y-2 px-4 pt-3 pb-2">
           <div className="min-w-0 flex-1 basis-[220px]">
@@ -17,7 +17,7 @@ export function Card({ title, sub, icon: I, right, children, className, pad = tr
           {right}
         </header>
       )}
-      <div className={pad ? 'px-4 pb-4 pt-1' : ''}>{children}</div>
+      <div className={cx('flex-1 min-h-0', pad && 'px-4 pb-4 pt-1')}>{children}</div>
     </section>
   );
 }

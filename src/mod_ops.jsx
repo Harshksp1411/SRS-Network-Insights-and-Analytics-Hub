@@ -105,7 +105,7 @@ export function Overview() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 mt-3">
-        <LiveFeed h={380} />
+        <LiveFeed h={380} fit />
         <TopBranches />
       </div>
 

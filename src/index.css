@@ -77,3 +77,13 @@ select option { background: rgb(var(--panel)); color: rgb(var(--ink)); }
    HPE purple for machine learning, a dark slate header band */
 .theme-opsramp { --brand: 1 169 130; --action: 1 133 103; --ai: 118 48 234; --info: 0 115 157; }
 .dark .theme-opsramp { --brand: 23 200 150; --action: 1 169 130; --ai: 168 130 255; --info: 72 190 230; }
+
+/* Layout: cards in one row share a height, so rows end level instead of leaving blank space under the shorter card */
+main .grid:has(> .card), main .grid:has(> div > .card) { align-items: stretch; }
+main .grid > div:has(> .card:only-child) > .card { height: 100%; }
+main .grid > .space-y-3:has(> .card) { display: flex; flex-direction: column; }
+main .grid > .space-y-3 > .card:last-child { flex: 1 1 auto; min-height: 0; }
+main .grid > .space-y-3 > .card:last-child > div:last-child { overflow-y: auto; }
+/* a list card takes its row's height from its neighbours and scrolls inside, instead of stretching the row */
+.fit-row { height: 0; min-height: 100%; }
+.fit-row > div:last-child { overflow-y: auto; }

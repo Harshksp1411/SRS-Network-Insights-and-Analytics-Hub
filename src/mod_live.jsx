@@ -33,7 +33,7 @@ export function LiveOps() {
       ]} />
       <div className="mt-3"><AreaTimeline /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3 mt-3 items-start">
-        <LiveFeed h={430} />
+        <LiveFeed h={430} fit />
         <div className="space-y-3">
           <Card title="Mova iO agents" sub="Latest decisions across the estate" right={<button onClick={() => act.go('agents')} className="text-[12px] font-semibold text-brand hover:underline">All agents</button>} pad={false}>
             <div className="px-4 pb-3 max-h-[210px] overflow-y-auto">{L.x.agentStream.slice(0, 8).map(e => <div key={e.id} className="flex gap-2 py-1 text-[12px] border-b border-line/60 feed-in"><code className="text-[11px] text-ink3 w-[54px] shrink-0">{hhmmss(e.t)}</code><span className="text-ink"><b>{AGENT_DEF.find(a => a.id === e.agent).name}:</b> {e.text}</span></div>)}</div>
@@ -52,7 +52,7 @@ export function LiveOps() {
 
 export function Correlation() {
   const { s, act } = useApp(); const { L } = useLive();
-  const tab0 = s.tab.correlation || 'live', tab = ['live', 'sources'].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
+  const tab0 = s.tab.correlation || 'live', tab = ['live', ...AI_TABS.map(t => t.id)].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div className="theme-opsramp">
@@ -70,7 +70,7 @@ export function Correlation() {
       {/* 1. the workflow, one use case at a time, OpsQ inside each step, ServiceNow at the end */}
       <AlertStormReplay />
       {/* 2. the same engine on today's live alerts */}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><AlertsPerMinCard /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 mt-3 items-start"><CorrelationEngine /><AlertsPerMinCard h={340} /></div>
       {/* 3. what OpsQ cannot see on its own: the same fault across many stores */}
       <div className="mt-3"><PatternsCard /></div>
       {/* 4. what reached ServiceNow, live */}

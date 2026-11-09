@@ -238,4 +238,22 @@ export const OPSQ_COMPARE = [
   ['Root cause', 'Separate tool or by hand', 'Topology points to the likely cause'],
   ['Routing', 'Static assignment rules', 'Learned routing and priority'],
   ['Going live', 'Rule goes live; you find out if it is wrong', 'Observed, then Recommend, then On, with a 7-day back-test'],
+  ['Transparency', 'Rules are readable but rigid', 'Shows which alerts formed each inference and why'],
+];
+
+// ── what OpsQ has learned lately and is still proving (Learn and promote) ──
+// mode: Learning (not enough history yet) → Observed (shadow inferences only) → Recommend (engineer accepts) → On
+export const OPSQ_CANDIDATES = [
+  { id: 'CP-11', what: 'Comcast node maintenance (Tue 00:00 to 04:00) → wan1 flaps at Atlanta branches', seen: 9, branches: 6, where: 'Southeast', learned: '6 days ago', bt: { alerts: 212, inc: 9, agree: 0.97 }, mode: 'Observed' },
+  { id: 'CP-12', what: 'Outdoor AP-585 reboots when the yard is above 38 °C, same branch, 13:00 to 17:00', seen: 14, branches: 11, where: 'Sun Belt yards', learned: '11 days ago', bt: { alerts: 96, inc: 14, agree: 0.93 }, mode: 'Observed' },
+  { id: 'CP-13', what: 'Card payment path above 400 ms when wan1 use is above 85% after 08:00', seen: 31, branches: 4, where: 'Texas & South Central', learned: '19 days ago', bt: { alerts: 188, inc: 31, agree: 0.95 }, mode: 'Recommend' },
+  { id: 'CP-15', what: 'ERP slower than 1.5 s at the same time on every branch → New Relic app alert, not the network', seen: 22, branches: 140, where: 'All regions', learned: '9 days ago', bt: { alerts: 640, inc: 22, agree: 0.88 }, mode: 'Observed' },
+  { id: 'CP-14', what: '2530 port flaps after a power event at acquired branches (LS Building Products)', seen: 3, branches: 2, where: 'Great Lakes', learned: '2 days ago', bt: null, mode: 'Learning', need: 5 },
+];
+export const OPSQ_SEASONAL = [['02:00 every night', 'Config backup spike and TACACS+ timeouts'], ['06:30 Mon to Sat', 'Tills and handhelds joining Wi-Fi at opening, ping loss'], ['Sun 01:00', 'Carrier maintenance windows, line flaps']];
+export const OPSQ_CAVEATS = [
+  ['Needs history', 'Until a policy is trained, OpsQ behaves more like a rules engine. It is seeded with trained sequences at go-live.'],
+  ['Policy-driven', 'SRS sets scope, similarity rules and precedence; the AI works inside those guardrails. AI-assisted, not fully autonomous.'],
+  ['One site at a time', 'Correlation stays within a branch, so multi-store events use the Mova iO pattern layer on top.'],
+  ['Runbook-based fixes', 'OpsQ decides what to run; it does not invent new fixes. Operations Copilot adds the generative and agentic layer.'],
 ];

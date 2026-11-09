@@ -5,9 +5,10 @@ import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { useLive } from './live.jsx';
-import { Card, Badge, Btn, Tabs, Logo, SRC_LOGO, Pri, cx } from './ui.jsx';
+import { Card, Badge, Btn, Tabs, Logo, SRC_LOGO, Pri, Select, cx } from './ui.jsx';
 import { todayCounts } from './viz2.jsx';
-import { SCENARIOS, STAGES, FATE, RULES, stageCounts, OPSQ_MODES, OPSQ_COMPARE } from './storm.js';
+import { SCENARIOS, STAGES, FATE, RULES, stageCounts, OPSQ_MODES, OPSQ_COMPARE, OPSQ_CANDIDATES, OPSQ_SEASONAL, OPSQ_CAVEATS } from './storm.js';
+const LEARN = { k: 'learn', label: 'Learn and promote' };
 import { num, hhmmss, hhmm } from './util.js';
 
 const Src = ({ src }) => SRC_LOGO[src] ? <Logo k={SRC_LOGO[src]} h={9} /> : <b className="text-[11px] text-brand whitespace-nowrap">{src}</b>;
@@ -19,7 +20,6 @@ export function AlertStormReplay() {
   const [sid, setSid] = useState(SCENARIOS[0].id);
   const [st, setSt] = useState(0);
   const [play, setPlay] = useState(false);
-  const [cmp, setCmp] = useState(false);
   const sc = SCENARIOS.find(x => x.id === sid);
   const cnt = useMemo(() => stageCounts(sc), [sc]);
   useEffect(() => { setSt(0); setPlay(false); }, [sid]);
@@ -29,17 +29,18 @@ export function AlertStormReplay() {
   const gone = r => FATE[r.fate].stage <= st;
   return (
     <Card title="Correlation workflow" sub="Pick a use case and step through it: what comes in, what OpsQ does at each step, and the ServiceNow ticket at the end" icon={I.Workflow}
-      right={<div className="flex gap-1.5 flex-wrap"><Btn size="sm" icon={I.Columns2} onClick={() => setCmp(v => !v)}>{cmp ? 'Hide' : 'Compare with'} rule-based tools</Btn><Btn size="sm" icon={I.RotateCcw} onClick={() => { setSt(0); setPlay(false); }}>Reset</Btn><Btn size="sm" kind="brand" icon={play ? I.Pause : I.Play} onClick={() => { if (st >= 5) setSt(0); setPlay(v => !v); }}>{play ? 'Pause' : 'Play'}</Btn><Btn size="sm" icon={I.SkipForward} onClick={() => setSt(v => Math.min(5, v + 1))} disabled={st >= 5}>Next step</Btn></div>}>
+      right={<div className="flex gap-1.5 flex-wrap"><Btn size="sm" icon={I.RotateCcw} onClick={() => { setSt(0); setPlay(false); }}>Reset</Btn><Btn size="sm" kind="brand" icon={play ? I.Pause : I.Play} onClick={() => { if (st >= 5) setSt(0); setPlay(v => !v); }}>{play ? 'Pause' : 'Play'}</Btn><Btn size="sm" icon={I.SkipForward} onClick={() => setSt(v => Math.min(5, v + 1))} disabled={st >= 5}>Next step</Btn></div>}>
       <Tabs size="sm" value={sid} onChange={setSid} className="mb-3" tabs={SCENARIOS.map(x => ({ id: x.id, label: x.name }))} />
       <div className="flex items-start gap-2.5 mb-3 text-[12.5px]"><span className="w-8 h-8 rounded-lg bg-brand/10 text-brand grid place-items-center shrink-0"><Ic size={16} /></span><div className="text-ink2 leading-snug"><span className="text-ink font-semibold">{sc.story}</span> <span className="text-ink3">Over {sc.mins >= 60 ? `${sc.mins / 60} hours` : `${sc.mins} minutes`}.</span></div></div>
       {/* the stage stepper */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5 mb-3">{STAGES.map((g, i) => { const v = i === 5 && upd ? sc.rows.find(r => r.fate === 'upstream' && r.src === 'Simplify')?.n : cnt[i]; return (
+      <div className="grid grid-cols-3 md:grid-cols-7 gap-1.5 mb-3">{[...STAGES, LEARN].map((g, i) => { if (i === 6) return <button key="learn" onClick={() => { setSt(6); setPlay(false); }} className={cx('text-left rounded-lg border px-2.5 py-2 transition-colors', st === 6 ? 'border-brand bg-brand/10' : 'border-line')}><div className="flex items-center gap-1.5"><span className={cx('w-5 h-5 rounded-full text-[11px] font-bold grid place-items-center shrink-0', st === 6 ? 'bg-brand text-white' : 'bg-chip text-ink3')}>7</span><span className="text-[12px] font-bold text-ink truncate">Learn and promote</span></div><div className="text-[22px] font-extrabold tabular-nums leading-tight mt-1 text-ink">{OPSQ_CANDIDATES.length}</div><div className="text-[11px] text-ink3 leading-tight">patterns learned lately</div></button>; const v = i === 5 && upd ? sc.rows.find(r => r.fate === 'upstream' && r.src === 'Simplify')?.n : cnt[i]; return (
         <button key={g.k} onClick={() => { setSt(i); setPlay(false); }} className={cx('text-left rounded-lg border px-2.5 py-2 transition-colors', i === st ? 'border-brand bg-brand/10' : i < st ? 'border-line bg-chip/50' : 'border-line')}>
           <div className="flex items-center gap-1.5"><span className={cx('w-5 h-5 rounded-full text-[11px] font-bold grid place-items-center shrink-0', i <= st ? 'bg-brand text-white' : 'bg-chip text-ink3')}>{i + 1}</span><span className="text-[12px] font-bold text-ink truncate">{g.label}</span></div>
           <div className={cx('text-[22px] font-extrabold tabular-nums leading-tight mt-1', i <= st ? 'text-ink' : 'text-ink3/50')}>{i > st ? '—' : i === 5 ? (upd ? `${v} updated` : `${v} ticket`) : num(v)}</div>
           <div className="text-[11px] text-ink3 leading-tight">{i > st ? '\u00a0' : i === 0 ? 'events' : i === 1 || i === 2 ? 'alerts left' : i === 5 ? (upd ? 'no new ticket' : 'in ServiceNow') : sc.incidents ? 'incident' : 'event, no new ticket'}</div>
         </button>); })}</div>
-      <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
+      {st === 6 ? <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step 7: Learn and promote.</b> What OpsQ learned from the last weeks of alerts, how each pattern is proved in Observed mode and back-tested, and how it is promoted to production.</div> : <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>}
+      {st === 6 ? <LearnPanel key={sc.id} sc={sc} /> : <OpsQStep sc={sc} st={st} />}
       {st <= 2 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.rows.map((r, i) => { const f = FATE[r.fate], out = gone(r); return (
         <div key={i} className={cx('grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[72px_minmax(0,1.1fr)_minmax(0,1.6fr)_56px_minmax(0,1.1fr)] gap-x-2 gap-y-0.5 items-center px-2.5 py-1.5 text-[12px] transition-opacity duration-500', out && 'opacity-45')}>
           <span className="hidden md:block"><Src src={r.src} /></span>
@@ -57,54 +58,117 @@ export function AlertStormReplay() {
       </div>}
       {st === 4 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.enrich.map(([k, v]) => <div key={k} className="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-1.5 text-[12.5px]"><span className="text-ink3">{k}</span><span className="text-ink font-semibold">{v}</span></div>)}</div>}
       {st === 5 && <TicketPreview sc={sc} onOpen={id => act.openInc(id)} />}
-      <OpsQStep sc={sc} st={st} />
-      {cmp && <div className="mt-3 border-t border-line pt-3 overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3"><th className="py-1.5 pr-3 font-semibold" /><th className="py-1.5 pr-3 font-semibold">Rule-based event management</th><th className="py-1.5 font-semibold">OpsQ</th></tr></thead>
-        <tbody>{OPSQ_COMPARE.map(([a, b, c]) => <tr key={a} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 font-semibold text-ink whitespace-nowrap">{a}</td><td className="py-1.5 pr-3 text-ink2">{b}</td><td className="py-1.5 text-ink">{c}</td></tr>)}</tbody></table></div>}
     </Card>
   );
 }
 
-const MODE_T = { Off: 'gray', Observed: 'blue', Recommend: 'amber', On: 'green' };
+const MODE_T = { Off: 'gray', Learning: 'gray', Observed: 'blue', Recommend: 'amber', On: 'green', Rejected: 'gray' };
+const NEXT = { Observed: 'Recommend', Recommend: 'On' };
+// the OpsQ line under each step: which OpsQ features act here, and what they did in this use case
 function OpsQStep({ sc, st }) {
   const { s, act } = useApp(); const { L } = useLive();
   const [rules, setRules] = useState(false);
   const q = sc.opsq; if (!q) return null;
   const modes = { ...OPSQ_MODES, ...(s.catModes || {}) };
-  const promote = id => { const nx = { Observed: 'Recommend', Recommend: 'On' }[modes[id]]; if (!nx) return; act.set(x => ({ catModes: { ...(x.catModes || {}), [id]: nx } })); act.audit(`OpsQ policy ${id} moved to ${nx}`, id); act.toast(`${id} is now ${nx}`); };
-  const Box = ({ title, right, children }) => <div className="mt-3 border border-line rounded-lg p-3 bg-chip/30"><div className="flex items-center gap-1.5 text-[12px] font-bold text-ink mb-1.5"><I.Sparkles size={13} /><span className="flex-1">OpsQ · {title}</span>{right}</div>{children}</div>;
-  const P = ({ children }) => <p className="text-[12.5px] text-ink2 leading-snug">{children}</p>;
-  if (st === 0) return <Box title={q.in[0]}><P>{q.in[1]}</P></Box>;
-  if (st === 1) return <Box title={q.dedup[0]}><P>{q.dedup[1]}</P></Box>;
-  if (st === 2) return (
-    <Box title="Why each alert is held back" right={<button onClick={() => setRules(v => !v)} className="text-[11.5px] font-semibold text-ink hover:underline">{rules ? 'Hide' : 'All'} suppression rules</button>}>
-      <ul className="space-y-1">{q.suppress.map(([k, v]) => <li key={k} className="flex items-start gap-2 text-[12.5px]"><Badge tone="purple" className="shrink-0">{k}</Badge><span className="text-ink2">{v}</span></li>)}</ul>
-      {rules && <div className="mt-2 border-t border-line pt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">{RULES.map(r => <div key={r.k} className="text-[12px]"><b className="text-ink">{r.name}.</b> <span className="text-ink2">{r.how}.</span></div>)}</div>}
-    </Box>);
-  if (st === 3) { const [text, seen, gap, conf, pol] = q.seq, m = modes[pol]; return (
-    <Box title="Learned sequence and topology">
-      <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{q.topo.map(([n, d, t, a], i) => <React.Fragment key={n}>
-        {i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={15} /></div>}
-        <div className={cx('flex-1 rounded-md border p-2 bg-panel', t === 'bad' ? 'border-bad/50' : 'border-line')}><b className="text-[12px] text-ink block">{n}</b><div className="text-[11.5px] text-ink2 truncate">{d}</div><div className={cx('text-[11.5px] font-semibold', t === 'bad' ? 'text-bad' : t === 'warn' ? 'text-warn' : 'text-ok')}>{a}</div></div>
-      </React.Fragment>)}</div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] border-t border-line pt-2">
-        <span className="flex-1 min-w-[240px] text-ink"><span className="text-ink3">Matched: </span>{text}</span>
-        <span className="text-ink2">seen <b className="text-ink">{num(seen)}</b> times in 90 days · gap {gap} · confidence <b className="text-ink">{Math.round(conf * 100)}%</b></span>
-        <span className="inline-flex items-center gap-1.5"><span className="font-mono text-[11.5px]">{pol}</span><Badge tone={MODE_T[m]}>{m}</Badge>{m !== 'On' && <button onClick={() => promote(pol)} className="text-[11.5px] font-semibold text-ink hover:underline">Promote</button>}</span>
-      </div>
-    </Box>); }
-  if (st === 4) return (
-    <Box title="Learned first response and routing">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12.5px]">
-        <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">First response</div><b className="text-ink">{q.fr[0]}</b><div className="text-ink2 mt-0.5"><Badge tone={MODE_T[q.fr[1]]}>{q.fr[1]}</Badge> accepted {Math.round(q.fr[2] * 100)}% of the time · {q.fr[3]}</div></div>
-        <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">Routing</div><b className="text-ink">{q.route[0]}</b><div className="text-ink2 mt-0.5">matched the engineer {Math.round(q.route[1] * 100)}% of the time · {q.route[2]}</div></div>
-      </div>
-    </Box>);
-  const tc = todayCounts(L, s);
+  const promote = id => { const nx = NEXT[modes[id]]; if (!nx) return; act.set(x => ({ catModes: { ...(x.catModes || {}), [id]: nx } })); act.audit(`OpsQ policy ${id} moved to ${nx}`, id); act.toast(`${id} is now ${nx}`); };
+  const [text, seen, gap, conf, pol] = q.seq, m = modes[pol];
+  const F = {
+    0: ['Anomaly detection', 'Continuous learning'], 1: ['Dedup and flap merging'],
+    2: [...new Set(q.suppress.map(([k]) => /Topology/.test(k) ? 'Topology' : /Seasonal/.test(k) ? 'Seasonal suppression' : /Change/.test(k) ? 'Change-aware' : /Upstream/.test(k) ? 'Upstream ticket' : 'Learned suppression'))],
+    3: ['Learned alert sequences', 'Topology-aware', ...(m === 'Observed' ? ['Observed mode'] : [])], 4: ['Learned first response', 'Learned routing'], 5: ['Escalation policy'],
+  }[st] || [];
+  const T = ({ children }) => <p className="text-[12.5px] text-ink leading-snug">{children}</p>;
   return (
-    <Box title="Ticket in ServiceNow">
-      <P>{q.snow}</P>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">{[['Tickets created today', tc.inc], ['Alerts attached, no new ticket', Math.max(0, tc.corr - tc.inc)], ['Resolved by OpsRamp today', tc.auto ? Math.min(tc.inc, Math.round(tc.inc * 0.4)) : 0]].map(([k, v]) => <div key={k} className="rounded bg-panel border border-line px-2 py-1.5"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink tabular-nums">{num(v)}</b></div>)}</div>
-    </Box>);
+    <div className="mb-3 rounded-lg border border-line bg-panel">
+      <div className="flex items-center gap-2 flex-wrap px-3 py-2 border-b border-line bg-chip/40 rounded-t-lg">
+        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-ink"><I.Sparkles size={13} />OpsQ</span>
+        {F.map(f => <span key={f} className="text-[11px] font-semibold rounded border border-line bg-panel px-1.5 py-[1px] text-ink2">{f}</span>)}
+        {st === 2 && <button onClick={() => setRules(v => !v)} className="ml-auto text-[11.5px] font-semibold text-ink hover:underline">{rules ? 'Hide' : 'All'} suppression rules</button>}
+      </div>
+      <div className="px-3 py-2.5">
+        {st === 0 && <><T>{q.in[1]}</T><p className="text-[12px] text-ink3 mt-1">The baseline retrains every few hours on the last 30 days, so the 31 branches and 3 device types added this quarter are already in it.</p></>}
+        {st === 1 && <T>{q.dedup[1]}</T>}
+        {st === 2 && <><ul className="space-y-1">{q.suppress.map(([k, v]) => <li key={k} className="grid grid-cols-[170px_minmax(0,1fr)] gap-2 text-[12.5px]"><b className="text-ink">{k}</b><span className="text-ink2">{v}</span></li>)}</ul>
+          {rules && <div className="mt-2 border-t border-line pt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">{RULES.map(r => <div key={r.k} className="text-[12px]"><b className="text-ink">{r.name}.</b> <span className="text-ink2">{r.how}.</span></div>)}</div>}</>}
+        {st === 3 && <>
+          <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{q.topo.map(([n, d, t, a], i) => <React.Fragment key={n}>
+            {i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={15} /></div>}
+            <div className={cx('flex-1 rounded-md border p-2', t === 'bad' ? 'border-bad/50 bg-bad/5' : 'border-line')}><b className="text-[12px] text-ink block">{n}</b><div className="text-[11.5px] text-ink2 truncate">{d}</div><div className={cx('text-[11.5px] font-semibold', t === 'bad' ? 'text-bad' : t === 'warn' ? 'text-warn' : 'text-ok')}>{a}</div></div>
+          </React.Fragment>)}</div>
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 items-center text-[12.5px]">
+            <span className="text-ink"><span className="text-ink3">Sequence it learned: </span>{text} <span className="text-ink3">· seen {num(seen)} times in 90 days · gap {gap} · confidence {Math.round(conf * 100)}%</span></span>
+            <span className="inline-flex items-center gap-1.5 justify-self-start md:justify-self-end"><span className="font-mono text-[11.5px] text-ink2">{pol}</span><Badge tone={MODE_T[m]}>{m}</Badge>{m !== 'On' && <Btn op size="xs" icon={I.ArrowUpCircle} onClick={() => promote(pol)}>Promote to {NEXT[m]}</Btn>}</span>
+          </div>
+          {m === 'Observed' && <p className="text-[12px] text-ink2 mt-1.5">Observed mode: this is a shadow inference. OpsQ shows the grouping it would have made; the NOC still works the alerts by hand until the policy is promoted.</p>}
+        </>}
+        {st === 4 && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12.5px]">
+          <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">First response</div><b className="text-ink">{q.fr[0]}</b><div className="text-ink2 mt-0.5 flex items-center gap-1.5 flex-wrap"><Badge tone={MODE_T[q.fr[1]]}>{q.fr[1]}</Badge>accepted {Math.round(q.fr[2] * 100)}% · {q.fr[3]}</div></div>
+          <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">Routing</div><b className="text-ink">{q.route[0]}</b><div className="text-ink2 mt-0.5">matched the engineer {Math.round(q.route[1] * 100)}% · {q.route[2]}</div></div>
+          <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">Priority and category</div><b className="text-ink">{sc.ticket.pri} · {sc.ticket.cat}</b><div className="text-ink2 mt-0.5">recommended from impact and urgency</div></div>
+        </div>}
+        {st === 5 && (() => { const tc = todayCounts(L, s); return <><T>{q.snow}</T>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">{[['Tickets created today', tc.inc], ['Alerts attached, no new ticket', Math.max(0, tc.corr - tc.inc)], ['Grouped per ticket, average', Math.round(tc.corr / Math.max(1, tc.inc))]].map(([k, v]) => <div key={k} className="rounded border border-line px-2 py-1.5"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink tabular-nums">{num(v)}</b></div>)}</div></>; })()}
+      </div>
+    </div>
+  );
+}
+
+// step 7: what OpsQ learned lately, how it is proved and promoted, what runs at each branch, and where it stops
+function LearnPanel({ sc }) {
+  const { s, act } = useApp();
+  const [tab, setTab] = useState('new');
+  const [bid, setBid] = useState(sc.b.id);
+  const cm = s.opsqCand || {}, bt = s.opsqBt || {};
+  const modeOf = c => cm[c.id] || c.mode;
+  const set = (c, mode, msg) => { act.set(x => ({ opsqCand: { ...(x.opsqCand || {}), [c.id]: mode } })); act.audit(`OpsQ ${c.id}: ${msg}`, c.id); act.toast(`${c.id}: ${msg}`); };
+  const runBt = c => { act.set(x => ({ opsqBt: { ...(x.opsqBt || {}), [c.id]: true } })); act.audit(`OpsQ ${c.id} back-tested on the last 7 days`, c.id); act.toast(`${c.id}: back-test done, engineers agreed ${Math.round(c.bt.agree * 100)}%`); };
+  const pmodes = { ...OPSQ_MODES, ...(s.catModes || {}) };
+  const all = [...Object.entries(pmodes).map(([id, m]) => m), ...OPSQ_CANDIDATES.map(modeOf)];
+  const count = m => all.filter(x => x === m).length;
+  const b = D.BR[bid];
+  const branchOpts = [...new Map([...SCENARIOS.map(x => x.b), ...D.BRANCHES.slice(0, 0)].map(x => [x.id, x])).values()];
+  const atBranch = useMemo(() => {
+    const k = b.num;
+    const rows = SCENARIOS.map(x => ({ id: x.opsq.seq[4], what: x.opsq.seq[0], hits: x.b.id === b.id ? 3 + (k % 4) : (k * (x.opsq.seq[1] % 7)) % 4, mode: pmodes[x.opsq.seq[4]] }));
+    OPSQ_CANDIDATES.filter(c => c.where === b.region || c.where === 'All regions').forEach(c => rows.push({ id: c.id, what: c.what, hits: 1 + (k % 3), mode: modeOf(c) }));
+    return rows.filter(r => r.hits > 0).sort((x, y) => y.hits - x.hits);
+  }, [bid, s.catModes, s.opsqCand]);
+  return (
+    <div className="mb-3 rounded-lg border border-line bg-panel">
+      <div className="flex items-center gap-2 flex-wrap px-3 py-2 border-b border-line bg-chip/40 rounded-t-lg">
+        <span className="inline-flex items-center gap-1 text-[12px] font-bold text-ink"><I.Sparkles size={13} />OpsQ</span>
+        {['Continuous learning', 'Observed mode', '7-day back-test', 'Promote to production'].map(f => <span key={f} className="text-[11px] font-semibold rounded border border-line bg-panel px-1.5 py-[1px] text-ink2">{f}</span>)}
+      </div>
+      <div className="px-3 py-2.5">
+        <div className="flex items-center gap-1.5 flex-wrap text-[12.5px] mb-2.5">{[['Learning', 'collecting history'], ['Observed', 'shadow inferences only'], ['Recommend', 'engineer accepts'], ['On', 'acts on its own']].map(([m, d], i) => <React.Fragment key={m}>{i > 0 && <I.ArrowRight size={14} className="text-ink3" />}<span className="inline-flex items-center gap-1.5 rounded-md border border-line px-2 py-1"><Badge tone={MODE_T[m]}>{m}</Badge><span className="text-ink2">{d}</span><b className="text-ink tabular-nums">{count(m)}</b></span></React.Fragment>)}</div>
+        <Tabs size="sm" value={tab} onChange={setTab} className="mb-2" tabs={[{ id: 'new', label: 'Learned lately' }, { id: 'branch', label: 'At one branch' }, { id: 'compare', label: 'Rule-based vs OpsQ' }, { id: 'limits', label: 'Guardrails' }]} />
+        {tab === 'new' && <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3 text-[11.5px]"><th className="py-1.5 pr-3 font-semibold">Pattern OpsQ learned</th><th className="py-1.5 pr-3 font-semibold text-right">Seen</th><th className="py-1.5 pr-3 font-semibold">Where</th><th className="py-1.5 pr-3 font-semibold">7-day back-test</th><th className="py-1.5 pr-3 font-semibold">Mode</th><th className="py-1.5 font-semibold text-right">Action</th></tr></thead>
+          <tbody>{OPSQ_CANDIDATES.map(c => { const m = modeOf(c), done = bt[c.id] || m === 'Recommend' || m === 'On'; return (
+            <tr key={c.id} className="border-b border-line/60 last:border-0 align-top">
+              <td className="py-2 pr-3"><div className="text-ink">{c.what}</div><div className="text-[11px] text-ink3"><span className="font-mono">{c.id}</span> · learned {c.learned}</div></td>
+              <td className="py-2 pr-3 text-right tabular-nums">{c.seen}×</td>
+              <td className="py-2 pr-3 text-ink2 whitespace-nowrap">{c.branches} branch{c.branches === 1 ? '' : 'es'}<div className="text-[11px] text-ink3">{c.where}</div></td>
+              <td className="py-2 pr-3 text-ink2">{!c.bt ? `needs ${c.need} more occurrences` : done ? <span>{num(c.bt.alerts)} alerts → {c.bt.inc} incidents<span className="block text-[11px]">engineers agreed <b className={c.bt.agree >= 0.9 ? 'text-ok' : 'text-warn'}>{Math.round(c.bt.agree * 100)}%</b></span></span> : <Btn op size="xs" icon={I.History} onClick={() => runBt(c)}>Run back-test</Btn>}</td>
+              <td className="py-2 pr-3"><Badge tone={MODE_T[m]}>{m}</Badge></td>
+              <td className="py-2 text-right whitespace-nowrap">{m === 'Learning' || m === 'Rejected' ? <span className="text-[11.5px] text-ink3">{m === 'Learning' ? 'waiting for history' : 'rejected'}</span> : m === 'On' ? <span className="text-[11.5px] text-ok font-semibold">in production</span>
+                : <span className="inline-flex gap-1"><Btn op size="xs" kind="brand" icon={I.ArrowUpCircle} disabled={!done || c.bt.agree < 0.9} title={!done ? 'Run the back-test first' : c.bt.agree < 0.9 ? 'Needs 90% agreement before it can be promoted' : undefined} onClick={() => set(c, NEXT[m], `promoted to ${NEXT[m]}`)}>Promote to {NEXT[m]}</Btn><Btn op size="xs" icon={I.X} onClick={() => set(c, 'Rejected', 'rejected')}>Reject</Btn></span>}</td>
+            </tr>); })}</tbody></table>
+          <p className="text-[12px] text-ink3 mt-2">New patterns start in Observed mode. A pattern can be promoted once its 7-day back-test shows engineers agreeing at least 90% of the time; each promotion is logged in the audit trail.</p></div>}
+        {tab === 'branch' && <div>
+          <div className="flex items-center gap-2 mb-2 flex-wrap"><span className="text-[12px] text-ink3">Branch</span><Select value={bid} onChange={setBid} options={branchOpts.map(x => ({ value: x.id, label: x.name }))} /><span className="text-[12px] text-ink3">{b.brand} · {b.region}</span></div>
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-3">
+            <table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3 text-[11.5px]"><th className="py-1.5 pr-3 font-semibold">Correlation at this branch, last 30 days</th><th className="py-1.5 pr-3 font-semibold text-right">Times</th><th className="py-1.5 font-semibold">Mode</th></tr></thead>
+              <tbody>{atBranch.map(r => <tr key={r.id} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 text-ink">{r.what}<span className="text-[11px] text-ink3 font-mono"> · {r.id}</span></td><td className="py-1.5 pr-3 text-right tabular-nums">{r.hits}</td><td className="py-1.5"><Badge tone={MODE_T[r.mode]}>{r.mode}</Badge></td></tr>)}</tbody></table>
+            <div className="text-[12.5px]"><div className="text-[11px] font-bold uppercase text-ink3 mb-1">Seasonal patterns held back here</div><ul className="space-y-1">{OPSQ_SEASONAL.map(([w, x]) => <li key={w}><b className="text-ink">{w}</b> <span className="text-ink2">{x}</span></li>)}</ul>
+              <div className="text-[11px] font-bold uppercase text-ink3 mt-3 mb-1">Across branches</div><p className="text-ink2">OpsQ correlates inside this branch. When the same fault hits many branches at once, the Mova iO pattern layer links them (see Patterns across stores below).</p></div>
+          </div>
+        </div>}
+        {tab === 'compare' && <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3 text-[11.5px]"><th className="py-1.5 pr-3 font-semibold" /><th className="py-1.5 pr-3 font-semibold">Rule-based event management</th><th className="py-1.5 font-semibold">OpsQ</th></tr></thead>
+          <tbody>{OPSQ_COMPARE.map(([a, x, y]) => <tr key={a} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 font-semibold text-ink whitespace-nowrap">{a}</td><td className="py-1.5 pr-3 text-ink2">{x}</td><td className="py-1.5 text-ink">{y}</td></tr>)}</tbody></table></div>}
+        {tab === 'limits' && <div className="grid grid-cols-1 md:grid-cols-2 gap-2">{OPSQ_CAVEATS.map(([k, v]) => <div key={k} className="rounded-md border border-line px-3 py-2 text-[12.5px]"><b className="text-ink block">{k}</b><span className="text-ink2">{v}</span></div>)}</div>}
+      </div>
+    </div>
+  );
 }
 
 function TicketPreview({ sc, onOpen }) {

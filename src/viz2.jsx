@@ -238,7 +238,7 @@ export function CorrelationEngine() {
   const lastMin = L.feed.filter(e => (MONITOR_SRC.has(e.src) || e.inc) && Date.now() - e.t < 60e3);
   const cnt = o => lastMin.filter(e => outcomeOf(e) === o).length;
   return (
-    <Card title="Correlation engine" sub="Each alert as it arrives and what OpsRamp did with it" right={<LiveTag />}>
+    <Card className="fit-row" title="Correlation engine" sub="Each alert as it arrives and what OpsRamp did with it" right={<LiveTag />}>
       <div className="flex flex-wrap gap-1.5 mb-2">{Object.keys(OC).map(o => <Badge key={o} tone={OC[o]}>{o} <b className="tabular-nums">{cnt(o)}</b></Badge>)}<span className="ml-auto text-[11.5px] text-ink3">last minute</span></div>
       <div className="divide-y divide-line/70">{items.map(e => { const o = outcomeOf(e); const b = D.BR[e.branchId]; return (
         <button key={e.id} onClick={() => e.inc ? act.openInc(e.inc) : act.openBranch(e.branchId)} className="w-full flex items-center gap-2 py-1.5 text-[12px] text-left feed-in hover:bg-chip/50">
