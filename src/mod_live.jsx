@@ -64,7 +64,7 @@ export function Correlation() {
         { label: 'Incidents today', value: tc.inc, sub: `${Math.round(tc.corr / Math.max(1, tc.inc))} correlated alerts per incident on average`, series: S.corr.map(v => v / 3), color: C.s1, icon: I.Ticket, go: { t: 'incidents', k: 'today' } },
         { label: 'Open correlation groups', value: open.length, sub: `average confidence ${Math.round(open.reduce((a, i) => a + (i.conf || 0.85), 0) / Math.max(1, open.length) * 100)}%`, series: S.major, color: C.s4, icon: I.Layers, go: { t: 'incidents', k: 'open' } },
       ]} />
-      <Tabs value={tab} onChange={setTab} className="mt-3 mb-3" tabs={[{ id: 'live', label: 'Live correlation' }, ...AI_TABS]} />
+      {AI_TABS.length > 0 ? <Tabs value={tab} onChange={setTab} className="mt-3 mb-3" tabs={[{ id: 'live', label: 'Live correlation' }, ...AI_TABS]} /> : <div className="mt-3" />}
       {tab !== 'live' && <OpsAIContent tab={tab} />}
       {tab === 'live' && <>
       {/* 1. the workflow, one use case at a time, OpsQ inside each step, ServiceNow at the end */}

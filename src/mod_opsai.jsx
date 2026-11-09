@@ -128,7 +128,7 @@ export function SNow() {
 }
 
 // the AI tabs, shown on the Correlation page
-export const AI_TABS = [{ id: 'copilot', label: 'Operations Copilot' }, ...(OPSRAMP ? [] : [{ id: 'sources', label: 'Sources and integration' }])];
+export const AI_TABS = OPSRAMP ? [] : [{ id: 'copilot', label: 'Operations Copilot' }, { id: 'sources', label: 'Sources and integration' }];
 export function OpsAIContent({ tab }) {
   const { s } = useApp(); const { L } = useLive();
   const tc = todayCounts(L, s);
@@ -136,9 +136,11 @@ export function OpsAIContent({ tab }) {
 }
 // the old page address now opens the Correlation page on its AI tabs
 // Integrations as its own page (the OpsRamp view): the studio, device onboarding and the sources
+// Operations Copilot as its own page (the OpsRamp view)
+export function CopilotPage() { return <div><PageHead icon={I.Sparkles} title="Operations Copilot" /><OperationsCopilot /></div>; }
 export function IntegrationsPage() {
   const { s } = useApp(); const { L } = useLive();
-  return (<div><PageHead icon={I.Plug} title="Integrations" /><Integration tc={todayCounts(L, s)} /></div>);
+  return (<div><PageHead icon={I.Plug} title={OPSRAMP ? "Integration studio" : "Integrations"} /><Integration tc={todayCounts(L, s)} /></div>);
 }
 export function OpsAI() {
   const { act } = useApp();

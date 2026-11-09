@@ -13,7 +13,7 @@ import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
 import { Catalogue, CatalogueTab } from './catalogue.jsx';
 import { Policies } from './mod_policies.jsx';
-import { OpsAI, IntegrationsPage } from './mod_opsai.jsx';
+import { OpsAI, IntegrationsPage, CopilotPage } from './mod_opsai.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -34,6 +34,7 @@ export const MODULES = [
   { id: 'correlation', label: 'Correlation', icon: I.GitMerge, group: 'Operate', C: Correlation },
   { id: 'opsai', label: 'OpsRamp AI & Integrations', icon: I.BrainCircuit, group: 'Operate', C: OpsAI, hidden: true },
   { id: 'integrations', label: 'Integrations', icon: I.Plug, group: 'Operate', C: IntegrationsPage, hidden: true },
+  { id: 'copilot', label: 'Operations Copilot', icon: I.Sparkles, group: 'Operate', C: CopilotPage, hidden: true },
   { id: 'b360', label: 'Branch 360', icon: I.Store, group: 'Operate', C: Branch360 },
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
@@ -112,8 +113,8 @@ function BackBar() {
   const { s, act } = useApp();
   const h = (s.navBack || []).slice(-1)[0];
   if (!h) return null;
-  const M = MODULES.find(m => m.id === h.module);
-  return <button onClick={act.back} className="mb-3 h-8 px-3 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5 shadow-sm"><I.ArrowLeft size={14} />Back to {M ? M.label : 'the last page'}{h.drill && h.drill.length ? ' (with the drill-down)' : ''}</button>;
+  const M = MODULES.find(m => m.id === h.module), O = OPSRAMP && OPS_NAV.find(n => n.id === h.module);
+  return <button onClick={act.back} className="mb-3 h-8 px-3 rounded-md border border-line bg-panel hover:bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5 shadow-sm"><I.ArrowLeft size={14} />Back to {O ? O.label : M ? M.label : 'the last page'}{h.drill && h.drill.length ? ' (with the drill-down)' : ''}</button>;
 }
 function Sidebar() {
   const { s, act } = useApp();
@@ -353,16 +354,19 @@ function ConsoleDrill() {
 
 // ── the OpsRamp view (opsramp/index.html): the same live data in the OpsRamp layout ──
 // a dark top bar with the client and an OpsQL-style search, a slim icon rail with OpsRamp's sections, a breadcrumb
-const OPS_NAV = [
-  { id: 'sla', label: 'Dashboards', sub: 'Network performance', icon: I.LayoutDashboard },
-  { id: 'inventory', label: 'Infrastructure', sub: 'Resources, circuits and CMDB', icon: I.Server },
-  { id: 'incidents', label: 'Alerts', sub: 'Alert Browser', icon: I.BellRing, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
-  { id: 'correlation', label: 'Correlation', sub: 'OpsQ correlation workflow and Copilot', icon: I.GitMerge },
-  { id: 'integrations', label: 'Integrations', sub: 'Integration studio, onboarding and sources', icon: I.Plug },
-  { id: 'predict', label: 'Insights', sub: 'Forecasts and predictions', icon: I.TrendingUp },
-  { id: 'vuln', label: 'Patch & Vulnerability', sub: 'Lifecycle, firmware and CVEs', icon: I.ShieldCheck, badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length },
-  { id: 'reports', label: 'Reporting Apps', sub: 'Reports for each audience', icon: I.FileBarChart },
+// in the order the work happens: connect the sources, know the assets and how they are monitored, correlate and
+// work the alerts, predict, patch, automate, report; the dashboards sit at the bottom
+const OPS_GROUPS = [
+  { g: 'Integrations', icon: I.Plug, items: [{ id: 'integrations', label: 'Integration studio' }] },
+  { g: 'Infrastructure', icon: I.Server, items: [{ id: 'inventory', label: 'Asset inventory' }, { id: 'policies', label: 'Policies and rules' }] },
+  { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation' }, { id: 'incidents', label: 'Alert Browser', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
+  { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
+  { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
+  { g: 'Automation', icon: I.Workflow, items: [{ id: 'catalogue', label: 'Process automation' }, { id: 'knowledge', label: 'Knowledge base' }] },
+  { g: 'Reports', icon: I.FileBarChart, items: [{ id: 'reports', label: 'Reporting Apps' }] },
+  { g: 'Dashboards', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Network performance' }] },
 ];
+const OPS_NAV = OPS_GROUPS.flatMap(g => g.items.map(x => ({ ...x, group: g.g })));
 function OpsSearch() {
   const { s, act } = useApp();
   const [q, setQ] = useState('');
@@ -384,6 +388,7 @@ function OpsRampApp() {
   const now = useNow();
   const M = MODULES.find(m => m.id === s.module) || MODULES.find(m => m.id === 'sla');
   const nav = OPS_NAV.find(n => n.id === s.module);
+  const [railMin, setRailMin] = useState(false);
   const role = ROLES.find(r => r.id === s.role);
   const ib = 'h-8 w-8 rounded-[4px] flex items-center justify-center text-white/75 hover:bg-white/10 hover:text-white';
   return (
@@ -395,7 +400,7 @@ function OpsRampApp() {
         <span className="hidden lg:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] bg-white/10 text-[12px] text-white/85 whitespace-nowrap"><I.Building2 size={13} />Client: SRS Distribution<I.ChevronDown size={13} className="text-white/50" /></span>
         <OpsSearch />
         <div className="flex-1" />
-        <button onClick={() => { act.setTab('correlation', 'copilot'); act.go('correlation'); }} className="h-8 px-2.5 rounded-[4px] bg-[#01A982] hover:brightness-110 text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><I.Sparkles size={14} />Copilot</button>
+        <button onClick={() => act.go('copilot')} className="h-8 px-2.5 rounded-[4px] bg-[#01A982] hover:brightness-110 text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><I.Sparkles size={14} />Copilot</button>
         <button onClick={() => act.set({ notifOpen: !s.notifOpen })} className={ib + ' relative'} title="Notifications"><I.Bell size={16} />{s.notif > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#e5484d] text-[10px] font-bold grid place-items-center">{s.notif}</span>}</button>
         <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={ib} title="Light or dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
         <button onClick={() => act.set({ storageOpen: true })} className={ib} title="Where the data is saved"><I.Settings size={16} /></button>
@@ -403,21 +408,24 @@ function OpsRampApp() {
         <span className="inline-flex items-center gap-2 pl-2 border-l border-white/15"><span className="w-7 h-7 rounded-full bg-[#01A982] text-white text-[11px] font-bold grid place-items-center">{role.who.split(' ').map(x => x[0]).join('')}</span><span className="hidden xl:block leading-tight"><span className="block text-[12px] text-white">{role.who}</span><span className="block text-[10.5px] text-white/55">{role.name}</span></span></span>
       </header>
       <div className="flex">
-        <nav className="w-[92px] shrink-0 bg-[#232a33] text-white/70 sticky top-[52px] h-[calc(100vh-52px)] flex flex-col py-2 gap-0.5">
-          {OPS_NAV.map(n => { const on = s.module === n.id, b = n.badge ? n.badge(s) : 0; return (
-            <button key={n.id} onClick={() => act.go(n.id)} title={`${n.label}: ${n.sub}`} className={cx('relative mx-1.5 rounded-[4px] py-2 px-1 flex flex-col items-center gap-1 text-center', on ? 'bg-white/10 text-white' : 'hover:bg-white/5 hover:text-white')}>
-              {on && <span className="absolute left-[-6px] top-2 bottom-2 w-[3px] rounded-r bg-[#01A982]" />}
-              <n.icon size={19} />
-              <span className="text-[10.5px] leading-tight font-semibold">{n.label}</span>
-              {b > 0 && <span className="absolute top-1 right-2 min-w-[16px] h-4 px-1 rounded-full bg-white/20 text-[10px] font-bold grid place-items-center">{b}</span>}
-            </button>); })}
+        <nav className={cx('shrink-0 bg-[#232a33] text-white/70 sticky top-[52px] h-[calc(100vh-52px)] overflow-y-auto flex flex-col py-2', railMin ? 'w-14' : 'w-[224px]')}>
+          {OPS_GROUPS.map(g => { const inG = g.items.some(x => x.id === s.module); return (
+            <div key={g.g} className="mb-1">
+              <div title={g.g} className={cx('flex items-center gap-2 px-4 pt-2 pb-1 text-[11px] font-bold uppercase tracking-[0.08em]', inG ? 'text-white' : 'text-white/45')}><g.icon size={railMin ? 18 : 14} className="shrink-0" />{!railMin && g.g}</div>
+              {!railMin && g.items.map(n => { const on = s.module === n.id, bd = n.badge ? n.badge(s) : 0; return (
+                <button key={n.id} onClick={() => act.go(n.id)} className={cx('relative w-full text-left flex items-center gap-2 pl-10 pr-3 h-8 text-[13px]', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
+                  {on && <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-[#01A982]" />}
+                  <span className="flex-1 truncate">{n.label}</span>{bd > 0 && <span className="text-[10.5px] font-bold rounded px-1.5 bg-white/15 text-white">{bd}</span>}
+                </button>); })}
+            </div>); })}
           <div className="flex-1" />
-          <button onClick={() => act.set({ storageOpen: true })} className="mx-1.5 rounded-[4px] py-2 flex flex-col items-center gap-1 hover:bg-white/5 hover:text-white"><I.Settings2 size={18} /><span className="text-[10.5px] font-semibold">Setup</span></button>
+          <button onClick={() => act.set({ storageOpen: true })} className="flex items-center gap-2 px-4 h-9 text-[13px] hover:bg-white/5 hover:text-white"><I.Settings2 size={16} />{!railMin && 'Setup'}</button>
+          <button onClick={() => setRailMin(v => !v)} className="flex items-center gap-2 px-4 h-9 text-[12px] text-white/50 hover:text-white border-t border-white/10">{railMin ? <I.PanelLeftOpen size={15} /> : <><I.PanelLeftClose size={15} />Collapse</>}</button>
         </nav>
         <main className="flex-1 min-w-0">
           <div className="bg-panel border-b border-line px-5 h-10 flex items-center gap-2 text-[12.5px]">
             <span className="text-ink3">SRS Distribution</span><I.ChevronRight size={13} className="text-ink3" />
-            <b className="text-ink">{nav ? nav.label : M.label}</b>{nav && <><I.ChevronRight size={13} className="text-ink3" /><span className="text-ink2">{nav.sub}</span></>}
+            {nav && <><span className="text-ink2">{nav.group}</span><I.ChevronRight size={13} className="text-ink3" /></>}<b className="text-ink">{nav ? nav.label : M.label}</b>
             <span className="flex-1" /><span className="text-[11.5px] text-ink3">Demo build · sample SRS data, operated by Movate</span>
           </div>
           <div className="sticky top-[52px] z-30"><FilterBar /></div>
