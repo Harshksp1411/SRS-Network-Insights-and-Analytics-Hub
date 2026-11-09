@@ -29,8 +29,10 @@ export function SavedChip() {
   const { s, act } = useApp();
   return <button onClick={() => act.set({ storageOpen: true })} title="Where the console's data is saved" className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12px] text-ink2 inline-flex items-center gap-1.5"><I.CloudCheck size={14} className={s.db.status === 'error' ? 'text-bad' : 'text-ok'} />{s.db.status === 'error' ? 'Not saved to the cloud' : `Saved ${saveInfo.t ? ago(saveInfo.t) : 'automatically'}`} · {s.db.mode === 'cloud' ? 'cloud database' : 'this browser'}</button>;
 }
+// not shown anywhere on screen; an admin opens it by adding #data to the address (to connect the cloud database)
 export function StorageModal() {
   const { s, act } = useApp();
+  React.useEffect(() => { const f = () => { if (window.location.hash === '#data') act.set({ storageOpen: true }); }; f(); window.addEventListener('hashchange', f); return () => window.removeEventListener('hashchange', f); }, []);
   if (!s.storageOpen) return null;
   return <Modal open onClose={() => act.set({ storageOpen: false })} title="Where the console's data is saved" sub="Everything you do is saved automatically and comes back after a refresh" wide><StorageBody /></Modal>;
 }
