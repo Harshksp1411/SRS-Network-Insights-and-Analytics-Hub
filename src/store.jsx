@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useRef } from 'react';
 import * as D from './data.js';
 import { parts, pad, MIN, HR, uid, tzAbbr } from './util.js';
+import { EDITION, OPSRAMP } from './edition.js';
 import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete, cloudGetState, cloudPutState, cloudWhy } from './db.js';
 
 // What is saved so a refresh keeps the console as it was. DURABLE always comes back: settings and the records people
@@ -8,6 +9,9 @@ import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete, clou
 const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog'];
 const LIVE = ['incidents', 'resolved', 'approvals', 'changes', 'freezes', 'drift', 'workOrders', 'techs', 'cases', 'predictions', 'runs', 'audit', 'notif'];
 const FRESH = 12 * 36e5;
+// each page keeps its own saved copy (the console and the OpsRamp view open on different pages)
+const SAVE_KEY = EDITION === 'console' ? 'console' : `console:${EDITION}`;
+const CLOUD_ID = EDITION === 'console' ? 'default' : EDITION;
 export const saveInfo = { t: 0 };
 const pickState = (s, keys) => { const o = {}; keys.forEach(k => { if (s[k] !== undefined) o[k] = s[k]; }); return JSON.parse(JSON.stringify(o)); };
 
@@ -36,7 +40,7 @@ function init() {
   const theme = (() => { try { return localStorage.getItem('srs-hub-theme') || 'light'; } catch { return 'light'; } })();
   const bmBranch = D.findBranch('Dallas', 'SRS Building Products');
   return {
-    role: 'noc', theme, module: 'overview', tab: {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {}, nba: {},
+    role: 'noc', theme, module: OPSRAMP ? 'sla' : 'overview', tab: OPSRAMP ? { sla: 'network' } : {}, filters: { region: 'All', city: 'All', brand: 'All', branchId: null }, b360: null, maint: {}, nba: {},
     bmBranch: bmBranch.id,
     branchHealth: {}, // id -> 'up' | 'degraded' | 'down'
     circuitState: {}, // id -> {status, jit, loss, lat}
@@ -143,8 +147,8 @@ export function AppProvider({ children }) {
         let db = { mode: 'local', status: 'ok', rows: inv.length };
         if (c) { try { const rows = await cloudLoad(c); const m = new Map([...inv, ...rows].map(r => [r.id, r])); inv = [...m.values()].sort((a, b) => b.t - a.t); db = { mode: 'cloud', status: 'ok', rows: rows.length, url: c.url, last: Date.now() }; } catch (e) { db = { mode: 'cloud', status: 'error', msg: cloudWhy(e.message), url: c.url }; } }
         // the saved console: the newer of this browser's copy and the cloud copy
-        let snap = await localGet('console');
-        if (c) { try { const cs = await cloudGetState(c); if (cs && (!snap || cs.savedAt > snap.savedAt)) snap = cs; } catch { /* no console_state table yet: the browser copy is used */ } }
+        let snap = await localGet(SAVE_KEY);
+        if (c) { try { const cs = await cloudGetState(c, CLOUD_ID); if (cs && (!snap || cs.savedAt > snap.savedAt)) snap = cs; } catch { /* no console_state table yet: the browser copy is used */ } }
         const patch = {};
         if (snap && snap.data) {
           Object.assign(patch, pickState(snap.data, DURABLE));
@@ -169,8 +173,8 @@ export function AppProvider({ children }) {
     saveT.current = setTimeout(() => {
       saveT.current = null;
       let snap; try { snap = { savedAt: Date.now(), data: pickState(sRef.current, [...DURABLE, ...LIVE]) }; } catch { return; }
-      localSet('console', snap); localSet('invAdded', sRef.current.invAdded); saveInfo.t = snap.savedAt;
-      const c = cloudCfg(); if (c && Date.now() - cloudT.current > 20e3) { cloudT.current = Date.now(); cloudPutState(c, snap).then(() => { if (sRef.current.db.status === 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'ok', msg: null } }) }); }).catch(e => { if (sRef.current.db.status !== 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'error', msg: cloudWhy(e.message) } }) }); }); }
+      localSet(SAVE_KEY, snap); localSet('invAdded', sRef.current.invAdded); saveInfo.t = snap.savedAt;
+      const c = cloudCfg(); if (c && Date.now() - cloudT.current > 20e3) { cloudT.current = Date.now(); cloudPutState(c, snap, CLOUD_ID).then(() => { if (sRef.current.db.status === 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'ok', msg: null } }) }); }).catch(e => { if (sRef.current.db.status !== 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'error', msg: cloudWhy(e.message) } }) }); }); }
     }, 1500);
   }, [s]);
   useEffect(() => { document.documentElement.classList.toggle('dark', s.theme === 'dark'); try { localStorage.setItem('srs-hub-theme', s.theme); } catch { } }, [s.theme]);

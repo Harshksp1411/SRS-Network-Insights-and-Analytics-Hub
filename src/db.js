@@ -48,6 +48,6 @@ export async function cloudCount(c, table) {
   const m = (r.headers.get('content-range') || '').match(/\/(\d+)/); return m ? +m[1] : 0;
 }
 // the whole console as one saved document, so a refresh (or another browser on the same cloud database) picks up where it was
-export const cloudGetState = async c => { const r = await call(c, '?id=eq.default&select=*', {}, 'console_state'); return r && r[0] ? { savedAt: Date.parse(r[0].saved_at), data: r[0].data } : null; };
-export const cloudPutState = (c, snap) => call(c, '', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: 'default', saved_at: new Date(snap.savedAt).toISOString(), data: snap.data }]) }, 'console_state');
+export const cloudGetState = async (c, id = 'default') => { const r = await call(c, `?id=eq.${id}&select=*`, {}, 'console_state'); return r && r[0] ? { savedAt: Date.parse(r[0].saved_at), data: r[0].data } : null; };
+export const cloudPutState = (c, snap, id = 'default') => call(c, '', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id, saved_at: new Date(snap.savedAt).toISOString(), data: snap.data }]) }, 'console_state');
 export { schemaSQL as SQL } from './cmdb.js';

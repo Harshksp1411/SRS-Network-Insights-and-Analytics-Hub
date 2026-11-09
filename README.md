@@ -37,6 +37,23 @@ Branches are numbered 1 to 900 across the estate, with their location in the nam
 
 **SRS sees, Movate acts.** Each role belongs to an organisation. Movate roles (NOC Engineer, Network Engineer L3) carry out actions. SRS roles (StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) and the role dashboards see everything live, but every action control is disabled with the reason: acknowledge, assign, priority and state, approve, run, raise, resolve, roll back, restock, re-run, start a project. In its place is *Escalate to Movate*, which records what it is about, the urgency (Normal 4 h, High 30 min, Critical 15 min plus the major incident manager) and the reason. Mova iO routes it to the ticket owner and the Movate engagement lead; the owner acknowledges and Movate replies on the incident. The field technician still records the onsite work in the work pack. Escalations are kept in the browser, so the dashboards and the console share them. Controls marked `op` are the actions (`src/ui.jsx`); the dialog and banner are in `src/escalate.jsx`.
 
+## OpsRamp view (`opsramp/`)
+
+A fourth link with the same live data in the HPE OpsRamp layout:
+- **Frame:** a dark top bar with the client, an OpsQL-style search across resources, alerts and sites, Copilot, notifications and the user; a slim icon rail; breadcrumbs; HPE green.
+- **Sections:**
+
+  | OpsRamp section | What it shows |
+  |---|---|
+  | Dashboards | Network performance (opens here) |
+  | Infrastructure | Resources: devices, circuits, onboarding and the CMDB |
+  | Alerts | The Alert Browser: correlation workflow with OpsQ, Operations Copilot, sources and integration |
+  | Insights | Predictions and forecasts |
+  | Patch & Vulnerability | Lifecycle, firmware and CVEs |
+  | Reporting Apps | The reports |
+
+It is built from the same code as the console (edition `opsramp`) and keeps its own saved copy.
+
 ## Role dashboards (`dashboards/`)
 
 A third page, separate from the console and the demos: real-time dashboards with role-based access (RBAC) for six leaders. Each role signs in and sees only its own dashboard, its own scope and the detail its access allows. The dashboard is worked out again from the same live data as the console every few seconds (every third live tick: about 6 s at 1×, faster at 5× and 10×); **LIVE** in the header shows the time of the last update and pauses or resumes it.

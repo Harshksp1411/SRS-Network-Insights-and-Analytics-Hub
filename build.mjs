@@ -6,6 +6,7 @@ import fs from 'fs';
 //   dist/site/index.html        the operations console
 //   dist/site/demos/index.html  the live demos
 //   dist/site/dashboards/index.html the real-time role-based (RBAC) dashboards, with PDF export
+//   dist/site/opsramp/index.html the OpsRamp view: the same data in the OpsRamp layout
 //   dist/site/briefs/index.html  forwards the old link to the dashboards
 const NAME = 'SRS Network Insights and Analytics Hub';
 fs.mkdirSync('dist', { recursive: true });
@@ -22,6 +23,7 @@ const PAGES = [
   { out: 'dist/site/index.html', edition: 'console', entry: 'src/main.jsx', title: NAME, desc: 'SRS Distribution managed network operations console – operated by Movate. Sample data; items marked illustrative are not SRS facts.' },
   { out: 'dist/site/demos/index.html', edition: 'demos', entry: 'src/main.jsx', title: `${NAME} – Live demos`, desc: 'Scripted SRS branch situations, each played on one screen with every system involved – operated by Movate. Sample data.' },
   { out: 'dist/site/dashboards/index.html', edition: 'dashboards', entry: 'src/dash/main.jsx', title: `${NAME} – Role dashboards`, desc: 'Real-time, role-based dashboards for the CIO and the network, stores, IT service, security and regional leaders, with drill-down to every branch, line, device and incident. Sample data.' },
+  { out: 'dist/site/opsramp/index.html', edition: 'opsramp', entry: 'src/main.jsx', title: `${NAME} – OpsRamp view`, desc: 'SRS network operations in the HPE OpsRamp layout: dashboards, infrastructure and CMDB, alerts and correlation with Copilot, insights, patch and vulnerability, reporting apps – operated by Movate. Sample data.' },
   { out: 'dist/site/marvell/index.html', edition: 'console', entry: 'marvell/src/main.jsx', title: MNAME, desc: 'Managed network operations console – operated by Movate. Sample data.', css: 'm' },
   { out: 'dist/site/marvell/demos/index.html', edition: 'demos', entry: 'marvell/src/main.jsx', title: `${MNAME} – Live demos`, desc: 'Scripted branch situations, each played on one screen with every system involved – operated by Movate. Sample data.', css: 'm' },
 ];
