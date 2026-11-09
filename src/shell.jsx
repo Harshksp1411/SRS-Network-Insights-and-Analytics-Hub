@@ -6,7 +6,7 @@ import * as D from './data.js';
 import { DemoStage } from './stage.jsx';
 import { useLive } from './live.jsx';
 import { LiveDemos } from './mod_demos.jsx';
-import { DEMOS_ONLY, APP_NAME } from './edition.js';
+import { DEMOS_ONLY, APP_NAME, OPSRAMP } from './edition.js';
 import { Branch360 } from './mod_b360.jsx';
 import { Vulns } from './mod_vuln.jsx';
 import { CANNED, STORY, MORE, answer } from './ask.js';
@@ -349,9 +349,88 @@ function ConsoleDrill() {
   return <DrillPanel stack={s.drill} setStack={act.setDrill} now={now} links={links} root={M ? M.label : 'Console'} />;
 }
 
+
+// ── the OpsRamp view (opsramp/index.html): the same live data in the OpsRamp layout ──
+// a dark top bar with the client and an OpsQL-style search, a slim icon rail with OpsRamp's sections, a breadcrumb
+const OPS_NAV = [
+  { id: 'sla', label: 'Dashboards', sub: 'Network performance', icon: I.LayoutDashboard },
+  { id: 'inventory', label: 'Infrastructure', sub: 'Resources, circuits and CMDB', icon: I.Server },
+  { id: 'correlation', label: 'Alerts', sub: 'Alert Browser, correlation and Copilot', icon: I.BellRing, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
+  { id: 'predict', label: 'Insights', sub: 'Forecasts and predictions', icon: I.TrendingUp },
+  { id: 'vuln', label: 'Patch & Vulnerability', sub: 'Lifecycle, firmware and CVEs', icon: I.ShieldCheck, badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length },
+  { id: 'reports', label: 'Reporting Apps', sub: 'Reports for each audience', icon: I.FileBarChart },
+];
+function OpsSearch() {
+  const { s, act } = useApp();
+  const [q, setQ] = useState('');
+  const t = q.trim().toLowerCase().replace(/^(name|branch|resource|incident|id)\s*[:=]\s*/, '');
+  const hits = t.length < 2 ? [] : [
+    ...s.incidents.filter(i => `${i.id} ${i.title}`.toLowerCase().includes(t)).slice(0, 4).map(i => ({ k: i.id, label: i.id, sub: i.title, kind: 'Alert', go: () => act.openInc(i.id) })),
+    ...D.BRANCHES.filter(b => `${b.name} ${b.brand} ${b.code}`.toLowerCase().includes(t)).slice(0, 4).map(b => ({ k: b.id, label: b.name, sub: b.brand, kind: 'Site', go: () => act.openBranch(b.id) })),
+    ...D.DEVICES.filter(d => d.id.includes(t)).slice(0, 4).map(d => ({ k: d.id, label: d.id, sub: `${d.model} · ${D.BR[d.branchId].name}`, kind: 'Resource', go: () => act.drill({ t: 'device', id: d.id }) })),
+  ];
+  return (
+    <div className="relative flex-1 max-w-[560px] hidden md:block">
+      <div className="h-8 rounded-[4px] bg-white/10 border border-white/15 flex items-center gap-2 px-2.5 text-white/80 focus-within:bg-white/15"><I.Search size={14} /><input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && hits[0]) { hits[0].go(); setQ(''); } }} placeholder='Search resources, alerts and sites  (e.g. name: ny0277-ec01)' className="flex-1 bg-transparent outline-none text-[12.5px] text-white placeholder:text-white/45" /><span className="text-[10.5px] font-bold text-white/40">OpsQL</span></div>
+      {hits.length > 0 && <div className="absolute top-9 left-0 right-0 bg-panel text-ink border border-line rounded-md shadow-xl py-1 z-50">{hits.map(h => <button key={h.k} onClick={() => { h.go(); setQ(''); }} className="w-full text-left px-3 py-1.5 hover:bg-chip flex items-center gap-2 text-[12.5px]"><span className="text-[10.5px] font-bold uppercase text-ink3 w-16">{h.kind}</span><span className="font-semibold truncate">{h.label}</span><span className="text-ink3 truncate">{h.sub}</span></button>)}</div>}
+    </div>
+  );
+}
+function OpsRampApp() {
+  const { s, act } = useApp();
+  const now = useNow();
+  const M = MODULES.find(m => m.id === s.module) || MODULES.find(m => m.id === 'sla');
+  const nav = OPS_NAV.find(n => n.id === s.module);
+  const role = ROLES.find(r => r.id === s.role);
+  const ib = 'h-8 w-8 rounded-[4px] flex items-center justify-center text-white/75 hover:bg-white/10 hover:text-white';
+  return (
+    <div className="theme-opsramp opsramp-app min-h-screen bg-canvas text-ink">
+      <OpsCtx.Provider value={isMovate(s) ? null : SRS_LOCK}>
+      <header className="h-[52px] bg-[#1b2128] text-white flex items-center gap-3 px-3 sticky top-0 z-40 border-b border-black/30">
+        <Logo k="opsramp" h={15} className="!border-0 !bg-white/95" />
+        <span className="font-semibold text-[14px] tracking-wide whitespace-nowrap">HPE OpsRamp</span>
+        <span className="hidden lg:inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] bg-white/10 text-[12px] text-white/85 whitespace-nowrap"><I.Building2 size={13} />Client: SRS Distribution<I.ChevronDown size={13} className="text-white/50" /></span>
+        <OpsSearch />
+        <div className="flex-1" />
+        <button onClick={() => { act.setTab('correlation', 'copilot'); act.go('correlation'); }} className="h-8 px-2.5 rounded-[4px] bg-[#01A982] hover:brightness-110 text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"><I.Sparkles size={14} />Copilot</button>
+        <button onClick={() => act.set({ notifOpen: !s.notifOpen })} className={ib + ' relative'} title="Notifications"><I.Bell size={16} />{s.notif > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#e5484d] text-[10px] font-bold grid place-items-center">{s.notif}</span>}</button>
+        <button onClick={() => act.set({ theme: s.theme === 'dark' ? 'light' : 'dark' })} className={ib} title="Light or dark">{s.theme === 'dark' ? <I.Sun size={16} /> : <I.Moon size={16} />}</button>
+        <button onClick={() => act.set({ storageOpen: true })} className={ib} title="Where the data is saved"><I.Settings size={16} /></button>
+        <span className="hidden xl:inline text-[12px] text-white/70 tabular-nums whitespace-nowrap">{hhmm(now)} CT</span>
+        <span className="inline-flex items-center gap-2 pl-2 border-l border-white/15"><span className="w-7 h-7 rounded-full bg-[#01A982] text-white text-[11px] font-bold grid place-items-center">{role.who.split(' ').map(x => x[0]).join('')}</span><span className="hidden xl:block leading-tight"><span className="block text-[12px] text-white">{role.who}</span><span className="block text-[10.5px] text-white/55">{role.name}</span></span></span>
+      </header>
+      <div className="flex">
+        <nav className="w-[92px] shrink-0 bg-[#232a33] text-white/70 sticky top-[52px] h-[calc(100vh-52px)] flex flex-col py-2 gap-0.5">
+          {OPS_NAV.map(n => { const on = s.module === n.id, b = n.badge ? n.badge(s) : 0; return (
+            <button key={n.id} onClick={() => act.go(n.id)} title={`${n.label}: ${n.sub}`} className={cx('relative mx-1.5 rounded-[4px] py-2 px-1 flex flex-col items-center gap-1 text-center', on ? 'bg-white/10 text-white' : 'hover:bg-white/5 hover:text-white')}>
+              {on && <span className="absolute left-[-6px] top-2 bottom-2 w-[3px] rounded-r bg-[#01A982]" />}
+              <n.icon size={19} />
+              <span className="text-[10.5px] leading-tight font-semibold">{n.label}</span>
+              {b > 0 && <span className="absolute top-1 right-2 min-w-[16px] h-4 px-1 rounded-full bg-white/20 text-[10px] font-bold grid place-items-center">{b}</span>}
+            </button>); })}
+          <div className="flex-1" />
+          <button onClick={() => act.set({ storageOpen: true })} className="mx-1.5 rounded-[4px] py-2 flex flex-col items-center gap-1 hover:bg-white/5 hover:text-white"><I.Settings2 size={18} /><span className="text-[10.5px] font-semibold">Setup</span></button>
+        </nav>
+        <main className="flex-1 min-w-0">
+          <div className="bg-panel border-b border-line px-5 h-10 flex items-center gap-2 text-[12.5px]">
+            <span className="text-ink3">SRS Distribution</span><I.ChevronRight size={13} className="text-ink3" />
+            <b className="text-ink">{nav ? nav.label : M.label}</b>{nav && <><I.ChevronRight size={13} className="text-ink3" /><span className="text-ink2">{nav.sub}</span></>}
+            <span className="flex-1" /><span className="text-[11.5px] text-ink3">Demo build · sample SRS data, operated by Movate</span>
+          </div>
+          <div className="sticky top-[52px] z-30"><FilterBar /></div>
+          <div className="p-5 max-w-[1680px]"><BackBar /><M.C key={M.id} /></div>
+        </main>
+      </div>
+      <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog /><StorageModal />
+      </OpsCtx.Provider>
+    </div>
+  );
+}
+
 export default function App() {
   const { s } = useApp();
   if (DEMOS_ONLY) return <DemosApp />;
+  if (OPSRAMP) return <OpsRampApp />;
   const M = MODULES.find(m => m.id === s.module) || MODULES[0];
   return (
     <div className="min-h-screen bg-canvas text-ink">
