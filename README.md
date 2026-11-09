@@ -52,18 +52,24 @@ Performance shows each area in the same order: headline KPIs, scorecard, trend, 
 
 ## OpsRamp view (`opsramp/`)
 
-A fourth link with the same live data in the HPE OpsRamp layout:
-- **Frame:** a dark top bar with the client, an OpsQL-style search across resources, alerts and sites, Copilot, notifications and the user; a slim icon rail; breadcrumbs; HPE green.
-- **Sections:**
+A fourth link with the same live data, laid out like the HPE OpsRamp product.
 
-  | OpsRamp section | What it shows |
-  |---|---|
-  | Dashboards | Network performance (opens here) |
-  | Infrastructure | Resources: devices, circuits, onboarding and the CMDB |
-  | Alerts | The Alert Browser: correlation workflow with OpsQ, Operations Copilot, sources and integration |
-  | Insights | Predictions and forecasts |
-  | Patch & Vulnerability | Lifecycle, firmware and CVEs |
-  | Reporting Apps | The reports |
+**Frame:**
+- a dark top bar with the client, an OpsQL-style search across resources, alerts and sites, Copilot, notifications, settings and the user;
+- a grouped left menu that collapses to icons, where every item's name is the page's title, with breadcrumbs;
+- HPE green throughout.
+
+**Menu:**
+
+| Group | Pages |
+|---|---|
+| Dashboards | Network performance |
+| Infrastructure | Resources (devices, circuits, onboarding, CMDB), Integration studio (studio, device onboarding, sources), Policies and rules |
+| Alerts | Alert Browser, Correlation (the OpsQ workflow), Operations Copilot |
+| Insights | Predictive insights |
+| Patch & Vulnerability | Patch and vulnerability |
+| Automation | Process automation, Knowledge base |
+| Reports | Reporting Apps |
 
 It is built from the same code as the console (edition `opsramp`) and keeps its own saved copy.
 
