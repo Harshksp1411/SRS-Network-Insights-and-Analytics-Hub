@@ -6,7 +6,7 @@ import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete, clou
 
 // What is saved so a refresh keeps the console as it was. DURABLE always comes back: settings and the records people
 // create. LIVE is the operational picture the simulation keeps moving; it comes back when the save is under 12 hours old.
-const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog', 'savedReports'];
+const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog', 'savedReports', 'ruleDrafts'];
 const LIVE = ['incidents', 'resolved', 'approvals', 'changes', 'freezes', 'drift', 'workOrders', 'techs', 'cases', 'predictions', 'runs', 'audit', 'notif'];
 const FRESH = 12 * 36e5;
 // each page keeps its own saved copy (the console and the OpsRamp view open on different pages)
@@ -104,6 +104,8 @@ export function AppProvider({ children }) {
       toast: (msg, tone = 'ok') => { const id = uid('t'); d({ type: 'set', patch: st => ({ toasts: [...st.toasts.slice(-2), { id, msg, tone }] }) }); setTimeout(() => d({ type: 'del', key: 'toasts', id }), 6000); },
       dismissToast: id => d({ type: 'del', key: 'toasts', id }),
       go: (module, extra = {}) => d({ type: 'set', patch: { module, selInc: null, ...extra } }),
+      // a menu click starts fresh: no back trail and no open drill-down
+      nav: module => { d({ type: 'set', back: true, patch: { module, selInc: null, drill: [], navBack: [] } }); window.scrollTo({ top: 0 }); },
       openInc: id => d({ type: 'set', patch: { module: 'incidents', selInc: id } }),
       // open the drill-down at a level; the console's filters (region, city, brand, one branch) carry into it
       drill: node => d({ type: 'set', patch: st => ({ drill: node ? [withFilters(st, node)] : [] }) }),

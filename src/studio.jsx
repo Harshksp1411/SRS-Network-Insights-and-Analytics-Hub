@@ -7,6 +7,7 @@ import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { Card, Badge, Btn, Logo, cx } from './ui.jsx';
 import { num } from './util.js';
+import { OPSRAMP } from './edition.js';
 import { stepsOf, tplId, templateOf, isDesk, resourcesFor } from './srctpl.js';
 import { VENDORS } from './policies.js';
 
@@ -120,7 +121,7 @@ export function IntegrationStudio() {
   const total = SRC.filter(x => conn.has(x[0])).reduce((a, x) => a + x[4], 0) + (s.onboarded || []).length;
   const busy = run && run.step < run.steps.length;
   return (
-    <Card title="Integration studio" right={<span className="text-[12px] text-ink3"><b className="text-ink">{SRC.filter(x => conn.has(x[0])).length}</b> connected · <b className="text-ink">{SRC.filter(x => !conn.has(x[0])).length}</b> more from the OpsRamp catalogue (3,000+) · <b className="text-ink">{num(total)}</b> devices and lines monitored</span>}>
+    <Card title={OPSRAMP ? "Sources" : "Integration studio"} right={<span className="text-[12px] text-ink3"><b className="text-ink">{SRC.filter(x => conn.has(x[0])).length}</b> connected · <b className="text-ink">{SRC.filter(x => !conn.has(x[0])).length}</b> more from the OpsRamp catalogue (3,000+) · <b className="text-ink">{num(total)}</b> devices and lines monitored</span>}>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-4 items-start">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{CATS.map(c => (
           <div key={c}>

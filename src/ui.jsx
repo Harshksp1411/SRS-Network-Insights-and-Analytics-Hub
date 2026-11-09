@@ -230,13 +230,19 @@ export function Empty({ icon: I, title, sub, children }) {
 }
 // in the OpsRamp view, pages carry OpsRamp's names
 const OPS_TITLES = { Performance: 'Network performance', 'Device & Circuit Inventory': 'Asset inventory', 'Live Incidents': 'Alert Browser', 'Predictive Watchlist': 'Predictive insights', 'Lifecycle and vulnerabilities': 'Patch and vulnerability', 'Lifecycle & Vulnerabilities': 'Patch and vulnerability', Reports: 'Reporting Apps', 'Policies & Templates': 'Policies and rules', 'AI & Automation Catalogue': 'AI and automation library', Knowledge: 'Knowledge base' };
+// a shell can replace a page's title and add a row under it (the OpsRamp view joins Performance and Reports into one page)
+export const HeadCtx = createContext(null);
 export function PageHead({ icon: I, title, sub, right, children }) {
-  if (OPSRAMP && OPS_TITLES[title]) title = OPS_TITLES[title];
+  const h = useContext(HeadCtx), over = h ? h(title) : null;
+  if (over) title = over.title; else if (OPSRAMP && OPS_TITLES[title]) title = OPS_TITLES[title];
   return (
-    <div className="flex items-center gap-3 mb-4 flex-wrap pb-1">
-      <div className="flex-1 min-w-[260px]"><h1 className="font-display text-[28px] font-bold text-ink leading-none">{title}</h1></div>
-      <div className="flex items-center gap-2 flex-wrap">{right}</div>
-      {children}
+    <div className="mb-4 pb-1">
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 min-w-[260px]"><h1 className="font-display text-[28px] font-bold text-ink leading-none">{title}</h1></div>
+        <div className="flex items-center gap-2 flex-wrap">{right}</div>
+        {children}
+      </div>
+      {over && over.below}
     </div>
   );
 }
