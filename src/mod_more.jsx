@@ -20,6 +20,7 @@ import { CriticalReport } from './critreport.jsx';
 import { BUWeekly } from './bureport.jsx';
 import { AUD, audOf, AudiencePicker } from './audience.jsx';
 import { CEOReport, CIOReport, OpsMgrReport, LeadReport, BusinessView, REV_HOUR } from './personas.jsx';
+import { ReportBuilder, AskReport } from './reportbuilder.jsx';
 import { StoresPerf, AutomationsCard, DriversCard, AITiles, STORE_TARGET } from './perf.jsx';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
@@ -360,7 +361,7 @@ export function Reports() {
   const ref = useRef(null);
   // executive summary for leaders (CEO, CIO): the picture and the key points; full detail adds every table and timeline
   const aud = AUD[audOf(s)];
-  const tab = aud.reports.includes(tab0) ? tab0 : aud.reports[0];
+  const tab = [...aud.reports, 'builder'].includes(tab0) ? tab0 : aud.reports[0];
   const brief = (s.tab.reportsLevel || aud.level) === 'exec';
   const [critDays, setCritDays] = useState(30);
   const open = s.incidents.filter(i => i.state !== 'Resolved');
@@ -369,7 +370,7 @@ export function Reports() {
   if (['ceo', 'cio'].includes(audOf(s))) titles.bu = 'Executive weekly';
   const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
   const H = ({ children }) => <h2 className="text-[15px] font-extrabold text-ink border-b-2 border-brand pb-1 mt-5 mb-2">{children}</h2>;
-  const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => <tr key={k}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>)}</tbody></table>;
+  const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => { const go = r && typeof r === 'object' ? (/^INC\d/.test(r.id || '') ? () => act.openInc(r.id) : r.branchId && D.BR[r.branchId] ? () => act.drill({ t: 'branch', id: r.branchId }) : /^CHG\d/.test(r.id || '') ? () => act.drill({ t: 'change', id: r.id }) : null) : null; return <tr key={k} onClick={go || undefined} title={go ? 'Drill down' : undefined} className={go ? 'cursor-pointer hover:bg-chip/60' : ''}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>; })}</tbody></table>;
   const bl = id => `${D.BR[id].name}, ${D.BR[id].brand}`;
   const PRI_C = { P1: RC.red, P2: RC.amber, P3: RC.blue, P4: RC.grey };
   const allInc = [...s.incidents, ...s.resolved];
@@ -377,10 +378,10 @@ export function Reports() {
   return (
     <div>
       <PageHead icon={I.FileText} title="Reports" sub="Built from live console data. Download as HTML (opens in Word or a browser), CSV, or print to PDF."
-        right={tab !== 'audit' ? <><Btn icon={I.Download} onClick={exportHtml}>Download HTML</Btn><Btn icon={I.Printer} onClick={() => window.print()}>Print / PDF</Btn></> : <ExportBtn onClick={() => exportCSV('srs-audit-log.csv', s.audit, [{ label: 'Time', get: a => dt(a.t) }, { label: 'Who', key: 'who' }, { label: 'What', key: 'what' }, { label: 'Ref', key: 'ref' }])} />} />
+        right={tab === 'builder' ? null : tab !== 'audit' ? <><Btn icon={I.Download} onClick={exportHtml}>Download HTML</Btn><Btn icon={I.Printer} onClick={() => window.print()}>Print / PDF</Btn></> : <ExportBtn onClick={() => exportCSV('srs-audit-log.csv', s.audit, [{ label: 'Time', get: a => dt(a.t) }, { label: 'Who', key: 'who' }, { label: 'What', key: 'what' }, { label: 'Ref', key: 'ref' }])} />} />
       <AudiencePicker s={s} act={act} onPick={k => { act.setTab('reportsLevel', AUD[k].level); if (!AUD[k].reports.includes(tab)) { setTab(AUD[k].reports[0]); act.setTab('reports', AUD[k].reports[0]); } }} />
-      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={aud.reports.map(id => ({ id, label: titles[id] }))} />
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={[...aud.reports.map(id => ({ id, label: titles[id] })), { id: 'builder', label: 'Build your own' }]} />
+      {tab === 'builder' ? <ReportBuilder /> : <><div className="flex flex-wrap items-center gap-2 mb-3">
         {tab !== 'ceo' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="Level of detail">{[['exec', 'Executive summary'], ['full', 'Full detail']].map(([k, l]) => <button key={k} aria-pressed={(brief ? 'exec' : 'full') === k} onClick={() => act.setTab('reportsLevel', k)} className={cx('px-3 py-1.5 rounded', (brief ? 'exec' : 'full') === k ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>{l}</button>)}</div>}
         {tab !== 'ceo' && <span className="text-[12px] text-ink3">{brief ? 'For leaders: the picture and the key points.' : 'Every table and timeline.'}</span>}
         {tab === 'critical' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold ml-auto" role="group" aria-label="Period">{[7, 30, 90].map(d => <button key={d} aria-pressed={critDays === d} onClick={() => setCritDays(d)} className={cx('px-3 py-1.5 rounded', critDays === d ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>Last {d} days</button>)}</div>}
@@ -463,6 +464,7 @@ export function Reports() {
           <T rows={brief ? s.audit.slice(0, 10) : s.audit} cols={[['Time (CT)', a => dt(a.t)], ['Who', a => a.who], ['Action', a => a.what], ['Ref', a => a.ref]]} />
         </>}
       </div>
+      <div className="mt-3"><AskReport tab={tab} /></div></>}
     </div>
   );
 }

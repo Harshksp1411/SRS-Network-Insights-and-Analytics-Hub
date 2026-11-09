@@ -13,7 +13,7 @@ import { CANNED, STORY, MORE, answer } from './ask.js';
 import { AskBlock } from './askblocks.jsx';
 import { Catalogue, CatalogueTab } from './catalogue.jsx';
 import { Policies } from './mod_policies.jsx';
-import { OpsAI } from './mod_opsai.jsx';
+import { OpsAI, IntegrationsPage } from './mod_opsai.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
 import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
 export { RoofMark };
@@ -33,6 +33,7 @@ export const MODULES = [
   { id: 'live', label: 'Live Operations', icon: I.Radio, group: 'Operate', C: LiveOps },
   { id: 'correlation', label: 'Correlation', icon: I.GitMerge, group: 'Operate', C: Correlation },
   { id: 'opsai', label: 'OpsRamp AI & Integrations', icon: I.BrainCircuit, group: 'Operate', C: OpsAI, hidden: true },
+  { id: 'integrations', label: 'Integrations', icon: I.Plug, group: 'Operate', C: IntegrationsPage, hidden: true },
   { id: 'b360', label: 'Branch 360', icon: I.Store, group: 'Operate', C: Branch360 },
   { id: 'readiness', label: 'Branch Readiness', icon: I.Sunrise, group: 'Operate', C: Readiness },
   { id: 'incidents', label: 'Live Incidents', icon: I.Siren, group: 'Operate', C: Incidents, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
@@ -355,7 +356,9 @@ function ConsoleDrill() {
 const OPS_NAV = [
   { id: 'sla', label: 'Dashboards', sub: 'Network performance', icon: I.LayoutDashboard },
   { id: 'inventory', label: 'Infrastructure', sub: 'Resources, circuits and CMDB', icon: I.Server },
-  { id: 'correlation', label: 'Alerts', sub: 'Alert Browser, correlation and Copilot', icon: I.BellRing, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
+  { id: 'incidents', label: 'Alerts', sub: 'Alert Browser', icon: I.BellRing, badge: s => s.incidents.filter(i => i.state !== 'Resolved').length },
+  { id: 'correlation', label: 'Correlation', sub: 'OpsQ correlation workflow and Copilot', icon: I.GitMerge },
+  { id: 'integrations', label: 'Integrations', sub: 'Integration studio, onboarding and sources', icon: I.Plug },
   { id: 'predict', label: 'Insights', sub: 'Forecasts and predictions', icon: I.TrendingUp },
   { id: 'vuln', label: 'Patch & Vulnerability', sub: 'Lifecycle, firmware and CVEs', icon: I.ShieldCheck, badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length },
   { id: 'reports', label: 'Reporting Apps', sub: 'Reports for each audience', icon: I.FileBarChart },

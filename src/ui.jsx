@@ -229,7 +229,7 @@ export function Empty({ icon: I, title, sub, children }) {
   return <div className="flex flex-col items-center justify-center text-center py-10 text-ink3">{I && <I size={28} className="mb-2" />}<div className="text-[14px] font-semibold text-ink2">{title}</div>{sub && <div className="text-[12.5px] mt-1 max-w-md">{sub}</div>}{children}</div>;
 }
 // in the OpsRamp view, pages carry OpsRamp's names
-const OPS_TITLES = { Performance: 'Network performance', 'Device & Circuit Inventory': 'Resources', Correlation: 'Alert Browser', 'Predictive Watchlist': 'Insights', 'Lifecycle and vulnerabilities': 'Patch and vulnerability', 'Lifecycle & Vulnerabilities': 'Patch and vulnerability', Reports: 'Reporting Apps' };
+const OPS_TITLES = { Performance: 'Network performance', 'Device & Circuit Inventory': 'Resources', 'Live Incidents': 'Alert Browser', 'Predictive Watchlist': 'Insights', 'Lifecycle and vulnerabilities': 'Patch and vulnerability', 'Lifecycle & Vulnerabilities': 'Patch and vulnerability', Reports: 'Reporting Apps' };
 export function PageHead({ icon: I, title, sub, right, children }) {
   if (OPSRAMP && OPS_TITLES[title]) title = OPS_TITLES[title];
   return (
