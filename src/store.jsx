@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useRef } from 'react';
 import * as D from './data.js';
 import { parts, pad, MIN, HR, uid, tzAbbr } from './util.js';
-import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete } from './db.js';
+import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete, cloudGetState, cloudPutState, cloudWhy } from './db.js';
+
+// What is saved so a refresh keeps the console as it was. DURABLE always comes back: settings and the records people
+// create. LIVE is the operational picture the simulation keeps moving; it comes back when the save is under 12 hours old.
+const DURABLE = ['role', 'filters', 'tab', 'module', 'b360', 'invAdded', 'studioConnected', 'studioOnboarded', 'onboarded', 'copilotTiles', 'copilotUse', 'catModes', 'opsqCand', 'opsqBt', 'pilotTemplates', 'kb', 'kbDrafts', 'problems', 'runbooks', 'watches', 'projects', 'readiness', 'devState', 'maint', 'nba', 'patternProblems', 'vplan', 'askLog'];
+const LIVE = ['incidents', 'resolved', 'approvals', 'changes', 'freezes', 'drift', 'workOrders', 'techs', 'cases', 'predictions', 'runs', 'audit', 'notif'];
+const FRESH = 12 * 36e5;
+export const saveInfo = { t: 0 };
+const pickState = (s, keys) => { const o = {}; keys.forEach(k => { if (s[k] !== undefined) o[k] = s[k]; }); return JSON.parse(JSON.stringify(o)); };
 
 // `org` decides who may act: Movate roles carry out actions; SRS roles see everything and escalate to Movate.
 // The SRS field technician also records the onsite work in the work pack Movate sends (steps, photos, readings).
@@ -133,9 +141,19 @@ export function AppProvider({ children }) {
       dbLoad: async () => {
         const c = cloudCfg(); let inv = (await localGet('invAdded')) || [];
         let db = { mode: 'local', status: 'ok', rows: inv.length };
-        if (c) { try { const rows = await cloudLoad(c); const m = new Map([...inv, ...rows].map(r => [r.id, r])); inv = [...m.values()].sort((a, b) => b.t - a.t); db = { mode: 'cloud', status: 'ok', rows: rows.length, url: c.url, last: Date.now() }; } catch (e) { db = { mode: 'cloud', status: 'error', msg: e.message, url: c.url }; } }
-        const studio = (await localGet('studioConnected')) || [], ob = (await localGet('onboarded')) || [];
-        d({ type: 'set', patch: st => ({ invAdded: inv, studioConnected: [...new Set([...(st.studioConnected || []), ...studio])], onboarded: [...(st.onboarded || []), ...ob.filter(x => !(st.onboarded || []).some(y => y.ip === x.ip))], db, dbReady: true }) });
+        if (c) { try { const rows = await cloudLoad(c); const m = new Map([...inv, ...rows].map(r => [r.id, r])); inv = [...m.values()].sort((a, b) => b.t - a.t); db = { mode: 'cloud', status: 'ok', rows: rows.length, url: c.url, last: Date.now() }; } catch (e) { db = { mode: 'cloud', status: 'error', msg: cloudWhy(e.message), url: c.url }; } }
+        // the saved console: the newer of this browser's copy and the cloud copy
+        let snap = await localGet('console');
+        if (c) { try { const cs = await cloudGetState(c); if (cs && (!snap || cs.savedAt > snap.savedAt)) snap = cs; } catch { /* no console_state table yet: the browser copy is used */ } }
+        const patch = {};
+        if (snap && snap.data) {
+          Object.assign(patch, pickState(snap.data, DURABLE));
+          if (Date.now() - snap.savedAt < FRESH) Object.assign(patch, pickState(snap.data, LIVE));
+          const nums = [...(patch.incidents || []), ...(patch.resolved || [])].map(i => +((String(i.id).match(/INC(\d+)/) || [])[1] || 0));
+          if (nums.length) D.bumpInc(Math.max(...nums));
+        }
+        const m = new Map([...(patch.invAdded || []), ...inv].map(r => [r.id, r]));
+        d({ type: 'set', back: true, patch: { ...patch, invAdded: [...m.values()].sort((a, b) => b.t - a.t), db: { ...db, restored: snap ? snap.savedAt : null }, dbReady: true } });
       },
       note: (incId, text, who) => d({ type: 'upd', key: 'incidents', id: incId, patch: x => ({ notes: [...x.notes, { t: Date.now(), who: who || A.me(), text }] }) }),
     };
@@ -143,9 +161,18 @@ export function AppProvider({ children }) {
   }, []);
   // load what onboarding stored on earlier visits, then save every change
   useEffect(() => { act.dbLoad(); }, []);
-  useEffect(() => { if (s.dbReady) localSet('invAdded', s.invAdded); }, [s.invAdded, s.dbReady]);
-  useEffect(() => { if (s.dbReady) localSet('studioConnected', s.studioConnected || []); }, [s.studioConnected, s.dbReady]);
-  useEffect(() => { if (s.dbReady) localSet('onboarded', s.onboarded || []); }, [s.onboarded, s.dbReady]);
+  // save the console a moment after anything changes; to the cloud database at most every 20 seconds
+  const saveT = useRef(null), cloudT = useRef(0);
+  useEffect(() => {
+    if (!s.dbReady) return;
+    if (saveT.current) return; // already scheduled: the live view changes every second, so save at most every 1.5 s
+    saveT.current = setTimeout(() => {
+      saveT.current = null;
+      let snap; try { snap = { savedAt: Date.now(), data: pickState(sRef.current, [...DURABLE, ...LIVE]) }; } catch { return; }
+      localSet('console', snap); localSet('invAdded', sRef.current.invAdded); saveInfo.t = snap.savedAt;
+      const c = cloudCfg(); if (c && Date.now() - cloudT.current > 20e3) { cloudT.current = Date.now(); cloudPutState(c, snap).then(() => { if (sRef.current.db.status === 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'ok', msg: null } }) }); }).catch(e => { if (sRef.current.db.status !== 'error') d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'error', msg: cloudWhy(e.message) } }) }); }); }
+    }, 1500);
+  }, [s]);
   useEffect(() => { document.documentElement.classList.toggle('dark', s.theme === 'dark'); try { localStorage.setItem('srs-hub-theme', s.theme); } catch { } }, [s.theme]);
   // an escalation sent from the role dashboards in another tab reaches the console, and the reverse
   useEffect(() => { const f = e => { if (e.key === ESC_KEY) d({ type: 'set', patch: { escalations: loadEsc() } }); }; window.addEventListener('storage', f); return () => window.removeEventListener('storage', f); }, []);

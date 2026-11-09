@@ -7,12 +7,50 @@ import { CarrierNetworks, ToolsStrip, TopBranches } from './viz2.jsx';
 import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
+import { CmdbTab, SavedChip } from './mod_cmdb.jsx';
+import { relsOf } from './cmdb.js';
 import { Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, dt, hhmm, exportCSV, MIN, HR, DAY, T0, rng } from './util.js';
 import { FirmwareMixCard, WarrantyCard, BackupTrendCard, DeviceRiskCard, CarrierForecastCard, CarrierTrendCard, CarrierHeatCard, FieldDemandCard, SparesCoverCard, TechUtilCard } from './viz.jsx';
 
 const fwLevel = d => { const list = D.FW_TARGET[d.type === 'AP' ? 'AP' : d.model]; return list.indexOf(d.fw); };
 const fwBadge = d => { const l = fwLevel(d); const crit = d.type === 'SD-WAN'; const ok = l <= (crit ? 1 : 2); return <Badge tone={l === 0 ? 'green' : ok ? 'blue' : 'red'}>{['N', 'N-1', 'N-2', 'N-3'][l]}{!ok && ', below policy'}</Badge>; };
+
+// a CI as the CMDB holds it: the record, what it is connected to, and the records that touch it
+const GROUP_OF = { 'SD-WAN': 'Movate NOC – L2 Network', Switch: 'Movate NOC – L2 Network', AP: 'Movate Network SME – Wireless' };
+const TPL_OF = d => d.type === 'SD-WAN' ? 'TPL-EC' : d.type === 'AP' ? (/565|567|575|585/.test(d.model) ? 'TPL-APO' : 'TPL-AP') : d.model === '2530' ? 'TPL-2530' : 'TPL-CX';
+function CiRecord({ ci, s, openCi, act, circuit }) {
+  const b = D.BR[ci.branchId], r = relsOf(ci.id);
+  const idx = D.devicesOf(b.id).findIndex(x => x.id === ci.id);
+  const mgmt = `10.${100 + (b.num >> 8)}.${b.num & 255}.${circuit ? (ci.role === 'Primary' ? 1 : 2) : 10 + Math.max(0, idx)}`;
+  const life = circuit ? null : D.lifeInfo(ci);
+  const incs = [...s.incidents, ...s.resolved].filter(i => i.ci === ci.id || (circuit && i.ci === ci.id)).slice(0, 6);
+  const near = s.incidents.filter(i => i.branchId === ci.branchId && i.ci !== ci.id && i.state !== 'Resolved').slice(0, 4);
+  const cases = circuit ? s.cases.filter(c => c.circuit === ci.id) : [];
+  const chg = s.changes.filter(c => (c.title || '').includes(b.name) || (c.title || '').includes(ci.id)).slice(0, 3);
+  const name = id => D.DEV[id] ? `${id} · ${D.DEV[id].model}` : D.CIR[id] ? `${id} · ${D.CIR[id].carrier} ${D.CIR[id].type}` : D.BR[id] ? D.BR[id].name : id;
+  const rec = circuit ? [
+    ['Class', 'WAN circuit (cmdb_ci_circuit)'], ['Sys ID', ci.id], ['Carrier', ci.carrier], ['Carrier circuit ID', <span className="font-mono">{ci.cid}</span>], ['Type and role', `${ci.type}, ${ci.role === 'Primary' ? 'main' : 'backup'}`], ['Bandwidth', `${ci.bw} Mb/s`], ['Local exchange carrier', ci.lec || '—'], ['Line SLA', `${(D.LINE_SLA[ci.type] * 100).toFixed(2)}%`], ['Monthly cost', `$${Math.round(D.lineMRC(ci)).toLocaleString()}`], ['Availability, 30 days', `${(D.availOf(ci) * 100).toFixed(2)}%`], ['Tickets, 90 days', ci.tickets90], ['Location', `${b.name}, ${b.city}, ${b.state}`], ['Support group', 'Movate NOC – L2 Network; the carrier for repairs'], ['Monitored by', 'OpsRamp TPL-CIR · Orchestrator path stats every 1 min'],
+  ] : [
+    ['Class', `${{ 'SD-WAN': 'SD-WAN appliance', Switch: 'IP switch', AP: 'Wireless access point' }[ci.type]} (cmdb_ci_netgear)`], ['Sys ID', ci.id], ['Make and model', `HPE Aruba Networking ${life && life.name ? life.name : ci.model}`], ['Management IP', <span className="font-mono">{mgmt}</span>], ['Location', `${b.name}, ${b.city}, ${b.state} · ${ci.role}`], ['Owned by', 'SRS IT – Network'], ['Support group', GROUP_OF[ci.type]], ['Monitored by', `OpsRamp ${TPL_OF(ci)} · ${ci.type === 'AP' ? 'Aruba Central API every 5 min' : 'SNMPv3 every 5 min'}`], ['Lifecycle', life && life.status ? `${life.status}${life.eos ? ` · sale ended or ends ${life.eos}` : ''}${life.eosup ? ` · supported until ${life.eosup}` : ''}` : 'Current'], ['Installed', new Date(Date.UTC(2020 + (b.num % 5), (b.num * 7) % 12, 1 + (b.num % 27))).toISOString().slice(0, 10)],
+  ];
+  return (
+    <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-5 border-t border-line pt-4">
+      <div><div className="text-[12px] font-bold text-ink3 mb-1">CMDB record</div>{rec.map(([k, v]) => <KV key={k} k={k} v={v} />)}</div>
+      <div><div className="text-[12px] font-bold text-ink3 mb-1">Relationships</div>
+        <div className="text-[11px] font-bold uppercase text-ink3 mt-1">Upstream</div>
+        {r.up.map(x => <button key={x.id} onClick={() => openCi(x.parent)} className="w-full text-left flex gap-2 py-1 text-[12.5px] hover:bg-chip/60 rounded px-1"><span className="text-ink3 w-24 shrink-0">{x.type} this</span><span className="text-ink truncate">{name(x.parent)}</span></button>)}
+        <div className="text-[11px] font-bold uppercase text-ink3 mt-2">Downstream</div>
+        <div className="max-h-[220px] overflow-y-auto">{r.down.length ? r.down.map(x => <button key={x.id} onClick={() => openCi(x.child)} className="w-full text-left flex gap-2 py-1 text-[12.5px] hover:bg-chip/60 rounded px-1"><span className="text-ink3 w-24 shrink-0">{x.type}</span><span className="text-ink truncate">{name(x.child)}</span></button>) : <div className="text-[12.5px] text-ink3 py-1">Nothing depends on it.</div>}</div>
+      </div>
+      <div><div className="text-[12px] font-bold text-ink3 mb-1">Related records</div>
+        {[...incs.map(i => ({ k: i.id, t: i.title, sub: `${i.pri} · ${i.state || 'Resolved'}`, go: () => act.openInc(i.id) })), ...cases.map(c => ({ k: c.id, t: `${c.carrier} case`, sub: c.status })), ...chg.map(c => ({ k: c.id, t: c.title, sub: c.state }))].map(x => <button key={x.k} onClick={x.go} className="w-full text-left py-1 border-b border-line/60 text-[12.5px] hover:bg-chip/50"><span className="font-mono text-ink3">{x.k}</span> <span className="text-ink">{x.t}</span><span className="block text-[11px] text-ink3">{x.sub}</span></button>)}
+        {!incs.length && !cases.length && !chg.length && <div className="text-[12.5px] text-ink3">No incidents, cases or changes on this CI.</div>}
+        {near.length > 0 && <><div className="text-[11px] font-bold uppercase text-ink3 mt-2">Open at the same branch</div>{near.map(i => <button key={i.id} onClick={() => act.openInc(i.id)} className="w-full text-left py-1 text-[12px] hover:bg-chip/50"><span className="font-mono text-ink3">{i.id}</span> <span className="text-ink2">{i.title}</span></button>)}</>}
+      </div>
+    </div>
+  );
+}
 
 export function Inventory() {
   const { s, act } = useApp();
@@ -28,6 +66,8 @@ export function Inventory() {
   const [carrier, setCarrier] = useState('All');
   const [cstat, setCstat] = useState('All');
   const [dev, setDev] = useState(null);
+  const [cir, setCir] = useState(null);
+  const openCi = id => { if (D.DEV[id]) { setCir(null); setDev(D.DEV[id]); } else if (D.CIR[id]) { setDev(null); setCir(D.CIR[id]); } else if (D.BR[id]) { setDev(null); setCir(null); act.openBranch(id); } };
   const ds = s.devState || {};
   const devs = useMemo(() => D.DEVICES.filter(d => inScope(s, d.branchId)), [s.filters, s.role]);
   const devRows = devs.filter(d => {
@@ -53,7 +93,7 @@ export function Inventory() {
   return (
     <div>
       <PageHead icon={I.Boxes} title="Device & Circuit Inventory" sub="CMDB view of every in-scope device and circuit. Totals: 933 EdgeConnect EC-XS, 1,856 switches, 1,286 APs (4,075 total) and 1,800 circuits across 900 branches."
-        right={<ExportBtn onClick={() => tab === 'circuits' ? exportCSV('srs-circuits.csv', cirRows, [{ label: 'Circuit', key: 'id' }, { label: 'Branch', get: c => D.BR[c.branchId].name }, { label: 'Role', key: 'role' }, { label: 'Type', key: 'type' }, { label: 'Carrier', key: 'carrier' }, { label: 'Carrier ID', key: 'cid' }, { label: 'Mb/s', key: 'bw' }, { label: 'Status', key: 'status' }, { label: 'Tickets 90d', key: 'tickets90' }]) : exportCSV('srs-devices.csv', devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Model', key: 'model' }, { label: 'Role', key: 'role' }, { label: 'Branch', get: d => D.BR[d.branchId].name }, { label: 'Brand', get: d => D.BR[d.branchId].brand }, { label: 'Firmware', key: 'fw' }, { label: 'Backup', get: d => d.backup.st }, { label: 'Warranty / contract end', get: d => D.warrantyText(d) }, { label: 'Serial', key: 'serial' }])} />} />
+        right={<><SavedChip /><ExportBtn onClick={() => tab === 'circuits' ? exportCSV('srs-circuits.csv', cirRows, [{ label: 'Circuit', key: 'id' }, { label: 'Branch', get: c => D.BR[c.branchId].name }, { label: 'Role', key: 'role' }, { label: 'Type', key: 'type' }, { label: 'Carrier', key: 'carrier' }, { label: 'Carrier ID', key: 'cid' }, { label: 'Mb/s', key: 'bw' }, { label: 'Status', key: 'status' }, { label: 'Tickets 90d', key: 'tickets90' }]) : exportCSV('srs-devices.csv', devRows, [{ label: 'Hostname', key: 'id' }, { label: 'Type', key: 'type' }, { label: 'Model', key: 'model' }, { label: 'Role', key: 'role' }, { label: 'Branch', get: d => D.BR[d.branchId].name }, { label: 'Brand', get: d => D.BR[d.branchId].brand }, { label: 'Firmware', key: 'fw' }, { label: 'Backup', get: d => d.backup.st }, { label: 'Warranty / contract end', get: d => D.warrantyText(d) }, { label: 'Serial', key: 'serial' }])} /></>} />
       <div className="kpi-strip grid grid-cols-2 lg:grid-cols-5 mb-3">
         <Stat label="Devices in view" icon={I.HardDrive} onClick={() => act.drill({ t: 'devices', k: 'all' })} value={num(devs.length)} sub={`${devs.filter(d => d.type === 'SD-WAN').length} EC, ${devs.filter(d => d.type === 'Switch').length} sw, ${devs.filter(d => d.type === 'AP').length} AP`} />
         <Stat label="Circuits in view" icon={I.Cable} onClick={() => act.drill({ t: 'lines', k: 'all' })} value={num(cirs.length)} sub="primary + backup per branch" />
@@ -70,9 +110,9 @@ export function Inventory() {
       </div>
       <div className="mb-3"><DeviceRiskCard /></div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'recon', label: 'Reconciliation' }]} />
+        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'cmdb', label: 'CMDB' }, { id: 'recon', label: 'Reconciliation' }]} />
         <div className="flex-1" />
-        {tab !== 'recon' && tab !== 'onboarded' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
+        {tab !== 'recon' && tab !== 'onboarded' && tab !== 'cmdb' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
       </div>
       {tab === 'devices' && <Card pad={false}><div className="p-3">
         <div className="flex flex-wrap gap-2 mb-2">
@@ -98,7 +138,7 @@ export function Inventory() {
       </div></Card>}
       {tab === 'circuits' && <Card pad={false}><div className="p-3">
         <div className="flex flex-wrap gap-2 mb-2"><Select label="Carrier" value={carrier} onChange={setCarrier} options={['All', ...D.CARRIERS]} /><Select label="Status" value={cstat} onChange={setCstat} options={['All', 'Up', 'Degraded', 'Down', 'Repeat offenders']} /></div>
-        <Table pageSize={40} rows={cirRows} onRow={c => act.openBranch(c.branchId)} cols={[
+        <Table pageSize={40} rows={cirRows} onRow={c => setCir(c)} cols={[
           { key: 'id', label: 'Circuit', render: c => <span className="font-mono text-[12px] font-semibold">{c.id}</span> },
           { key: 'branch', label: 'Branch', get: c => D.BR[c.branchId].name, render: c => <div><div className="font-semibold whitespace-nowrap">{D.BR[c.branchId].name}</div><div className="text-[11px] text-ink3 truncate max-w-[150px]" title="">{D.BR[c.branchId].brand}</div></div> },
           { key: 'role', label: 'Role' }, { key: 'type', label: 'Type' }, { key: 'carrier', label: 'Carrier' },
@@ -110,14 +150,15 @@ export function Inventory() {
           { key: 'tickets90', label: 'Tickets 90d', right: true, render: c => <span className={c.tickets90 >= 3 ? 'text-bad font-bold' : ''}>{c.tickets90}</span> },
         ]} />
       </div></Card>}
-      {tab === 'onboarded' && <Card pad={false} title="Added by onboarding" sub={`${(s.invAdded || []).length} resources from the Integration studio, discovery scans and CSV imports · stored in ${s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'}`} right={<div className="flex gap-2"><Btn size="sm" icon={I.Plug} onClick={() => { act.setTab('correlation', 'sources'); act.go('correlation'); }}>Onboard more</Btn><Btn size="sm" icon={I.Database} onClick={() => { act.setTab('cmdb', 'db'); act.go('cmdb'); }}>Database</Btn></div>}>
+      {tab === 'onboarded' && <Card pad={false} title="Added by onboarding" sub={`${(s.invAdded || []).length} resources from the Integration studio, discovery scans and CSV imports · stored in ${s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'}`} right={<div className="flex gap-2"><Btn size="sm" icon={I.Plug} onClick={() => { act.setTab('correlation', 'sources'); act.go('correlation'); }}>Onboard more</Btn><SavedChip /></div>}>
         {(s.invAdded || []).length ? <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3 text-[11.5px]">{['Name', 'Kind', 'Vendor and model', 'IP address', 'Site or account', 'Template', 'Added by', 'When', ''].map(h => <th key={h} className="px-3 py-1.5 font-semibold">{h}</th>)}</tr></thead>
           <tbody>{s.invAdded.map(r => <tr key={r.id} className="border-b border-line/60 last:border-0"><td className="px-3 py-1.5 font-mono text-ink">{r.name}</td><td className="px-3 py-1.5"><Badge tone="blue">{r.kind}</Badge></td><td className="px-3 py-1.5 text-ink2">{r.vendor} · {r.model}</td><td className="px-3 py-1.5 font-mono text-ink2">{r.ip || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.site}</td><td className="px-3 py-1.5 font-mono text-[11.5px] text-ink2">{r.template || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.via}</td><td className="px-3 py-1.5 text-ink3 whitespace-nowrap">{ago(r.t)}</td><td className="px-3 py-1.5 text-right"><Btn op size="xs" icon={I.Trash2} onClick={() => { act.removeInventory(r.id); act.audit(`Removed ${r.name} from the inventory`, r.id); }}>Remove</Btn></td></tr>)}</tbody></table></div>
           : <div className="p-6 text-center text-[12.5px] text-ink3">Nothing added yet. Connect a source in the Integration studio, or run a discovery scan, and its devices appear here.</div>}
       </Card>}
+      {tab === 'cmdb' && <CmdbTab />}
       {tab === 'recon' && <Recon />}
       <Modal open={!!dev} onClose={() => setDev(null)} title={dev && <span className="font-mono">{dev.id}</span>} sub={dev && `${dev.model}, ${dev.type}, ${D.BR[dev.branchId].name}, ${D.BR[dev.branchId].brand}`} wide
-        footer={dev && <><Btn op icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open branch</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open in Branch 360</Btn></>}>
+        footer={dev && <><Btn op icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open in Branch 360</Btn></>}>
         {dev && <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div><KV k="Model" v={dev.model} /><KV k="Role / zone" v={dev.role} /><KV k="Managed by" v={dev.type === 'SD-WAN' ? 'EdgeConnect Orchestrator' : dev.mode === 'Central' ? 'Aruba Central' : 'Standalone (polled by OpsRamp; not yet in Aruba Central)'} /><KV k="Firmware" v={<span className="flex items-center gap-1.5">{dev.fw}{fwBadge(dev)}</span>} /><KV k="Target (N)" v={D.FW_TARGET[dev.type === 'AP' ? 'AP' : dev.model][0]} /><KV k="Serial / MAC" v={<span className="font-mono">{dev.serial}</span>} /><KV k={D.warrantyKind(dev)} v={D.warrantyText(dev)} /><KV k="CMDB CI" v={`cmdb_ci_netgear, ${dev.id}`} /></div>
           <div>
@@ -125,6 +166,11 @@ export function Inventory() {
             <pre className="bg-chip border border-line rounded-md p-2.5 text-[11.5px] font-mono leading-5 overflow-x-auto text-ink">{(s.drift.find(x => x.device === dev.id) ? [`  hostname ${dev.id}`, `- ntp server 10.10.1.5`, `+ ntp server 10.20.4.9`, `  vlan 20 name POS-PCI`, `  vlan 30 name WAREHOUSE-WIFI`] : [`  hostname ${dev.id}`, `  ntp server 10.10.1.5`, `  vlan 20 name POS-PCI`, `  vlan 30 name WAREHOUSE-WIFI`, `  # no drift – matches golden v41`]).map((l, i) => <div key={i} className={l.startsWith('+') ? 'text-ok' : l.startsWith('-') ? 'text-bad' : ''}>{l}</div>)}</pre>
           </div>
         </div>}
+        {dev && <CiRecord ci={dev} s={s} openCi={openCi} act={act} />}
+      </Modal>
+      <Modal open={!!cir} onClose={() => setCir(null)} title={cir && <span className="font-mono">{cir.id}</span>} sub={cir && `${cir.carrier} ${cir.type}, ${cir.role === 'Primary' ? 'main line' : 'backup line'}, ${D.BR[cir.branchId].name}`} wide
+        footer={cir && <><Btn icon={I.Layers} onClick={() => { const c = cir; setCir(null); act.drill({ t: 'circuit', id: c.id }); }}>Drill down</Btn><Btn icon={I.Store} onClick={() => { const c = cir; setCir(null); act.openBranch(c.branchId); }}>Open in Branch 360</Btn></>}>
+        {cir && <CiRecord ci={cir} s={s} openCi={openCi} act={act} circuit />}
       </Modal>
     </div>
   );

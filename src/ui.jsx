@@ -104,7 +104,7 @@ export function Modal({ open, onClose, title, sub, children, footer, wide, xwide
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[70] bg-black/40 flex items-start justify-center p-4 overflow-y-auto" onMouseDown={e => e.target === e.currentTarget && onClose()}>
-      <div className={cx('bg-panel border border-line rounded-xl shadow-2xl w-full my-6 flex flex-col', xwide ? 'max-w-[1240px]' : wide ? 'max-w-[980px]' : 'max-w-[620px]')}>
+      <div role="dialog" aria-modal="true" className={cx('bg-panel border border-line rounded-xl shadow-2xl w-full my-6 flex flex-col', xwide ? 'max-w-[1240px]' : wide ? 'max-w-[980px]' : 'max-w-[620px]')}>
         <div className="flex items-start gap-3 px-5 py-4 border-b border-line">
           <div className="flex-1 min-w-0"><h2 className="text-[17px] font-extrabold text-ink">{title}</h2>{sub && <div className="text-[12.5px] text-ink3 mt-0.5">{sub}</div>}</div>
           {right}

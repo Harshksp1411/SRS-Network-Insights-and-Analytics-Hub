@@ -1,41 +1,40 @@
-// CMDB and database: every configuration item and operational record as structured tables, the relationships
-// between CIs, and where the data is stored (this browser, or a free cloud Postgres database).
+// The CMDB inside Device & Circuit Inventory (tables of every CI and operational record, and the CI explorer with
+// relationships), and the window that says where the console's data is saved (this browser, or a free cloud
+// Postgres database).
 import React, { useMemo, useState } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
-import { useApp } from './store.jsx';
-import { Card, Badge, Btn, Stat, Tabs, PageHead, SearchBox, cx } from './ui.jsx';
+import { useApp, saveInfo } from './store.jsx';
+import { Card, Badge, Btn, Stat, Tabs, PageHead, SearchBox, Modal, cx } from './ui.jsx';
 import { TABLES, TABLE, relsOf, schemaSQL } from './cmdb.js';
-import { cloudCfg, saveCloudCfg, cloudTest, cloudUpsertRows, cloudCount, localSet, localGet } from './db.js';
+import { cloudCfg, saveCloudCfg, cloudTest, cloudUpsertRows, cloudCount, localSet, localGet, cloudWhy } from './db.js';
 import { num, ago, downloadFile } from './util.js';
 
 const CI_TABLES = ['cmdb_ci_site', 'cmdb_ci_netgear', 'cmdb_ci_circuit', 'cmdb_ci_onboarded'];
 const fmt = (v, ty) => v == null || v === '' ? '—' : ty === 'timestamptz' ? new Date(v).toISOString().slice(0, 10) : String(v);
 const toCSV = (t, rows) => [t.cols.map(c => c[0]).join(','), ...rows.map(r => t.cols.map(([c]) => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
 
-export function CMDB() {
-  const { s, act } = useApp();
-  const tab = s.tab.cmdb || 'classes', setTab = t => act.setTab('cmdb', t);
-  const data = useMemo(() => Object.fromEntries(TABLES.map(t => [t.name, t.rows(s)])), [s.incidents, s.resolved, s.changes, s.problems, s.workOrders, s.cases, s.audit, s.invAdded, s.devState, s.circuitState]);
-  const cis = CI_TABLES.reduce((a, n) => a + data[n].length, 0), ops = TABLES.filter(t => t.group === 'Operations').reduce((a, t) => a + data[t.name].length, 0);
-  const [ci, setCi] = useState(null);
-  const openCi = id => { setCi(id); setTab('explorer'); };
-  return (
-    <div>
-      <PageHead icon={I.Database} title="CMDB and database" />
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label="Configuration items" icon={I.Boxes} value={num(cis)} sub={`${num(data.cmdb_ci_netgear.length)} devices, ${num(data.cmdb_ci_circuit.length)} circuits, ${num(data.cmdb_ci_site.length)} branches, ${num(data.cmdb_ci_onboarded.length)} onboarded`} onClick={() => setTab('classes')} />
-        <Stat label="Relationships" icon={I.GitFork} value={num(data.cmdb_rel_ci.length)} sub="contains, uses, feeds, powers" onClick={() => setTab('explorer')} />
-        <Stat label="Operational records" icon={I.Table2} value={num(ops)} sub="incidents, changes, problems, work orders, cases, audit" onClick={() => setTab('classes')} />
-        <Stat label="Stored in" icon={I.HardDrive} value={s.db.mode === 'cloud' ? 'Cloud database' : 'This browser'} tone={s.db.status === 'error' ? 'red' : 'green'} sub={s.db.status === 'error' ? s.db.msg : s.db.mode === 'cloud' ? `Supabase · ${s.db.status}` : 'IndexedDB · connect a cloud database below'} onClick={() => setTab('db')} />
-      </div>
-      <Tabs value={tab} onChange={setTab} className="mb-3" tabs={[{ id: 'classes', label: 'Tables' }, { id: 'explorer', label: 'CI explorer' }, { id: 'db', label: 'Database' }]} />
-      {tab === 'classes' && <Tables data={data} openCi={openCi} />}
-      {tab === 'explorer' && <Explorer data={data} ci={ci} setCi={setCi} />}
-      {tab === 'db' && <Database data={data} />}
-    </div>
-  );
+const useCmdbData = s => useMemo(() => Object.fromEntries(TABLES.map(t => [t.name, t.rows(s)])), [s.incidents, s.resolved, s.changes, s.problems, s.workOrders, s.cases, s.audit, s.invAdded, s.devState, s.circuitState]);
+// the CMDB tab of the inventory
+export function CmdbTab() {
+  const { s } = useApp(); const data = useCmdbData(s);
+  const [v, setV] = useState('tables'); const [ci, setCi] = useState(null);
+  return (<>
+    <Tabs size="sm" value={v} onChange={setV} className="mb-3" tabs={[{ id: 'tables', label: `Tables (${TABLES.length})` }, { id: 'explorer', label: 'CI explorer' }]} />
+    {v === 'tables' ? <Tables data={data} openCi={id => { setCi(id); setV('explorer'); }} /> : <Explorer data={data} ci={ci} setCi={setCi} />}
+  </>);
 }
+// a small indicator: the console saves itself; click for where and how
+export function SavedChip() {
+  const { s, act } = useApp();
+  return <button onClick={() => act.set({ storageOpen: true })} title="Where the console's data is saved" className="h-8 px-2.5 rounded-md border border-line bg-panel hover:bg-chip text-[12px] text-ink2 inline-flex items-center gap-1.5"><I.CloudCheck size={14} className={s.db.status === 'error' ? 'text-bad' : 'text-ok'} />{s.db.status === 'error' ? 'Not saved to the cloud' : `Saved ${saveInfo.t ? ago(saveInfo.t) : 'automatically'}`} · {s.db.mode === 'cloud' ? 'cloud database' : 'this browser'}</button>;
+}
+export function StorageModal() {
+  const { s, act } = useApp();
+  if (!s.storageOpen) return null;
+  return <Modal open onClose={() => act.set({ storageOpen: false })} title="Where the console's data is saved" sub="Everything you do is saved automatically and comes back after a refresh" wide><StorageBody /></Modal>;
+}
+function StorageBody() { const { s } = useApp(); const data = useCmdbData(s); return <Database data={data} />; }
 
 function Tables({ data, openCi }) {
   const [sel, setSel] = useState('cmdb_ci_netgear');
@@ -102,7 +101,7 @@ function Database({ data }) {
     const c = { url: url.trim(), key: key.trim() }; if (!c.url || !c.key) { act.toast('Enter the project URL and the anon key', 'warn'); return; }
     setBusy('test');
     try { await cloudTest(c); saveCloudCfg(c); setDb({ mode: 'cloud', status: 'ok', url: c.url, msg: null }); act.audit('Connected the console to the cloud database (Supabase)', 'db'); act.toast('Connected to the cloud database'); }
-    catch (e) { setDb({ status: 'error', msg: `Could not connect: ${e.message}. Run the schema SQL first, and check the URL and key.` }); act.toast(`Could not connect: ${e.message}`, 'bad'); }
+    catch (e) { setDb({ status: 'error', msg: `Could not connect: ${cloudWhy(e.message)}.` }); act.toast(`Could not connect: ${cloudWhy(e.message)}`, 'bad'); }
     setBusy(null);
   };
   const disconnect = () => { saveCloudCfg(null); setDb({ mode: 'local', status: 'ok', msg: null }); act.toast('Disconnected: data is kept in this browser'); };
@@ -112,7 +111,7 @@ function Database({ data }) {
       for (const t of TABLES) { setProg(p => ({ ...p, [t.name]: 0 })); await cloudUpsertRows(c, t.name, data[t.name], n => setProg(p => ({ ...p, [t.name]: n }))); }
       const cs = {}; for (const t of TABLES) cs[t.name] = await cloudCount(c, t.name); setCounts(cs);
       setDb({ status: 'ok', last: Date.now() }); act.audit(`Synced ${TABLES.length} tables to the cloud database`, 'db'); act.toast('All tables synced to the cloud database');
-    } catch (e) { setDb({ status: 'error', msg: e.message }); act.toast(`Sync stopped: ${e.message}`, 'bad'); }
+    } catch (e) { setDb({ status: 'error', msg: cloudWhy(e.message) }); act.toast(`Sync stopped: ${cloudWhy(e.message)}`, 'bad'); }
     setBusy(null);
   };
   const saveLocal = async () => { setBusy('local'); for (const t of TABLES) await localSet(`table:${t.name}`, data[t.name]); const v = await localGet(`table:cmdb_ci_netgear`); setSnap({ t: Date.now(), n: (v || []).length }); setBusy(null); act.toast('Snapshot of every table saved in this browser'); };
@@ -121,10 +120,10 @@ function Database({ data }) {
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3">
       <Card title="Where the data is stored" icon={I.HardDrive}>
         <div className="space-y-3 text-[12.5px]">
-          <div className={cx('rounded-md border px-3 py-2', s.db.mode === 'local' ? 'border-ink' : 'border-line')}><b className="text-ink">This browser (IndexedDB)</b><p className="text-ink2">Always on. Onboarded resources, connected sources and scans are saved here and come back after a reload. Each browser keeps its own copy.</p>
+          <div className={cx('rounded-md border px-3 py-2', s.db.mode === 'local' ? 'border-ink' : 'border-line')}><b className="text-ink">This browser (IndexedDB)</b><p className="text-ink2">Always on. The whole console is saved here a moment after anything changes: onboarding, approvals, notes, work orders, changes, cases, settings and the page you were on. After a refresh it comes back; the live incident picture comes back if it was saved in the last 12 hours. Each browser keeps its own copy.</p>
             <div className="flex items-center gap-2 mt-1.5"><Btn size="sm" icon={I.Save} onClick={saveLocal} disabled={!!busy}>Save a snapshot of all {TABLES.length} tables</Btn>{snap && <span className="text-ink3">saved {ago(snap.t)}, {num(snap.n)} devices read back</span>}</div></div>
-          <div className={cx('rounded-md border px-3 py-2', s.db.mode === 'cloud' ? 'border-ink' : 'border-line')}><b className="text-ink">Cloud database (Supabase, free tier)</b><p className="text-ink2">A hosted Postgres database everyone can share. Create a free project at supabase.com, run the schema SQL in its SQL editor, then paste the project URL and the anon key here. The key stays in this browser.</p>
-            <div className="grid grid-cols-1 gap-1.5 mt-1.5"><input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-project.supabase.co" className="h-8 px-2 rounded-md border border-line bg-canvas text-ink text-[12.5px]" /><input value={key} onChange={e => setKey(e.target.value)} placeholder="anon public key" type="password" className="h-8 px-2 rounded-md border border-line bg-canvas text-ink text-[12.5px]" /></div>
+          <div className={cx('rounded-md border px-3 py-2', s.db.mode === 'cloud' ? 'border-ink' : 'border-line')}><b className="text-ink">Cloud database (Supabase, free tier)</b><p className="text-ink2">A hosted Postgres database everyone can share. Create a free project at supabase.com, run the schema SQL in its SQL editor, then paste the project URL and the anon key here. The console then saves itself there too, and the tables can be synced. The key stays in this browser.</p>
+            <div className="grid grid-cols-1 gap-1.5 mt-1.5"><input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://your-project.supabase.co" className="h-8 px-2 rounded-md border border-line bg-canvas text-ink text-[12.5px]" /><input value={key} onChange={e => setKey(e.target.value)} placeholder="anon or publishable key" type="password" className="h-8 px-2 rounded-md border border-line bg-canvas text-ink text-[12.5px]" /></div>
             <div className="flex flex-wrap items-center gap-2 mt-2">{s.db.mode === 'cloud' ? <><Btn size="sm" kind="brand" icon={I.UploadCloud} onClick={syncAll} disabled={!!busy}>{busy === 'sync' ? 'Syncing…' : `Sync all ${TABLES.length} tables (${num(total)} rows)`}</Btn><Btn size="sm" icon={I.Unplug} onClick={disconnect}>Disconnect</Btn></> : <Btn size="sm" kind="brand" icon={I.PlugZap} onClick={connect} disabled={!!busy}>{busy === 'test' ? 'Testing…' : 'Test and connect'}</Btn>}
               {s.db.status === 'error' && <span className="text-bad">{s.db.msg}</span>}{s.db.mode === 'cloud' && s.db.status === 'ok' && <span className="text-ok inline-flex items-center gap-1"><I.CheckCircle2 size={13} />connected{s.db.last ? `, last sync ${ago(s.db.last)}` : ''}</span>}</div></div>
           <div><button onClick={() => setSql(v => !v)} className="text-[12.5px] font-semibold text-ink hover:underline">{sql ? 'Hide' : 'Show'} the schema SQL ({TABLES.length} tables)</button>

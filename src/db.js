@@ -22,6 +22,8 @@ export async function localSet(k, v) {
 // ── the cloud database (Supabase) ──
 export const cloudCfg = () => { try { const c = JSON.parse(localStorage.getItem(CFG_KEY) || 'null'); return c && c.url && c.key ? c : null; } catch { return null; } };
 export const saveCloudCfg = c => { try { c ? localStorage.setItem(CFG_KEY, JSON.stringify(c)) : localStorage.removeItem(CFG_KEY); } catch { } };
+// a plain reason when the cloud cannot be used
+export const cloudWhy = m => /Could not find the table|PGRST205/.test(m || '') ? 'The cloud database has no tables yet: run the schema SQL in its SQL editor' : /Invalid API key|JWT|401/.test(m || '') ? 'The cloud database refused the key' : /Failed to fetch|NetworkError/.test(m || '') ? 'The cloud database could not be reached' : m;
 const base = (c, table = 'cmdb_ci_onboarded') => `${c.url.replace(/\/+$/, '')}/rest/v1/${table}`;
 const hdr = (c, extra = {}) => ({ apikey: c.key, Authorization: `Bearer ${c.key}`, 'Content-Type': 'application/json', ...extra });
 async function call(c, path, opt = {}, table) {
@@ -45,4 +47,7 @@ export async function cloudCount(c, table) {
   if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
   const m = (r.headers.get('content-range') || '').match(/\/(\d+)/); return m ? +m[1] : 0;
 }
+// the whole console as one saved document, so a refresh (or another browser on the same cloud database) picks up where it was
+export const cloudGetState = async c => { const r = await call(c, '?id=eq.default&select=*', {}, 'console_state'); return r && r[0] ? { savedAt: Date.parse(r[0].saved_at), data: r[0].data } : null; };
+export const cloudPutState = (c, snap) => call(c, '', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: 'default', saved_at: new Date(snap.savedAt).toISOString(), data: snap.data }]) }, 'console_state');
 export { schemaSQL as SQL } from './cmdb.js';
