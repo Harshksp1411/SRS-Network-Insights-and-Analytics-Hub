@@ -59,12 +59,13 @@ A fourth link with the same live data, laid out like the HPE OpsRamp product.
 - a grouped left menu that collapses to icons, where every item's name is the page's title, with breadcrumbs;
 - HPE green throughout.
 
-**Menu:**
+**Menu,** in the order the work happens:
 
 | Group | Pages |
 |---|---|
-| Infrastructure | Resources (devices, circuits, onboarding, CMDB), Integration studio (studio, device onboarding, sources), Policies and rules |
-| Alerts | Alert Browser, Correlation (the OpsQ workflow), Operations Copilot |
+| Integrations | Integration studio (studio, device onboarding, sources) |
+| Infrastructure | Asset inventory (devices, circuits, onboarding, CMDB), Policies and rules |
+| Alerts | Correlation (the OpsQ workflow), Alert Browser, Operations Copilot |
 | Insights | Predictive insights |
 | Patch & Vulnerability | Patch and vulnerability |
 | Automation | Process automation, Knowledge base |
