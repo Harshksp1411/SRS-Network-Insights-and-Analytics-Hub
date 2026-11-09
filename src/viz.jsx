@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
 import { useRuleDrafts, draftFromText, SEED_RULES } from './ruledrafts.jsx';
+import { ProactActions, ProactTrail, AutoTicket } from './proact.jsx';
 import * as D from './data.js';
 import * as P from './predict.js';
 import { useApp, useNow, slaClock, inScope, healthOf } from './store.jsx';
@@ -186,10 +187,14 @@ export function BackupTrendCard() {
 }
 export function DeviceRiskCard() {
   const { act } = useApp(); const rows = useMemo(() => P.deviceRisk(), []); const rd = useRuleDrafts();
-  const [done, setDone] = useState({});
+  const items = useMemo(() => rows.map(r => { const [a, c] = r.action.split(';').map(x => x.trim()); return { key: `dev:${r.id}`, b: r.b, type: r.d.type, ci: r.id, title: `${r.d.model} ${r.id} likely to fail in 30 days`, why: r.why, p: r.p, plan: [`Asked the depot to ${a.charAt(0).toLowerCase() + a.slice(1)}`, c ? c.charAt(0).toUpperCase() + c.slice(1) : 'Swap it after branch close'] }; }), [rows]);
+  const draft = r => { const seed = SEED_RULES.find(x => r.why.toLowerCase().includes(x.name.split(' ')[1].toLowerCase())) || null; const d = { ...(seed || draftFromText(`${r.why} on ${r.d.model}, raise a P4`, (rd.list.length || 0) + 1)), id: seed ? seed.id : `RD-${300 + rd.list.length}`, from: `Learned from ${r.id} and devices like it: ${r.why}`, status: 'Draft', t: Date.now() }; rd.add(d); act.toast(`OpsQ drafted ${d.id}: review it in Policies and rules`); };
   return (
-    <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age. Click a row to drill in." right={<Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('policies', 'drafts'); act.go('policies'); }}>Rules drafted by OpsQ</Btn>}>
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} onClick={() => act.drill({ t: 'device', id: r.id })} title="Drill down" className="flex items-center gap-3 py-1.5 text-[12.5px] cursor-pointer hover:bg-chip/50 rounded px-1"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span><span onClick={e => e.stopPropagation()} className="flex gap-1">{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}<Btn op size="xs" icon={I.Wand2} onClick={() => { const seed = SEED_RULES.find(x => r.why.toLowerCase().includes(x.name.split(' ')[1].toLowerCase())) || null; const d = { ...(seed || draftFromText(`${r.why} on ${r.d.model}, raise a P4`, (rd.list.length || 0) + 1)), id: seed ? seed.id : `RD-${300 + rd.list.length}`, from: `Learned from ${r.id} and devices like it: ${r.why}`, status: 'Draft', t: Date.now() }; rd.add(d); act.toast(`OpsQ drafted ${d.id}: review it in Policies and rules`); }}>Draft a rule</Btn></span></div>)}</div>
+    <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age. Click a row to drill in." right={<><AutoTicket id="hw" items={items} th={0.6} /><Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('policies', 'drafts'); act.go('policies'); }}>Rules drafted by OpsQ</Btn></>}>
+      <div className="divide-y divide-line/70">{rows.map((r, k) => <div key={r.id} onClick={() => act.drill({ t: 'device', id: r.id })} title="Drill down" className="py-1.5 text-[12.5px] cursor-pointer hover:bg-chip/50 rounded px-1">
+        <div className="flex items-center gap-3"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>
+          <ProactActions it={items[k]} extra={<Btn op size="xs" icon={I.Wand2} onClick={() => draft(r)}>Draft a rule</Btn>} /></div>
+        <ProactTrail it={items[k]} /></div>)}</div>
     </Card>
   );
 }
@@ -211,9 +216,13 @@ export function CarrierHeatCard() {
 export function CarrierForecastCard() {
   const { act } = useApp(); const rows = P.carrierFaultForecast();
   const [done, setDone] = useState({});
+  const items = useMemo(() => rows.map(r => ({ key: `line:${r.b.id}`, b: r.b, type: 'line', ci: r.b.wan[0], title: `${r.carrier} line at ${r.b.name} likely to fail in ${r.when}`, why: r.why, p: r.p, plan: [`Checked the backup line at ${r.b.name} is ready to take the traffic`, `Steer to the backup line before the window`] })), []);
+  const raise = r => { setDone(d => ({ ...d, [r.b.id]: true })); const no = D.caseNo(r.carrier); act.add('cases', { id: no, carrier: r.carrier, circuit: r.b.wan[0], inc: null, branchId: r.b.id, opened: Date.now(), status: 'Open – proactive (pre-failure)', eta: Date.now() + 24 * HR, lastUpdate: Date.now(), evidence: ['Trend graph', 'Prior outage signature'], escal: 0 }); act.audit(`Proactive ${r.carrier} case ${no} for ${r.b.name}`, no); act.toast(`Proactive case ${no} opened`); };
   return (
-    <Card title="Circuits likely to fail this week" sub="Raise a proactive case while the branch is still on its primary path">
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.b.id} className="py-2 flex items-start gap-3 text-[12.5px]"><span className="w-10 pt-0.5"><Pct p={r.p} /></span><div className="flex-1 min-w-0"><span className="font-semibold text-ink">{r.b.name}</span> <span className="text-ink3">{r.carrier}, {r.when}</span><div className="text-ink2">{r.why}</div></div>{done[r.b.id] ? <Badge tone="green">Case open</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.b.id]: true })); const no = D.caseNo(r.carrier); act.add('cases', { id: no, carrier: r.carrier, circuit: r.b.wan[0], inc: null, branchId: r.b.id, opened: Date.now(), status: 'Open – proactive (pre-failure)', eta: Date.now() + 24 * HR, lastUpdate: Date.now(), evidence: ['Trend graph', 'Prior outage signature'], escal: 0 }); act.audit(`Proactive ${r.carrier} case ${no} for ${r.b.name}`, no); act.toast(`Proactive case ${no} opened`); }}>{r.act === 'Watch' ? 'Watch' : 'Raise case'}</Btn>}</div>)}</div>
+    <Card title="Circuits likely to fail this week" sub="Raise a proactive case while the branch is still on its primary path" right={<AutoTicket id="lines" items={items} th={0.6} />}>
+      <div className="divide-y divide-line/70">{rows.map((r, k) => <div key={r.b.id} className="py-2 text-[12.5px]"><div className="flex items-start gap-3"><span className="w-10 pt-0.5"><Pct p={r.p} /></span><div className="flex-1 min-w-0"><button onClick={() => act.drill({ t: 'branch', id: r.b.id })} className="font-semibold text-ink hover:underline">{r.b.name}</button> <span className="text-ink3">{r.carrier}, {r.when}</span><div className="text-ink2">{r.why}</div></div>
+        <ProactActions it={items[k]} extra={done[r.b.id] ? <Badge tone="green">Carrier case open</Badge> : <Btn op size="xs" onClick={() => raise(r)}>{r.act === 'Watch' ? 'Watch' : 'Raise carrier case'}</Btn>} /></div>
+        <ProactTrail it={items[k]} /></div>)}</div>
     </Card>
   );
 }

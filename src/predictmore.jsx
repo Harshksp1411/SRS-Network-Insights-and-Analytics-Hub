@@ -8,6 +8,7 @@ import { useApp, useNow, healthOf } from './store.jsx';
 import { Card, Badge, Btn, Tabs, cx } from './ui.jsx';
 import { Bars, Legend, C } from './charts.jsx';
 import * as HIST from './history.js';
+import { ProactActions, ProactTrail, AutoTicket } from './proact.jsx';
 import { num, DAY, HR } from './util.js';
 
 const rnd = (a, n) => a + Math.floor(Math.random() * n);
@@ -45,16 +46,17 @@ export function BranchRiskCard() {
   const { s, act } = useApp(); const A = useActs();
   const rows = useMemo(() => branchRisk(s), [s.incidents, s.drift]);
   const top = rows.slice(0, 12), high = rows.filter(r => r.score >= 40).length;
+  const items = top.map(r => ({ key: `br:${r.b.id}`, b: r.b, type: 'branch', ci: `${r.b.code}-ec01`, title: `${r.b.name} likely to have a problem next`, why: r.parts.slice(0, 3).map(x => x[0]).join(', ') || 'Several risk signals at once', p: r.score / 100, plan: [`Ran the health checks at ${r.b.name} and attached them to the ticket`, `Prevent: ${r.parts[0] ? r.parts[0][0].toLowerCase() : 'risk'} at ${r.b.name}`] }));
   return (
-    <Card className="fit-row" title="Branches most likely to have a problem next" sub={`${high} branches score 40 or more out of 99, from line history, backup health, CVEs, legacy kit, config drift, open incidents and capacity`} icon={I.Radar} pad={false}>
+    <Card className="fit-row" title="Branches most likely to have a problem next" sub={`${high} branches score 40 or more out of 99, from line history, backup health, CVEs, legacy kit, config drift, open incidents and capacity`} icon={I.Radar} pad={false} right={<AutoTicket id="branches" items={items} th={0.45} />}>
       <div className="divide-y divide-line/70">{top.map((r, k) => (
-        <div key={r.b.id} className="px-4 py-2 flex items-center gap-3 text-[12.5px] hover:bg-chip/40">
+        <div key={r.b.id} className="px-4 py-2 text-[12.5px] hover:bg-chip/40"><div className="flex items-center gap-3">
           <span className="w-5 text-ink3 tabular-nums">{k + 1}</span>
           <button onClick={() => act.drill({ t: 'branch', id: r.b.id })} className="w-[230px] shrink-0 text-left min-w-0"><b className="block text-ink truncate hover:underline">{r.b.name}</b><span className="block text-[11px] text-ink3 truncate">{r.b.brand} · {r.b.region}</span></button>
           <span className="w-28 shrink-0"><span className="block h-2 rounded bg-chip overflow-hidden"><span className="block h-2 rounded" style={{ width: `${r.score}%`, background: r.score >= 60 ? C.bad : r.score >= 40 ? C.warn : C.s1 }} /></span><span className="text-[11px] text-ink3 tabular-nums">risk {r.score}</span></span>
           <span className="flex-1 min-w-0 flex flex-wrap gap-1">{r.parts.slice(0, 3).map(([t]) => <span key={t} className="text-[11px] rounded border border-line px-1.5 py-[1px] text-ink2">{t}</span>)}</span>
-          <Btn op size="xs" icon={I.ShieldCheck} onClick={() => A.approve(`Prevent: ${r.parts[0] ? r.parts[0][0].toLowerCase() : 'risk'} at ${r.b.name}`, r.b.id)}>Prevent</Btn>
-        </div>))}</div>
+          <ProactActions it={items[k]} /></div>
+          <ProactTrail it={items[k]} /></div>))}</div>
     </Card>
   );
 }
