@@ -65,6 +65,23 @@ Three views: **Live now** (what is happening right now: who is down, what is due
 
 The accounts are demo accounts shown on the sign-in screen: the page is static with sample data, so the sign-in shows how access is split by role; it is not a security control. Roles, their access and their insights are in `src/dash/personas.js`; each insight is an Ask Mova iO question, so the dashboards, the PDF export and the console agree.
 
+## CMDB and database
+
+**CMDB & Database** (Manage) holds the console's data as 11 structured tables, each with typed columns:
+- **CMDB:** branches (`cmdb_ci_site`), network devices (`cmdb_ci_netgear`), circuits (`cmdb_ci_circuit`), resources added by onboarding (`cmdb_ci_onboarded`) and CI relationships (`cmdb_rel_ci`: contains, uses, feeds, powers).
+- **Operations:** incidents, changes, problems, work orders, carrier cases and the audit log.
+
+The page has three tabs:
+- **Tables:** browse and search each table, with CSV export.
+- **CI explorer:** a CI's attributes, its upstream and downstream relationships, and its incidents.
+- **Database:** where the data is stored.
+
+**Onboarding feeds the inventory.** Connecting a source in the Integration studio, or adding devices from a discovery scan or CSV import, adds records to Device & Circuit Inventory → *Added by onboarding* and to the CMDB.
+
+**Storage:**
+- **This browser (IndexedDB):** always on, so onboarding survives a reload.
+- **A free Supabase Postgres project (optional):** run the schema SQL from the Database tab in the Supabase SQL editor, then paste the project URL and the anon key (they are kept in the browser only). *Sync all tables* writes every table, and new onboarding is written as it happens. The schema's policy is for demos only: anyone with the anon key can read and write.
+
 ## Ask Mova iO
 
 The assistant in the console header answers from the same live data as every screen: stores down or degraded, backup ISP, root cause by layer (network, ISP or application), changes and drift, NetFlow top talkers, flapping circuits and carrier SLA credits, auto-remediation, uptime and MTTR against target, capacity in the next 90 days, a copyable leadership summary, and any branch, incident, change, approval, work order, runbook, article, prediction, project, device, circuit, advisory or SLA metric by number. "Start here" lists the questions in walkthrough order. Questions can be typed in your own words and with typos ("why was 214 slow", "what got fixed automatically this week", "brach degarded"); a bare number names a branch.

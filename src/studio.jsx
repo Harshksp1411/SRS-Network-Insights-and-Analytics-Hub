@@ -7,7 +7,7 @@ import * as D from './data.js';
 import { useApp } from './store.jsx';
 import { Card, Badge, Btn, Logo, cx } from './ui.jsx';
 import { num } from './util.js';
-import { stepsOf, tplId, templateOf, isDesk } from './srctpl.js';
+import { stepsOf, tplId, templateOf, isDesk, resourcesFor } from './srctpl.js';
 import { VENDORS } from './policies.js';
 
 const cnt = f => D.DEVICES.filter(f).length;
@@ -67,6 +67,14 @@ export function connectedTemplates(s) {
 }
 const STEPS_ACQ = [['Gateway at the site', I.Server], ['Discover legacy kit', I.Radar], ['Generic and vendor templates', I.LayoutTemplate], ['Topology', I.Network], ['ServiceNow CMDB', I.Database], ['Monitored, day one', I.CircleCheck]];
 
+// the legacy kit and lines found at an acquired site, as inventory records
+function acqResources(p) {
+  if (!p) return [];
+  const out = [], now = Date.now();
+  (p.legacy || []).forEach((l, k) => { const name = String(l[0]).replace(/\s*×\d+.*$/, ''), n = +((String(l[0]).match(/×(\d+)/) || [])[1]) || 1; for (let i = 0; i < n; i++) out.push({ id: `${p.id}-${k}-${i + 1}`, name: `${p.id.toLowerCase()}-${name.replace(/[^A-Za-z0-9]+/g, '').toLowerCase().slice(0, 10)}-${String(i + 1).padStart(2, '0')}`, kind: 'Legacy device', vendor: name.split(' ')[0], model: name, ip: `10.${70 + k}.1.${10 + i}`, site: `${p.brand} – ${p.site}`, source: 'Acquired site discovery', template: 'Generic SNMP', via: 'Integration studio', t: now }); });
+  (p.carriers || []).forEach((c, k) => out.push({ id: `${p.id}-line-${k + 1}`, name: `${p.id.toLowerCase()}-wan${k + 1}`, kind: 'Circuit', vendor: String(c).split(' ')[0], model: String(c).replace(/\s*\(.*\)$/, ''), ip: null, site: `${p.brand} – ${p.site}`, source: 'Acquired site discovery', template: 'TPL-CIR', via: 'Integration studio', t: now }));
+  return out;
+}
 export function IntegrationStudio() {
   const { s, act } = useApp();
   const conn = new Set([...SRC.filter(x => x[3]).map(x => x[0]), ...(s.studioConnected || [])]);
@@ -92,6 +100,9 @@ export function IntegrationStudio() {
         clearInterval(tm.current);
         if (r.kind === 'src') act.set(st => ({ studioConnected: [...new Set([...(st.studioConnected || []), r.id])] }));
         else act.set(st => ({ studioOnboarded: [...new Set([...(st.studioOnboarded || []), r.id])] }));
+        // what the connection found goes into the inventory (and the database)
+        const recs = r.kind === 'src' ? resourcesFor(r.id, r.name, (SRC.find(x => x[0] === r.id) || [])[2], r.found) : acqResources(acq.find(x => x.id === r.id));
+        act.addInventory(recs); r = { ...r, added: recs };
         act.audit(`${r.kind === 'src' ? 'Connected to OpsRamp' : 'Onboarded to OpsRamp monitoring'}: ${r.name}`, r.id);
         act.toast(`${r.name}: ${r.kind === 'src' ? 'connected' : 'monitored from day one'}`);
       }
@@ -125,6 +136,7 @@ export function IntegrationStudio() {
             <div className="mx-auto w-16 h-16 rounded-full bg-[#263040] grid place-items-center ring-4 ring-brand/30"><Logo k="opsramp" h={14} className="!border-0" /></div>
             <div className="text-[14px] font-bold text-ink mt-2">{busy ? `Connecting ${run.name}` : 'Drop a source or a branch here'}</div>
             <div className="text-[11.5px] text-ink3">{busy ? `${run.step} of ${run.steps.length}` : 'or press Connect'}</div>
+            <button onClick={() => { act.setTab('cmdb', 'db'); act.go('cmdb'); }} className="mt-2 inline-flex items-center gap-1 text-[11.5px] text-ink2 hover:underline"><I.Database size={12} />Saved to {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'} · {num((s.invAdded || []).length)} in inventory</button>
           </div>
           {run && <div className="mt-3 rounded-lg border border-line p-3">
             <div className="flex items-center gap-2 mb-2"><b className="text-[13px] text-ink flex-1 truncate">{run.name}</b>{run.step >= run.steps.length ? <Badge tone="green">{run.kind === 'src' ? 'Connected' : 'Monitored'}</Badge> : <Badge tone="blue">Running</Badge>}</div>
@@ -136,6 +148,11 @@ export function IntegrationStudio() {
                 {st === 'done' && run.kind === 'src' && run.steps[i][2] && <span className="text-[11.5px] text-ink2 text-right truncate max-w-[60%]" title={run.steps[i][2]}>{run.steps[i][2]}</span>}
                 {st === 'done' && run.kind === 'acq' && i === 1 && <span className="text-[11.5px] text-ink2 tabular-nums">{run.found} found</span>}
               </li>); })}</ol>
+            {run.step >= run.steps.length && run.added && (run.added.length ? <div className="mt-3 border-t border-line pt-2">
+              <div className="flex items-center gap-2 text-[12.5px] mb-1"><I.Database size={13} className="text-ink2" /><b className="text-ink">{run.added.length} added to the inventory</b><span className="text-ink3">and stored in {s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'}</span></div>
+              <ul className="text-[12px] space-y-0.5">{run.added.slice(0, 5).map(x => <li key={x.id} className="flex gap-2"><span className="font-mono text-ink truncate">{x.name}</span><span className="text-ink3 truncate">{x.model} · {x.site}</span></li>)}{run.added.length > 5 && <li className="text-ink3">and {run.added.length - 5} more</li>}</ul>
+              <Btn size="sm" className="mt-2" icon={I.Boxes} onClick={() => { act.setTab('inventory', 'onboarded'); act.go('inventory'); }}>Open in inventory</Btn>
+            </div> : <div className="mt-3 text-[12px] text-ink3">No new resources: this connection carries tickets or notices, not devices.</div>)}
             {run.step >= run.steps.length && <div className="flex gap-2 mt-3">{run.kind === 'acq' ? <Btn size="sm" icon={I.PackageCheck} onClick={() => act.go('biab')}>Open Branch-in-a-Box</Btn> : (run.desk ? <Btn size="sm" icon={I.Ticket} onClick={() => { act.setTab('correlation', 'live'); act.go('correlation'); }}>See tickets flow</Btn> : <Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('polTpl', run.tpl); act.setTab('policies', 'templates'); act.go('policies'); }}>See its template{run.tpl ? ` (${run.tpl})` : ''}</Btn>)}</div>}
           </div>}
         </div>

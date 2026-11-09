@@ -69,3 +69,30 @@ export function templateOf(id, n) {
 }
 export const isDesk = id => !!DESKS[id];
 export const deskOf = id => DESKS[id];
+
+// ── what a source adds to the inventory when it is connected ──
+// cloud accounts add resources, monitoring tools add the services they watch, servers and storage add hardware,
+// other vendors add their devices at the acquired sites. Service desks and carriers add no new resources.
+const pick = (a, i) => a[i % a.length];
+const ACQ_SITES = ['LS Building Products – Peoria, IL', "Mingledorff's – Norcross, GA", 'Lohmiller & Company – Denver, CO', 'Wave 2 – Savannah, GA', 'Wave 2 – Macon, GA'];
+export function resourcesFor(id, name, cat, n) {
+  const t = tplId(id), now = Date.now(), N = Math.max(0, Math.min(n || 0, 80));
+  const R = (i, o) => ({ id: `${id}-${String(i + 1).padStart(3, '0')}`, source: name, template: t, via: 'Integration studio', t: now, ...o });
+  if (CLOUD[id]) {
+    const c = CLOUD[id], kinds = c.models, reg = c.regions.split(' · ')[0].split(',')[0];
+    return Array.from({ length: N || 6 }, (_, i) => { const k = pick(kinds, i); return R(i, { name: `${id}-${reg.trim().replace(/\s+/g, '').toLowerCase()}-${k.replace(/[^A-Za-z]/g, '').toLowerCase().slice(0, 6)}-${String(i + 1).padStart(2, '0')}`, kind: 'Cloud resource', vendor: c.name, model: k, ip: `172.${16 + (i % 8)}.${10 + i}.${20 + i}`, site: `${c.name.split(' ')[0]} · ${reg.trim()}` }); });
+  }
+  if (TOOLS[id]) {
+    const svc = ['ERP order entry', 'ERP inventory', 'Pricing and quoting', 'Card payment gateway', 'Customer portal', 'Branch voice'];
+    return svc.map((x, i) => R(i, { name: `${TOOLS[id][0]}: ${x}`, kind: 'Application service', vendor: TOOLS[id][0], model: TOOLS[id][1], ip: null, site: 'Primary DC and Azure' }));
+  }
+  if (HW[id]) {
+    const m = { proliant: ['ProLiant DL380 Gen11', 'dl380'], alletra: ['Alletra 6000', 'alt6k'], simplivity: ['SimpliVity 380', 'svt'], airwave: ['AirWave appliance', 'awv'], cnx: ['CNX-managed switch', 'cnx'] }[id] || ['Device', id];
+    return Array.from({ length: N || 2 }, (_, i) => R(i, { name: `dc${(i % 2) + 1}-${m[1]}-${String(i + 1).padStart(2, '0')}`, kind: /ProLiant/.test(m[0]) ? 'Server' : /Alletra|SimpliVity/.test(m[0]) ? 'Storage' : 'Network device', vendor: 'HPE', model: m[0], ip: `10.10.${40 + (i % 4)}.${11 + i}`, site: i % 2 ? 'DC2 – Atlanta' : 'DC1 – McKinney, TX' }));
+  }
+  if (cat === 'Other network vendors') {
+    const m = { cat9k: ['Catalyst 9300', 'c9300', 'Switch'], meraki: ['Meraki MR46', 'mr46', 'AP'], juniper: ['Juniper EX2300', 'ex2300', 'Switch'], forti: ['FortiGate 60F', 'fg60f', 'Firewall'], arista: ['Arista 720XP', 'a720', 'Switch'], extreme: ['Extreme X435', 'x435', 'Switch'], infoblox: ['Infoblox NIOS', 'ibx', 'DDI appliance'], palo: ['PA-440', 'pa440', 'Firewall'], snmp: ['SNMP device', 'snmp', 'Device'] }[id] || ['Device', id, 'Device'];
+    return Array.from({ length: N || 4 }, (_, i) => { const site = pick(ACQ_SITES, Math.floor(i / 6)); return R(i, { name: `acq${Math.floor(i / 6) + 1}-${m[1]}-${String((i % 6) + 1).padStart(2, '0')}`, kind: m[2], vendor: name, model: m[0], ip: `10.${61 + Math.floor(i / 6)}.4.${21 + (i % 6)}`, site }); });
+  }
+  return [];
+}

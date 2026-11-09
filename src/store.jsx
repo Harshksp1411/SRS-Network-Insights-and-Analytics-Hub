@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState, useMemo, useRef } from 'react';
 import * as D from './data.js';
 import { parts, pad, MIN, HR, uid, tzAbbr } from './util.js';
+import { localGet, localSet, cloudCfg, cloudLoad, cloudUpsert, cloudDelete } from './db.js';
 
 // `org` decides who may act: Movate roles carry out actions; SRS roles see everything and escalate to Movate.
 // The SRS field technician also records the onsite work in the work pack Movate sends (steps, photos, readings).
@@ -44,6 +45,7 @@ function init() {
       { t: Date.now() - 200 * MIN, who: 'Kevin T. (NOC Engineer)', what: `Approved RB-102 return to primary at ${(D.findBranch('Mobile') || D.BRANCHES[0]).name} (after 30 clean minutes)`, ref: '' },
     ],
     escalations: loadEsc(), escalating: null, dashUser: null,
+    invAdded: [], db: { mode: 'local', status: 'loading', rows: 0 }, dbReady: false, // resources added by onboarding, and where they are stored
     drill: [], // the drill-down panel: a stack of levels, from a tile or chart down to one branch, line, device or incident
     toasts: [], selInc: null, selBranch: null, askOpen: false, askLog: [], scenario: null, scenarioLog: [], notif: 3, wizard: false, guide: false,
   };
@@ -120,10 +122,30 @@ export function AppProvider({ children }) {
       escalationReply: (id, text) => { const cur = sRef.current.escalations.map(x => x.id === id ? { ...x, status: 'Answered', reply: { t: Date.now(), who: A.me(), text } } : x); saveEsc(cur); d({ type: 'set', patch: { escalations: cur } }); A.audit(`Answered SRS escalation ${id}`, id); A.toast(`Reply sent to SRS on ${id}`); },
       openBranch: id => d({ type: 'set', patch: { module: 'b360', b360: id, selInc: null, selBranch: null } }),
       setTab: (mod, tab) => d({ type: 'set', patch: st => ({ tab: { ...st.tab, [mod]: tab } }) }),
+      // onboarding adds resources to the inventory; they are saved in this browser and, when connected, in the cloud database
+      addInventory: recs => {
+        if (!recs.length) return;
+        d({ type: 'set', patch: st => { const m = new Map((st.invAdded || []).map(r => [r.id, r])); recs.forEach(r => m.set(r.id, r)); return { invAdded: [...m.values()].sort((a, b) => b.t - a.t) }; } });
+        const c = cloudCfg();
+        if (c) { d({ type: 'set', patch: st => ({ db: { ...st.db, status: 'syncing' } }) }); cloudUpsert(c, recs).then(() => d({ type: 'set', patch: st => ({ db: { ...st.db, mode: 'cloud', status: 'ok', rows: (st.invAdded || []).length, last: Date.now() } }) })).catch(e => d({ type: 'set', patch: st => ({ db: { ...st.db, status: 'error', msg: e.message } }) })); }
+      },
+      removeInventory: id => { d({ type: 'del', key: 'invAdded', id }); const c = cloudCfg(); if (c) cloudDelete(c, id).catch(e => d({ type: 'set', patch: st => ({ db: { ...st.db, status: 'error', msg: e.message } }) })); },
+      dbLoad: async () => {
+        const c = cloudCfg(); let inv = (await localGet('invAdded')) || [];
+        let db = { mode: 'local', status: 'ok', rows: inv.length };
+        if (c) { try { const rows = await cloudLoad(c); const m = new Map([...inv, ...rows].map(r => [r.id, r])); inv = [...m.values()].sort((a, b) => b.t - a.t); db = { mode: 'cloud', status: 'ok', rows: rows.length, url: c.url, last: Date.now() }; } catch (e) { db = { mode: 'cloud', status: 'error', msg: e.message, url: c.url }; } }
+        const studio = (await localGet('studioConnected')) || [], ob = (await localGet('onboarded')) || [];
+        d({ type: 'set', patch: st => ({ invAdded: inv, studioConnected: [...new Set([...(st.studioConnected || []), ...studio])], onboarded: [...(st.onboarded || []), ...ob.filter(x => !(st.onboarded || []).some(y => y.ip === x.ip))], db, dbReady: true }) });
+      },
       note: (incId, text, who) => d({ type: 'upd', key: 'incidents', id: incId, patch: x => ({ notes: [...x.notes, { t: Date.now(), who: who || A.me(), text }] }) }),
     };
     return A;
   }, []);
+  // load what onboarding stored on earlier visits, then save every change
+  useEffect(() => { act.dbLoad(); }, []);
+  useEffect(() => { if (s.dbReady) localSet('invAdded', s.invAdded); }, [s.invAdded, s.dbReady]);
+  useEffect(() => { if (s.dbReady) localSet('studioConnected', s.studioConnected || []); }, [s.studioConnected, s.dbReady]);
+  useEffect(() => { if (s.dbReady) localSet('onboarded', s.onboarded || []); }, [s.onboarded, s.dbReady]);
   useEffect(() => { document.documentElement.classList.toggle('dark', s.theme === 'dark'); try { localStorage.setItem('srs-hub-theme', s.theme); } catch { } }, [s.theme]);
   // an escalation sent from the role dashboards in another tab reaches the console, and the reverse
   useEffect(() => { const f = e => { if (e.key === ESC_KEY) d({ type: 'set', patch: { escalations: loadEsc() } }); }; window.addEventListener('storage', f); return () => window.removeEventListener('storage', f); }, []);
