@@ -3,6 +3,7 @@
 // checked every day, and how a new make or model such as Cisco is brought in.
 import React, { useState, useEffect } from 'react';
 import { connectedTemplates } from './studio.jsx';
+import { RuleDrafts } from './ruledrafts.jsx';
 import * as I from 'lucide-react';
 import * as D from './data.js';
 import { useApp } from './store.jsx';
@@ -10,7 +11,7 @@ import { Card, Badge, Btn, Stat, Tabs, Pri, OpsRampHead, cx } from './ui.jsx';
 import { TEMPLATES, METRICS, VENDOR_SRC, PROFILES, ACCESS, ROLES, NET_POLICIES, CONFIGS, VENDORS, ONBOARD, POLICY_ORDER } from './policies.js';
 import { num, pct } from './util.js';
 
-const TABS = [{ id: 'templates', label: 'Monitoring templates' }, { id: 'policies', label: 'Alert policies' }, { id: 'access', label: 'Access' }, { id: 'network', label: 'Network policies and configs' }, { id: 'new', label: 'New make or model' }];
+const TABS = [{ id: 'drafts', label: 'Drafted by OpsQ' }, { id: 'templates', label: 'Monitoring templates' }, { id: 'policies', label: 'Alert policies' }, { id: 'access', label: 'Access' }, { id: 'network', label: 'Network policies and configs' }, { id: 'new', label: 'New make or model' }];
 const Th = ({ children, r }) => <th className={cx('py-1.5 pr-3 font-semibold text-ink3 text-[11.5px]', r ? 'text-right' : 'text-left')}>{children}</th>;
 const ESC = [['P1', [['L1 NOC', 0], ['L2 Network', 5], ['Major incident manager', 10], ['On-call engineer', 15]]], ['P2', [['L1 NOC', 0], ['L2 Network', 15], ['On-call engineer', 45]]], ['P3', [['L1 NOC', 0], ['L2 Network', 60], ['On-call engineer', 240]]], ['P4', [['L1 NOC', 0], ['L2 Network', 480]]]];
 
@@ -31,6 +32,7 @@ export function Policies() {
         <Stat label="Ready for a new vendor" icon={I.PlugZap} value={VENDORS.length} sub="Cisco and others, from the OpsRamp library" onClick={() => setTab('new')} />
       </div>
       <Tabs value={tab} onChange={setTab} className="mb-3" tabs={TABS} />
+      {tab === 'drafts' && <RuleDrafts />}
       {tab === 'templates' && <Templates pilots={pilots} />}
       {tab === 'policies' && <AlertPolicies />}
       {tab === 'access' && <Access />}

@@ -68,7 +68,7 @@ A fourth link with the same live data, laid out like the HPE OpsRamp product.
 | Alerts | Correlation (the OpsQ workflow), Alert Browser, Operations Copilot |
 | Insights | Predictive insights |
 | Patch & Vulnerability | Patch and vulnerability |
-| Automation | Process automation, Knowledge base |
+| AI & Automation | AI and automation library (OpsRamp OpsQ and Copilot first, then Mova iO agents, runbooks, event policies, predictive models, copilot and auto-ticketing), Knowledge base |
 | Reports | Reporting Apps |
 | Dashboards | Network performance (the page it opens on) |
 

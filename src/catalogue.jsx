@@ -1,4 +1,5 @@
-// AI and Automation Catalogue: everything in the service that decides or acts on its own, in one list. Mova iO agents,
+// AI and Automation Catalogue: everything in the service that decides or acts on its own, in one list. HPE OpsRamp's
+// own AI (OpsQ and the Operations Copilot agents), Mova iO agents,
 // automation runbooks, AI event policies (correlation, suppression, de-duplication), predictive models, the copilot
 // and knowledge, and the ServiceNow auto-ticketing rules. Each shows what it does, what sets it off, how much control a
 // person keeps (its mode or autonomy level and the gate), how often it ran and how often it was right.
@@ -16,6 +17,7 @@ import { Agents } from './mod_live.jsx';
 import { Automation } from './mod_more.jsx';
 
 export const TYPES = [
+  { id: 'opsq', one: 'OpsRamp AI', label: 'OpsRamp OpsQ and Copilot', icon: I.BrainCircuit, go: 'correlation' },
   { id: 'agent', one: 'AI agent', label: 'AI agents', icon: I.Bot, tab: 'agents' },
   { id: 'runbook', one: 'Runbook', label: 'Automation runbooks', icon: I.Workflow, tab: 'runbooks' },
   { id: 'policy', one: 'AI event policy', label: 'AI event policies', icon: I.Filter, go: 'correlation' },
@@ -51,6 +53,21 @@ const COPILOT = [
   ['CO-03', 'Similar-case indexer', 'Finds past incidents like this one and how they were fixed', 'Incident opened', 'On', 2650, 0.83, 'knowledge'],
   ['CO-04', 'Plain-language incident summary', 'Writes the work note and the Store Ops update in plain words', 'Incident updated', 'On', 3100, 0.95, 'incidents'],
 ];
+// HPE OpsRamp's own AI: the OpsQ engine in event management, and the Operations Copilot agents
+const OPSQ_AI = [
+  ['OQ-01', 'OpsQ learned alert sequences', 'Finds alerts that keep occurring together in SRS history and correlates them, so nobody writes "if the tunnel is down, hold the AP alarms"', 'Every alert', 'On', 5120, 0.95, 'correlation'],
+  ['OQ-02', 'OpsQ continuous learning', 'Retrains on recent alerts every few hours, so new branches and new device types are learned without new rules', 'Every few hours', 'On', 180, 0.96, 'correlation'],
+  ['OQ-03', 'OpsQ topology-aware correlation', 'Uses the store topology so an upstream failure explains the downstream symptoms and opens one incident', 'Every alert with a parent', 'On', 4380, 0.97, 'correlation'],
+  ['OQ-04', 'OpsQ seasonal suppression', 'Spots alerts that recur at the same time (the 02:00 backup spike, store opening) and holds them back', 'Recurring alerts', 'On', 2516, 0.98, 'correlation'],
+  ['OQ-05', 'OpsQ learned first response', 'Learns which process to run for which alert and, in Recommend mode, suggests it for an engineer to accept', 'Matching alert', 'Recommend', 496, 0.93, 'correlation'],
+  ['OQ-06', 'OpsQ learned routing and priority', 'Recommends the assignment group, priority and category from how past incidents were handled', 'New incident', 'Observed', 1310, 0.94, 'correlation'],
+  ['OQ-07', 'OpsQ Observed mode and back-test', 'Shadow inferences show what a new pattern would have done; a 7-day back-test is required before promotion', 'New learned pattern', 'Observed', 5, 0.96, 'correlation'],
+  ['OQ-08', 'Operations Copilot: Search agent', 'Answers plain-English questions about alerts, devices, lines and incidents', 'Engineer asks', 'Recommend', 413, 0.94, 'copilot'],
+  ['OQ-09', 'Operations Copilot: Command Center agent', 'Puts OpsQ\'s recommendation next to each critical alert: escalate, suppress or run first response', 'Critical alert', 'Recommend', 189, 0.97, 'copilot'],
+  ['OQ-10', 'Operations Copilot: probable root cause agent', 'Ranks the probable causes across one incident\'s alerts, with network, ISP and application verdicts', 'Engineer opens an incident', 'Recommend', 96, 0.91, 'copilot'],
+  ['OQ-11', 'Operations Copilot: Dashboard Assistant', 'Builds a dashboard tile from a plain-English request, for review before saving', 'Engineer asks', 'Recommend', 57, 0.89, 'copilot'],
+  ['OQ-12', 'Operations Copilot: Documentation Assistant', 'Answers from the OpsRamp docs and the SRS knowledge base, with sources', 'Engineer asks', 'Recommend', 143, 0.96, 'copilot'],
+];
 const TICKETS = [
   ['TK-01', 'Store fully down: P1 at once to the major incident team', 'Inference: store cannot trade', 'On'],
   ['TK-02', 'Card payments or ERP failing: P2 after 5 minutes', 'Inference: payment or ERP path failing', 'On'],
@@ -67,11 +84,12 @@ function useItems() {
     const out = [];
     AGENT_DEF.forEach(a => { const g = L.x.agents[a.id] || {}; out.push({ id: `AG-${a.id}`, type: 'agent', name: `${a.name} Agent`, does: a.does, trigger: 'Every event or incident it is responsible for', mode: 'On', gate: 'Follows the gate rules; risky actions need approval', runs: Math.round((g.today || 0) * 30), ok: g.ok || 0.95, owner: 'Mova iO', last: g.last }); });
     D.RUNBOOKS.forEach(r => out.push({ id: r.id, type: 'runbook', name: `${r.id} ${r.name}`, does: r.desc, trigger: 'Recommended by the Diagnosis Agent for a matching incident', mode: modes[r.id] || 'On', level: r.autonomy, gate: r.kind === 'readonly' ? 'Runs on its own (read-only)' : `${D.AUTONOMY[r.autonomy]}`, runs: r.runs30, ok: r.success, owner: 'Movate NOC', undo: r.rollback }));
-    RULES.forEach((r, i) => out.push({ id: `EV-0${i + 1}`, type: 'policy', name: `${r.name} (de-duplication and suppression)`, does: r.how, trigger: `For example: ${r.ex}`, mode: modes[`EV-0${i + 1}`] || 'On', gate: 'Held-back alerts stay visible on their parent', runs: Math.round(tc.suppressed * r.share * 30), ok: 0.97, owner: 'Mova iO, event management' }));
-    POLICIES.forEach(([id, n, by, m, sh]) => out.push({ id, type: 'policy', name: n, does: `${id.startsWith('CP') ? 'Correlation' : 'First-response'} policy. Learned from: ${by}. An alert that outlives its normal duration is brought back automatically.`, trigger: by, mode: modes[id] || m, gate: 'SRS approves before it goes from Recommend to On', runs: Math.round(tc.events * sh * 30), ok: 0.9 + sh, owner: 'Mova iO, event management' }));
+    RULES.forEach((r, i) => out.push({ id: `EV-0${i + 1}`, type: 'policy', name: `${r.name} (de-duplication and suppression)`, does: r.how, trigger: `For example: ${r.ex}`, mode: modes[`EV-0${i + 1}`] || 'On', gate: 'Held-back alerts stay visible on their parent', runs: Math.round(tc.suppressed * r.share * 30), ok: 0.97, owner: 'HPE OpsRamp (OpsQ)' }));
+    POLICIES.forEach(([id, n, by, m, sh]) => out.push({ id, type: 'policy', name: n, does: `${id.startsWith('CP') ? 'Correlation' : 'First-response'} policy. Learned from: ${by}. An alert that outlives its normal duration is brought back automatically.`, trigger: by, mode: modes[id] || m, gate: 'SRS approves before it goes from Recommend to On', runs: Math.round(tc.events * sh * 30), ok: 0.9 + sh, owner: 'HPE OpsRamp (OpsQ)' }));
     MODELS.forEach(([id, n, how, kind, conf]) => { const open = kind ? s.predictions.filter(p => p.kind === kind && ['New', 'Watching'].includes(p.status)).length : null; out.push({ id, type: 'model', name: n, does: how, trigger: 'Scored daily; anomalies every 5 minutes', mode: modes[id] || 'On', gate: 'Never changes anything: creates a watch or an approval', runs: kind ? 30 * (open + 3) : 900 * 30, ok: conf, owner: 'Mova iO, predictive', open }); });
     COPILOT.forEach(([id, n, does, trig, m, runs, ok, go]) => out.push({ id, type: 'copilot', name: n, does, trigger: trig, mode: modes[id] || m, gate: m === 'Recommend' ? 'A person accepts or edits before anything is sent' : 'Writes notes only', runs, ok, owner: 'Mova iO', go }));
-    TICKETS.forEach(([id, n, trig, m]) => out.push({ id, type: 'ticket', name: n, does: 'Raises or updates the ServiceNow incident from the correlated inference, with CI, store, probable cause and the alerts attached.', trigger: trig, mode: modes[id] || m, gate: 'Only correlated, non-suppressed inferences are ticketed', runs: Math.round(tc.inc * 30 / TICKETS.length), ok: 0.99, owner: 'Mova iO to ServiceNow' }));
+    OPSQ_AI.forEach(([id, n, does, trig, m, runs, ok, go]) => out.push({ id, type: 'opsq', name: n, does, trigger: trig, mode: modes[id] || m, gate: m === 'On' ? 'Acts inside the policy scope SRS sets; every decision is listed on the incident' : m === 'Recommend' ? 'A person accepts or rejects' : 'Shadow only: changes nothing', runs, ok, owner: 'HPE OpsRamp', go }));
+    TICKETS.forEach(([id, n, trig, m]) => out.push({ id, type: 'ticket', name: n, does: 'Raises or updates the ServiceNow incident from the correlated inference, with CI, store, probable cause and the alerts attached.', trigger: trig, mode: modes[id] || m, gate: 'Only correlated, non-suppressed inferences are ticketed', runs: Math.round(tc.inc * 30 / TICKETS.length), ok: 0.99, owner: 'HPE OpsRamp escalation policy to ServiceNow' }));
     return out;
   }, [s.catModes, s.predictions, Math.floor(tc.events / 50)]);
 }
@@ -107,7 +125,7 @@ export function Catalogue() {
         <Stat onClick={() => { setType('all'); setMode('All'); }} label="Actions, last 30 days" icon={I.Zap} value={num(runs)} sub="runs, suppressions, tickets, scores" />
         <Stat onClick={() => { setType('all'); setMode('On'); }} label="Right first time" icon={I.Target} value={`${Math.round(items.reduce((a, x) => a + x.ok * (x.runs || 1), 0) / Math.max(1, items.reduce((a, x) => a + (x.runs || 1), 0)) * 100)}%`} sub="weighted by volume" tone="green" />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 mb-3">{TYPES.map(t => { const n = items.filter(x => x.type === t.id); return (
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2 mb-3">{TYPES.map(t => { const n = items.filter(x => x.type === t.id); return (
         <button key={t.id} onClick={() => setType(type === t.id ? 'all' : t.id)} aria-pressed={type === t.id} className={cx('text-left rounded-md border p-3 bg-panel', type === t.id ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink3')}>
           <div className="flex items-center gap-2"><t.icon size={15} className="text-brand" /><b className="text-[13px] text-ink flex-1">{t.label}</b><span className="text-[12px] font-bold text-ink2 bg-chip rounded px-1.5">{n.length}</span></div>
           <div className="text-[11.5px] text-ink3 mt-1">{n.filter(x => x.mode === 'On').length} on · {n.filter(x => x.mode === 'Observed' || x.mode === 'Recommend').length} in shadow or recommend</div>
@@ -117,7 +135,7 @@ export function Catalogue() {
           <div key={x.id} className="px-4 py-2.5">
             <div className="flex items-start gap-3 cursor-pointer" onClick={() => setOpen(isOpen ? null : x.id)}>
               <span className="w-8 h-8 rounded-md bg-brand/10 text-brand grid place-items-center shrink-0"><T.icon size={15} /></span>
-              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className="font-mono text-[11.5px] text-ink3">{x.id}</span><b className="text-[13.5px] text-ink">{x.name}</b><Badge>{T.one}</Badge></div><div className="text-[12.5px] text-ink2 leading-snug mt-0.5 line-clamp-2">{x.does}</div></div>
+              <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><span className="font-mono text-[11.5px] text-ink3">{x.id}</span><b className="text-[13.5px] text-ink">{x.name}</b><Badge>{T.one}</Badge>{x.owner && <span className="text-[11px] text-ink3">{x.owner}</span>}</div><div className="text-[12.5px] text-ink2 leading-snug mt-0.5 line-clamp-2">{x.does}</div></div>
               <div className="text-right shrink-0 hidden md:block w-[110px]"><div className="text-[13px] font-bold text-ink tabular-nums">{num(x.runs || 0)}</div><div className="text-[11px] text-ink3">30 days</div></div>
               <div className="text-right shrink-0 hidden md:block w-[70px]"><div className="text-[13px] font-bold text-ok tabular-nums">{Math.round(x.ok * 100)}%</div><div className="text-[11px] text-ink3">right</div></div>
               <div className="shrink-0 w-[96px] text-right"><Badge tone={MODE_TONE[x.mode]}>{x.mode}</Badge>{x.level && <div className="text-[11px] text-ink3 mt-0.5">{x.level}</div>}</div>
@@ -128,7 +146,7 @@ export function Catalogue() {
               <div><div className="text-[11px] font-bold uppercase text-ink3">Control and gate</div><div className="text-ink">{x.gate}</div>{x.undo && <div className="text-ink3 mt-1">Undo: {x.undo}</div>}<div className="text-ink3 mt-1">Owner: {x.owner}. Mode {x.mode}: {MODE_TEXT[x.mode]}.</div></div>
               <div className="flex flex-col gap-2 items-start">
                 {x.type !== 'agent' && <div className="inline-flex rounded-md border border-line overflow-hidden">{MODES.map(m => <Btn key={m} op size="sm" kind={x.mode === m ? 'brand' : 'ghost'} className="!rounded-none !h-7 !px-2" onClick={() => x.mode !== m && setItemMode(x, m)}>{m}</Btn>)}</div>}
-                <Btn size="sm" icon={I.ArrowRight} onClick={() => goTo(x)}>Open {x.go === 'ask' ? 'Ask Mova iO' : x.go === 'knowledge' ? 'Knowledge' : x.go === 'incidents' ? 'Live Incidents' : { agent: 'Agents at work', runbook: 'Runbooks and runs', policy: 'Correlation', model: 'Predictive Watchlist', copilot: 'Knowledge', ticket: 'Correlation' }[x.type]}</Btn>
+                <Btn size="sm" icon={I.ArrowRight} onClick={() => goTo(x)}>Open {x.go === 'ask' ? 'Ask Mova iO' : x.go === 'knowledge' ? 'Knowledge' : x.go === 'copilot' ? 'Operations Copilot' : x.go === 'incidents' ? 'Live Incidents' : { agent: 'Agents at work', runbook: 'Runbooks and runs', policy: 'Correlation', model: 'Predictive Watchlist', copilot: 'Knowledge', ticket: 'Correlation' }[x.type]}</Btn>
               </div>
             </div>}
           </div>); })}

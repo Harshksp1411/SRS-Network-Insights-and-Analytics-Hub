@@ -1,6 +1,7 @@
 // Predictive and preventive panels used across modules.
 import React, { useState, useMemo } from 'react';
 import * as I from 'lucide-react';
+import { useRuleDrafts, draftFromText, SEED_RULES } from './ruledrafts.jsx';
 import * as D from './data.js';
 import * as P from './predict.js';
 import { useApp, useNow, slaClock, inScope, healthOf } from './store.jsx';
@@ -184,11 +185,11 @@ export function BackupTrendCard() {
   );
 }
 export function DeviceRiskCard() {
-  const { act } = useApp(); const rows = useMemo(() => P.deviceRisk(), []);
+  const { act } = useApp(); const rows = useMemo(() => P.deviceRisk(), []); const rd = useRuleDrafts();
   const [done, setDone] = useState({});
   return (
-    <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age">
-      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} className="flex items-center gap-3 py-1.5 text-[12.5px]"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span>{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}</div>)}</div>
+    <Card title="Hardware likely to fail in 30 days" sub="From reboots, temperature, fan and PSU telemetry, error counters and age. Click a row to drill in." right={<Btn size="sm" icon={I.FileCog} onClick={() => { act.setTab('policies', 'drafts'); act.go('policies'); }}>Rules drafted by OpsQ</Btn>}>
+      <div className="divide-y divide-line/70">{rows.map(r => <div key={r.id} onClick={() => act.drill({ t: 'device', id: r.id })} title="Drill down" className="flex items-center gap-3 py-1.5 text-[12.5px] cursor-pointer hover:bg-chip/50 rounded px-1"><span className="w-10"><Pct p={r.p} /></span><span className="font-mono text-[12px] w-[120px] shrink-0 text-ink">{r.id}</span><span className="text-ink3 w-[230px] shrink-0 truncate">{r.b.name}, {r.d.model}</span><span className="flex-1 min-w-0 text-ink2 truncate" title={r.why}>{r.why}</span><span onClick={e => e.stopPropagation()} className="flex gap-1">{done[r.id] ? <Badge tone="green">Spare staged</Badge> : <Btn op size="xs" onClick={() => { setDone(d => ({ ...d, [r.id]: true })); act.audit(`Preventive: ${r.action} (${r.id})`, r.id); act.toast(`${r.action}`); }}>Pre-stage spare</Btn>}<Btn op size="xs" icon={I.Wand2} onClick={() => { const seed = SEED_RULES.find(x => r.why.toLowerCase().includes(x.name.split(' ')[1].toLowerCase())) || null; const d = { ...(seed || draftFromText(`${r.why} on ${r.d.model}, raise a P4`, (rd.list.length || 0) + 1)), id: seed ? seed.id : `RD-${300 + rd.list.length}`, from: `Learned from ${r.id} and devices like it: ${r.why}`, status: 'Draft', t: Date.now() }; rd.add(d); act.toast(`OpsQ drafted ${d.id}: review it in Policies and rules`); }}>Draft a rule</Btn></span></div>)}</div>
     </Card>
   );
 }

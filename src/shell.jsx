@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import * as I from 'lucide-react';
 import { useApp, useNow, ROLES, healthOf, circuitOf, branchClock, filteredBranches, cityKey, isMovate, roleOf, SRS_LOCK } from './store.jsx';
 import { EscalateDialog, EscalateButton, aboutOf } from './escalate.jsx';
@@ -15,7 +15,7 @@ import { Catalogue, CatalogueTab } from './catalogue.jsx';
 import { Policies } from './mod_policies.jsx';
 import { OpsAI, IntegrationsPage, CopilotPage } from './mod_opsai.jsx';
 import { DrillPanel } from './dash/Drill.jsx';
-import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx } from './ui.jsx';
+import { Btn, Badge, Dot, Modal, Select, SearchBox, cx, Logo, healthTone, KV, Pri, Card, RoofMark, OpsCtx, HeadCtx } from './ui.jsx';
 export { RoofMark };
 import LOGOS from './logos.js';
 import { hhmmss, hhmm, ago, dt, num, MIN } from './util.js';
@@ -362,11 +362,22 @@ const OPS_GROUPS = [
   { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation' }, { id: 'incidents', label: 'Alert Browser', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
   { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
   { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
-  { g: 'Automation', icon: I.Workflow, items: [{ id: 'catalogue', label: 'Process automation' }, { id: 'knowledge', label: 'Knowledge base' }] },
-  { g: 'Reports', icon: I.FileBarChart, items: [{ id: 'reports', label: 'Reporting Apps' }] },
-  { g: 'Dashboards', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Network performance' }] },
+  { g: 'AI & Automation', icon: I.BrainCircuit, items: [{ id: 'catalogue', label: 'AI and automation library' }, { id: 'knowledge', label: 'Knowledge base' }] },
+  { g: 'Reporting', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Dashboards and reports', also: ['reports'] }] },
 ];
 const OPS_NAV = OPS_GROUPS.flatMap(g => g.items.map(x => ({ ...x, group: g.g })));
+const isOn = (n, m) => n.id === m || (n.also || []).includes(m);
+// dashboards and reports are one page: the live dashboard and the reports built from the same figures
+const DASH_TABS = [{ id: 'sla', label: 'Dashboard', icon: I.LayoutDashboard }, { id: 'reports', label: 'Reports', icon: I.FileBarChart }];
+const DASH_TITLES = { Performance: 'sla', Reports: 'reports' };
+// the scope set from a drill (a region, a city, one branch); shown only when it narrows the view, with a way to clear it
+function ScopeChip() {
+  const { s, act } = useApp();
+  const f = s.filters || {};
+  const label = f.branchId && D.BR[f.branchId] ? D.BR[f.branchId].name : f.city && f.city !== 'All' ? f.city : f.region && f.region !== 'All' ? f.region : f.brand && f.brand !== 'All' ? f.brand : null;
+  if (!label || s.role === 'bm') return null;
+  return <button onClick={() => act.set({ filters: { region: 'All', city: 'All', brand: 'All', branchId: null } })} title="Show all sites again" className="inline-flex items-center gap-1.5 h-6 px-2 rounded-[4px] border border-line bg-chip text-[12px] text-ink font-semibold"><I.Filter size={12} className="text-ink3" />Scope: {label}<I.X size={12} className="text-ink3" /></button>;
+}
 function OpsSearch() {
   const { s, act } = useApp();
   const [q, setQ] = useState('');
@@ -387,8 +398,9 @@ function OpsRampApp() {
   const { s, act } = useApp();
   const now = useNow();
   const M = MODULES.find(m => m.id === s.module) || MODULES.find(m => m.id === 'sla');
-  const nav = OPS_NAV.find(n => n.id === s.module);
+  const nav = OPS_NAV.find(n => isOn(n, s.module));
   const [railMin, setRailMin] = useState(false);
+  const head = useCallback(t => DASH_TITLES[t] && ['sla', 'reports'].includes(s.module) ? { title: 'Dashboards and reports', below: <div className="flex items-center gap-0 mt-3 border-b border-line">{DASH_TABS.map(x => { const on = s.module === x.id; return <button key={x.id} onClick={() => act.nav(x.id)} className={cx('h-9 px-4 -mb-px inline-flex items-center gap-1.5 text-[13px] border-b-2', on ? 'border-[#01A982] text-ink font-semibold' : 'border-transparent text-ink3 hover:text-ink')}><x.icon size={14} />{x.label}</button>; })}</div> } : null, [s.module]);
   const role = ROLES.find(r => r.id === s.role);
   const ib = 'h-8 w-8 rounded-[4px] flex items-center justify-center text-white/75 hover:bg-white/10 hover:text-white';
   return (
@@ -409,11 +421,11 @@ function OpsRampApp() {
       </header>
       <div className="flex">
         <nav className={cx('shrink-0 bg-[#232a33] text-white/70 sticky top-[52px] h-[calc(100vh-52px)] overflow-y-auto flex flex-col py-2', railMin ? 'w-14' : 'w-[224px]')}>
-          {OPS_GROUPS.map(g => { const inG = g.items.some(x => x.id === s.module); return (
+          {OPS_GROUPS.map(g => { const inG = g.items.some(x => isOn(x, s.module)); return (
             <div key={g.g} className="mb-1">
               <div title={g.g} className={cx('flex items-center gap-2 px-4 pt-2 pb-1 text-[11px] font-bold uppercase tracking-[0.08em]', inG ? 'text-white' : 'text-white/45')}><g.icon size={railMin ? 18 : 14} className="shrink-0" />{!railMin && g.g}</div>
-              {!railMin && g.items.map(n => { const on = s.module === n.id, bd = n.badge ? n.badge(s) : 0; return (
-                <button key={n.id} onClick={() => act.go(n.id)} className={cx('relative w-full text-left flex items-center gap-2 pl-10 pr-3 h-8 text-[13px]', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
+              {!railMin && g.items.map(n => { const on = isOn(n, s.module), bd = n.badge ? n.badge(s) : 0; return (
+                <button key={n.id} onClick={() => act.nav(n.id)} className={cx('relative w-full text-left flex items-center gap-2 pl-10 pr-3 h-8 text-[13px]', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
                   {on && <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-[#01A982]" />}
                   <span className="flex-1 truncate">{n.label}</span>{bd > 0 && <span className="text-[10.5px] font-bold rounded px-1.5 bg-white/15 text-white">{bd}</span>}
                 </button>); })}
@@ -426,10 +438,9 @@ function OpsRampApp() {
           <div className="bg-panel border-b border-line px-5 h-10 flex items-center gap-2 text-[12.5px]">
             <span className="text-ink3">SRS Distribution</span><I.ChevronRight size={13} className="text-ink3" />
             {nav && <><span className="text-ink2">{nav.group}</span><I.ChevronRight size={13} className="text-ink3" /></>}<b className="text-ink">{nav ? nav.label : M.label}</b>
-            <span className="flex-1" /><span className="text-[11.5px] text-ink3">Demo build · sample SRS data, operated by Movate</span>
+            <span className="flex-1" /><ScopeChip /><span className="text-[11.5px] text-ink3">Sample SRS data, operated by Movate</span>
           </div>
-          <div className="sticky top-[52px] z-30"><FilterBar /></div>
-          <div className="p-5 max-w-[1680px]"><BackBar /><M.C key={M.id} /></div>
+          <div className="p-5 max-w-[1680px]"><BackBar /><HeadCtx.Provider value={head}><M.C key={M.id} /></HeadCtx.Provider></div>
         </main>
       </div>
       <AskPanel /><Toasts /><Notifications /><BranchDrawer /><ConsoleDrill /><EscalateDialog /><StorageModal />
