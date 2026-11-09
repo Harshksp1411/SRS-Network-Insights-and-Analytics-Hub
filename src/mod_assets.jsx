@@ -8,6 +8,7 @@ import * as D from './data.js';
 import { useApp, useNow, healthOf, circuitOf, branchClock, inScope, ROLES } from './store.jsx';
 import { Card, Badge, Btn, Table, Dot, Pri, PageHead, Tabs, Stat, Select, SearchBox, Modal, KV, cx, Illus, ExportBtn, Progress, Logo } from './ui.jsx';
 import { CmdbTab } from './mod_cmdb.jsx';
+import { CmdbOverview, CmdbDiscovery, CmdbRelationships, CmdbMappings, CmdbSync } from './cmdblite.jsx';
 import { relsOf } from './cmdb.js';
 import { Bars, Legend, Spark, C, LineChart } from './charts.jsx';
 import { num, pct, dur, ago, dt, hhmm, exportCSV, MIN, HR, DAY, T0, rng } from './util.js';
@@ -55,7 +56,7 @@ function CiRecord({ ci, s, openCi, act, circuit }) {
 export function Inventory() {
   const { s, act } = useApp();
   const now = useNow();
-  const [tab, setTab0] = useState(s.tab.inventory || 'devices');
+  const [tab, setTab0] = useState(s.tab.inventory || 'overview');
   const setTab = t => { setTab0(t); act.setTab('inventory', t); };
   const [q, setQ] = useState('');
   const [type, setType] = useState('All');
@@ -101,18 +102,10 @@ export function Inventory() {
         <Stat label="Below firmware policy" icon={I.ShieldAlert} value={below} tone={below ? 'amber' : 'green'} sub="EC: N-1, others: N-2" onClick={() => { setTab('devices'); setFw('Below policy'); }} />
         <Stat label="Support contracts (EdgeConnect)" icon={I.CalendarClock} value={<span><span className="text-bad">{expired}</span><span className="text-ink3 text-[18px]"> / </span><span className="text-warn">{expiring}</span></span>} sub="lapsed / renewing in 90 days. Switches and APs have a lifetime warranty" onClick={() => { setTab('devices'); setWar('Expired'); }} />
       </div>
-      <LivePanel kind="inventory" className="mb-3 mt-3" />
-      <div className="mb-3"><ToolsStrip only={['aruba', 'central', 'opsramp']} /></div>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
-        <FirmwareMixCard />
-        <WarrantyCard />
-        <BackupTrendCard />
-      </div>
-      <div className="mb-3"><DeviceRiskCard /></div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'cmdb', label: 'CMDB' }, { id: 'recon', label: 'Reconciliation' }]} />
+        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'overview', label: 'Overview' }, { id: 'discovery', label: 'Discovery' }, { id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'rels', label: 'Relationships' }, { id: 'mappings', label: 'Mappings' }, { id: 'sync', label: 'ServiceNow sync' }, { id: 'recon', label: 'Reconciliation' }, { id: 'cmdb', label: 'CMDB tables' }]} />
         <div className="flex-1" />
-        {tab !== 'recon' && tab !== 'onboarded' && tab !== 'cmdb' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
+        {(tab === 'devices' || tab === 'circuits') && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
       </div>
       {tab === 'devices' && <Card pad={false}><div className="p-3">
         <div className="flex flex-wrap gap-2 mb-2">
@@ -155,6 +148,20 @@ export function Inventory() {
           <tbody>{s.invAdded.map(r => <tr key={r.id} className="border-b border-line/60 last:border-0"><td className="px-3 py-1.5 font-mono text-ink">{r.name}</td><td className="px-3 py-1.5"><Badge tone="blue">{r.kind}</Badge></td><td className="px-3 py-1.5 text-ink2">{r.vendor} · {r.model}</td><td className="px-3 py-1.5 font-mono text-ink2">{r.ip || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.site}</td><td className="px-3 py-1.5 font-mono text-[11.5px] text-ink2">{r.template || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.via}</td><td className="px-3 py-1.5 text-ink3 whitespace-nowrap">{ago(r.t)}</td><td className="px-3 py-1.5 text-right"><Btn op size="xs" icon={I.Trash2} onClick={() => { act.removeInventory(r.id); act.audit(`Removed ${r.name} from the inventory`, r.id); }}>Remove</Btn></td></tr>)}</tbody></table></div>
           : <div className="p-6 text-center text-[12.5px] text-ink3">Nothing added yet. Connect a source in the Integration studio, or run a discovery scan, and its devices appear here.</div>}
       </Card>}
+      {tab === 'overview' && <><CmdbOverview go={setTab} /><div className="mt-3" />
+      <LivePanel kind="inventory" className="mb-3" />
+      <div className="mb-3"><ToolsStrip only={['aruba', 'central', 'opsramp']} /></div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mb-3">
+        <FirmwareMixCard />
+        <WarrantyCard />
+        <BackupTrendCard />
+      </div>
+      <div className="mb-3"><DeviceRiskCard /></div>
+      </>}
+      {tab === 'discovery' && <CmdbDiscovery />}
+      {tab === 'rels' && <CmdbRelationships />}
+      {tab === 'mappings' && <CmdbMappings />}
+      {tab === 'sync' && <CmdbSync />}
       {tab === 'cmdb' && <CmdbTab />}
       {tab === 'recon' && <Recon />}
       <Modal open={!!dev} onClose={() => setDev(null)} title={dev && <span className="font-mono">{dev.id}</span>} sub={dev && `${dev.model}, ${dev.type}, ${D.BR[dev.branchId].name}, ${D.BR[dev.branchId].brand}`} wide
