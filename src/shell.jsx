@@ -362,7 +362,7 @@ const OPS_GROUPS = [
   { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation' }, { id: 'incidents', label: 'Alert Browser', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
   { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
   { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
-  { g: 'Automation', icon: I.Workflow, items: [{ id: 'catalogue', label: 'Process automation' }, { id: 'knowledge', label: 'Knowledge base' }] },
+  { g: 'AI & Automation', icon: I.BrainCircuit, items: [{ id: 'catalogue', label: 'AI and automation library' }, { id: 'knowledge', label: 'Knowledge base' }] },
   { g: 'Reports', icon: I.FileBarChart, items: [{ id: 'reports', label: 'Reporting Apps' }] },
   { g: 'Dashboards', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Network performance' }] },
 ];
