@@ -358,7 +358,7 @@ function ConsoleDrill() {
 // work the alerts, predict, patch, automate, report; the dashboards sit at the bottom
 const OPS_GROUPS = [
   { g: 'Integrations', icon: I.Plug, items: [{ id: 'integrations', label: 'Integration studio' }] },
-  { g: 'Infrastructure', icon: I.Server, items: [{ id: 'inventory', label: 'Asset inventory' }, { id: 'policies', label: 'Policies and rules' }] },
+  { g: 'Infrastructure', icon: I.Server, items: [{ id: 'inventory', label: 'Asset inventory', tag: 'CMDB Lite', full: 'Asset inventory (CMDB Lite)' }, { id: 'policies', label: 'Policies and rules' }] },
   { g: 'Alerts', icon: I.BellRing, items: [{ id: 'correlation', label: 'Correlation', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'copilot', label: 'Operations Copilot' }] },
   { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
   { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
@@ -428,7 +428,7 @@ function OpsRampApp() {
               {!railMin && g.items.map(n => { const on = isOn(n, s.module), bd = n.badge ? n.badge(s) : 0; return (
                 <button key={n.id} onClick={() => act.nav(n.id)} className={cx('relative w-full text-left flex items-center gap-2 pl-10 pr-3 h-8 text-[13px]', on ? 'bg-white/10 text-white font-semibold' : 'hover:bg-white/5 hover:text-white')}>
                   {on && <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-[#01A982]" />}
-                  <span className="flex-1 truncate">{n.label}</span>{bd > 0 && <span className="text-[10.5px] font-bold rounded px-1.5 bg-white/15 text-white">{bd}</span>}
+                  <span className="flex-1 truncate">{n.label}{n.tag && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide rounded px-1 py-[1px] bg-white/10 text-white/70">{n.tag}</span>}</span>{bd > 0 && <span className="text-[10.5px] font-bold rounded px-1.5 bg-white/15 text-white">{bd}</span>}
                 </button>); })}
             </div>); })}
           <div className="flex-1" />
@@ -437,7 +437,7 @@ function OpsRampApp() {
         <main className="flex-1 min-w-0">
           <div className="bg-panel border-b border-line px-5 h-10 flex items-center gap-2 text-[12.5px]">
             <span className="text-ink3">SRS Distribution</span><I.ChevronRight size={13} className="text-ink3" />
-            {nav && <><span className="text-ink2">{nav.group}</span><I.ChevronRight size={13} className="text-ink3" /></>}<b className="text-ink">{nav ? nav.label : M.label}</b>
+            {nav && <><span className="text-ink2">{nav.group}</span><I.ChevronRight size={13} className="text-ink3" /></>}<b className="text-ink">{nav ? nav.full || nav.label : M.label}</b>
             <span className="flex-1" /><ScopeChip /><span className="text-[11.5px] text-ink3">Sample SRS data, operated by Movate</span>
           </div>
           <div className="p-5 max-w-[1680px]"><BackBar /><HeadCtx.Provider value={head}><M.C key={M.id} /></HeadCtx.Provider></div>
