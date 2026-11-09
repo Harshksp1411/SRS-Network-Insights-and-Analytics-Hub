@@ -36,22 +36,22 @@ export function StoresPerf({ P, s, act, exec, noTiles }) {
   return (
     <>
       {!noTiles && <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
-        <Stat label={`Store availability, ${P.n} months`} icon={I.Store} onClick={() => open('all')} value={pa(R.avail)} tone={R.avail >= STORE_TARGET ? 'green' : 'amber'} sub={`trading hours the network was there for the store; target ${pa(STORE_TARGET, 1)}`} />
-        <Stat label="Store hours lost" icon={I.Clock} onClick={() => open('all', { sort: 'lost' })} value={hrs(R.lost)} tone="amber" sub={`across ${num(R.n)} branches; ${last.lost < first.lost ? 'down' : 'up'} from ${hrs(first.lost)} to ${hrs(last.lost)} a month`} />
+        <Stat label={`Branch availability, ${P.n} months`} icon={I.Store} onClick={() => open('all')} value={pa(R.avail)} tone={R.avail >= STORE_TARGET ? 'green' : 'amber'} sub={`trading hours the network was there for the store; target ${pa(STORE_TARGET, 1)}`} />
+        <Stat label="Branch hours lost" icon={I.Clock} onClick={() => open('all', { sort: 'lost' })} value={hrs(R.lost)} tone="amber" sub={`across ${num(R.n)} branches; ${last.lost < first.lost ? 'down' : 'up'} from ${hrs(first.lost)} to ${hrs(last.lost)} a month`} />
         <Stat label={`Branches below ${pa(STORE_TARGET, 1)}`} icon={I.TrendingDown} onClick={() => open('below')} value={num(R.below)} tone={R.below ? 'red' : 'green'} sub="open the list and act on each one" />
         <Stat label="Repeat-problem branches" icon={I.Repeat} onClick={() => open('repeat')} value={num(R.repeat)} tone={R.repeat ? 'amber' : 'green'} sub="same fault three times or more in 90 days" />
       </div>}
       <div className={cx('grid grid-cols-1 gap-3 mb-3 items-stretch [&>*]:h-full', !exec && 'xl:grid-cols-2')}>
-        <Card title={`Store hours lost per branch, by ${by}`} icon={I.MapPin} sub="Worst first. Click one to see its branches." right={<Tabs size="sm" value={by} onChange={setBy} tabs={[{ id: 'region', label: 'Region' }, { id: 'segment', label: 'Business' }, { id: 'brand', label: 'Brand' }]} />}>
+        <Card title={`Branch hours lost, by ${by}`} icon={I.MapPin} sub="Worst first. Click one to see its branches." right={<Tabs size="sm" value={by} onChange={setBy} tabs={[{ id: 'region', label: 'Region' }, { id: 'segment', label: 'Business' }, { id: 'brand', label: 'Brand' }]} />}>
           <HBars rows={groups.sort((a, b) => b.lost / b.n - a.lost / a.n).slice(0, by === 'brand' ? 12 : 10).map(g => ({ label: g.k, sub: `${num(g.n)} branches · ${pa(g.avail)} available · ${g.below} below target`, value: g.lost / g.n, color: C.s1, k: g.k }))}
             fmt={v => `${v.toFixed(2)} h`} labelW={210} onRow={r => open('all', { [by]: r.k })} />
         </Card>
-        {!exec && <Card title="Month by month" icon={I.CalendarRange} sub="Store hours lost each month. Click a month for its worst branches.">
+        {!exec && <Card title="Month by month" icon={I.CalendarRange} sub="Branch hours lost each month. Click a month for its worst branches.">
           <Bars data={M.map((x, i) => ({ label: x.label, lost: Math.round(x.lost), i }))} keys={['lost']} colors={[C.warn]} h={190} onBar={d => open('all', { sort: 'lost', month: d.i })} fmt={v => `${v} h`} />
           <div className="text-[12px] text-ink3 mt-1">Availability {pa(first.avail)} in {first.label}, {pa(last.avail)} in {last.label}.</div>
         </Card>}
       </div>
-      <Card title="Branches that cost the most store time" icon={I.AlertTriangle} sub={`Ranked by store hours lost in the last ${P.n} months. Click a branch to drill in and act.`} pad={false} className="mb-3"
+      <Card title="Branches that lost the most hours" icon={I.AlertTriangle} sub={`Ranked by branch hours lost in the last ${P.n} months. Click a branch to drill in and act.`} pad={false} className="mb-3"
         right={<button onClick={() => open('all', { sort: 'lost' })} className="text-[12px] font-semibold text-ink hover:underline">All {num(rows.length)} branches</button>}>
         <div className="p-2"><Table dense sortable={false} rows={worst.slice(0, exec ? 8 : 15).map((x, i) => ({ ...x, id: x.b.id, rank: i + 1 }))} onRow={x => act.drill({ t: 'branch', id: x.b.id })} cols={[
           { key: 'rank', label: '#', render: x => <span className="text-ink3">{x.rank}</span> },

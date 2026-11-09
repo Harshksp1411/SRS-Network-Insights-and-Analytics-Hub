@@ -931,10 +931,10 @@ function StorePerfView({ n, go }) {
   const scope = n.region || n.segment || n.brand || 'All branches';
   return (
     <div>
-      <Head kicker="Store performance" title={`${scope}${n.f === 'below' ? ': below target' : n.f === 'repeat' ? ': repeat problems' : ''}`} sub={`Last ${P.n} months, ${P.from} to ${P.to}${n.month != null ? `. Ranked by store hours lost in ${P.months[n.month].label}` : '. Ranked by store hours lost'}.`} right={<div className="pt-5"><OpenIn what="sla" /></div>} />
+      <Head kicker="Branch performance" title={`${scope}${n.f === 'below' ? ': below target' : n.f === 'repeat' ? ': repeat problems' : ''}`} sub={`Last ${P.n} months, ${P.from} to ${P.to}${n.month != null ? `. Ranked by store hours lost in ${P.months[n.month].label}` : '. Ranked by store hours lost'}.`} right={<div className="pt-5"><OpenIn what="sla" /></div>} />
       <Kpis go={go} items={[
-        { label: 'Store availability', value: PA(av), tone: av >= 0.995 ? 'ok' : 'warn', sub: 'target 99.5%' },
-        { label: 'Store hours lost', value: HRS(lost), tone: 'warn' },
+        { label: 'Branch availability', value: PA(av), tone: av >= 0.995 ? 'ok' : 'warn', sub: 'target 99.5%' },
+        { label: 'Branch hours lost', value: HRS(lost), tone: 'warn' },
         { label: 'Branches', value: num(all.length), go: n.f ? { ...n, f: null } : undefined },
         { label: 'Below target', value: num(all.filter(x => x.avail < 0.995).length), tone: 'bad', go: { ...n, f: 'below' } },
         { label: 'Repeat problems', value: num(all.filter(x => x.repeat).length), tone: 'warn', go: { ...n, f: 'repeat' } },

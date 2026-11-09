@@ -231,7 +231,7 @@ function ProblemBranchesCard({ P }) {
 
 const VIEW = {
   network: { label: 'Network', icon: I.Network, sub: 'Availability, lines, firmware, backups', lines: l => /Device Management/.test(l) },
-  stores: { label: 'Stores and branches', icon: I.Store, sub: 'Store availability, hours lost, problem branches', lines: () => false },
+  stores: { label: 'Branches', icon: I.Store, sub: 'Branch availability, hours lost, problem branches', lines: () => false },
   ai: { label: 'AI and automation', icon: I.Sparkles, sub: 'Fixed by Mova iO, noise, predictions, knowledge', lines: l => HIST.AI_LINE.test(l) },
   service: { label: 'Services and engagement', icon: I.Headset, sub: 'SLAs and KPIs: response, resolution, credits', lines: l => /Operations & Incident|Monitoring & Event/.test(l) },
 };

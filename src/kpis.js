@@ -1,12 +1,12 @@
 // One definition of the performance KPIs, used by both the Performance page and the Performance summary report, so
-// the two always show the same figures, under the same names, in the same order: Network, Stores and branches,
+// the two always show the same figures, under the same names, in the same order: Network, Branches,
 // AI and automation, Services and engagement; four KPIs each, headline first.
 import * as D from './data.js';
 import * as HIST from './history.js';
 
 export const STORE_TARGET = 0.995;
 export const DOMAIN_ORDER = ['network', 'stores', 'ai', 'service'];
-export const DOMAIN_LABEL = { network: 'Network', stores: 'Stores and branches', ai: 'AI and automation', service: 'Services and engagement' };
+export const DOMAIN_LABEL = { network: 'Network', stores: 'Branches', ai: 'AI and automation', service: 'Services and engagement' };
 export const DOMAIN_LINES = { network: l => /Device Management/.test(l), stores: () => false, ai: l => HIST.AI_LINE.test(l), service: l => /Operations & Incident|Monitoring & Event/.test(l) };
 
 const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
@@ -35,8 +35,8 @@ export function kpisFor(P) {
       { key: 'met', label: 'Network SLAs meeting ESL', value: `${met('network')} of ${lineSla('network').length}`, tone: met('network') === lineSla('network').length ? 'green' : 'amber', sub: `average of the last ${n} months`, drill: { t: 'sla', per: n } },
     ].filter(Boolean),
     stores: [
-      { key: 'savail', label: 'Store availability', value: pct(storeAv, 2), tone: storeAv >= STORE_TARGET ? 'green' : 'amber', sub: `trading hours the network was there; target ${pct(STORE_TARGET)}`, drill: { t: 'storeperf', per: n, f: 'all' } },
-      { key: 'lost', label: 'Store hours lost', value: num(lost), tone: 'amber', sub: `across ${num(P.branches.length)} branches`, drill: { t: 'storeperf', per: n, f: 'all', sort: 'lost' } },
+      { key: 'savail', label: 'Branch availability', value: pct(storeAv, 2), tone: storeAv >= STORE_TARGET ? 'green' : 'amber', sub: `trading hours the network was there; target ${pct(STORE_TARGET)}`, drill: { t: 'storeperf', per: n, f: 'all' } },
+      { key: 'lost', label: 'Branch hours lost', value: num(lost), tone: 'amber', sub: `across ${num(P.branches.length)} branches`, drill: { t: 'storeperf', per: n, f: 'all', sort: 'lost' } },
       { key: 'below', label: `Branches below ${pct(STORE_TARGET)}`, value: num(below), tone: below ? 'red' : 'green', sub: 'each one opens with its causes', drill: { t: 'storeperf', per: n, f: 'below' } },
       { key: 'repeat', label: 'Repeat-problem branches', value: num(repeat), tone: repeat ? 'amber' : 'green', sub: 'same fault three times in 90 days', drill: { t: 'storeperf', per: n, f: 'repeat' } },
     ],

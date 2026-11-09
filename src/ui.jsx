@@ -229,7 +229,7 @@ export function Empty({ icon: I, title, sub, children }) {
   return <div className="flex flex-col items-center justify-center text-center py-10 text-ink3">{I && <I size={28} className="mb-2" />}<div className="text-[14px] font-semibold text-ink2">{title}</div>{sub && <div className="text-[12.5px] mt-1 max-w-md">{sub}</div>}{children}</div>;
 }
 // in the OpsRamp view, pages carry OpsRamp's names
-const OPS_TITLES = { Performance: 'Network performance', 'Device & Circuit Inventory': 'Asset inventory', 'Live Incidents': 'Alert Browser', 'Predictive Watchlist': 'Predictive insights', 'Lifecycle and vulnerabilities': 'Patch and vulnerability', 'Lifecycle & Vulnerabilities': 'Patch and vulnerability', Reports: 'Reporting Apps', 'Policies & Templates': 'Policies and rules', 'AI & Automation Catalogue': 'AI and automation library', Knowledge: 'Knowledge base' };
+const OPS_TITLES = { Performance: 'Network performance', 'Device & Circuit Inventory': 'Asset inventory', 'Live Incidents': 'Tickets', 'Predictive Watchlist': 'Predictive insights', 'Lifecycle and vulnerabilities': 'Patch and vulnerability', 'Lifecycle & Vulnerabilities': 'Patch and vulnerability', Reports: 'Reporting Apps', 'Policies & Templates': 'Policies and rules', 'AI & Automation Catalogue': 'AI and automation library', Knowledge: 'Knowledge base', 'Approvals & Changes': 'Approvals and changes' };
 // a shell can replace a page's title and add a row under it (the OpsRamp view joins Performance and Reports into one page)
 export const HeadCtx = createContext(null);
 export function PageHead({ icon: I, title, sub, right, children }) {
