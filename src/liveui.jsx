@@ -34,13 +34,13 @@ export function LiveTicker() {
   );
 }
 
-export function LiveFeed({ h = 360, compact }) {
+export function LiveFeed({ h = 360, compact, fit }) {
   const { L } = useLive(); const { s, act } = useApp();
   const [f, setF] = useState('all');
   const items = L.feed.filter(e => inScope(s, e.branchId) && (f === 'all' || (f === 'action' ? !/Suppress|Duplicate|OK|Info/.test(e.out) : /Suppress|Duplicate/.test(e.out)))).slice(0, 40);
   return (
-    <Card title="Live event stream" sub="OpsRamp, Aruba Central, Orchestrator and New Relic, with the correlation outcome" icon={I.Radio} right={<Tabs size="sm" value={f} onChange={setF} tabs={[{ id: 'all', label: 'All' }, { id: 'action', label: 'Actioned' }, { id: 'sup', label: 'Suppressed' }]} />}>
-      <div className="overflow-y-auto pr-1 space-y-1" style={{ maxHeight: h }}>
+    <Card className={fit ? 'fit-row' : undefined} title="Live event stream" sub="OpsRamp, Aruba Central, Orchestrator and New Relic, with the correlation outcome" icon={I.Radio} right={<Tabs size="sm" value={f} onChange={setF} tabs={[{ id: 'all', label: 'All' }, { id: 'action', label: 'Actioned' }, { id: 'sup', label: 'Suppressed' }]} />}>
+      <div className="overflow-y-auto pr-1 space-y-1" style={fit ? undefined : { maxHeight: h }}>
         {items.map(e => { const b = D.BR[e.branchId]; return (
           <button key={e.id} onClick={() => e.inc ? act.openInc(e.inc) : act.openBranch(e.branchId)} className="w-full text-left flex gap-2 items-start text-[12px] py-1.5 border-b border-line/60 feed-in hover:bg-chip/60 rounded px-1">
             <span className="font-mono text-ink3 w-[58px] shrink-0">{hhmmss(e.t)}</span>
@@ -92,14 +92,14 @@ export function ExperienceCard() {
   );
 }
 
-export function AlertsPerMinCard() {
+export function AlertsPerMinCard({ h = 170 }) {
   const { L } = useLive();
   const S = L.series;
   // one bar per live reading; labels follow the reading they name (every 5th), so they slide with the bars
   const data = Array.from({ length: 30 }, (_, k) => { const i = S.crit.length - 30 + k; return { label: k < 28 && (L.x.tick - 29 + k) % 5 === 0 ? hhmmss(L.ts[i]) : '', tip: hhmmss(L.ts[i]), Critical: Math.round(S.crit[i]), Major: Math.round(S.major[i]), Minor: Math.round(S.minor[i]) }; });
   return (
     <Card title="Alerts per minute – live" sub="After correlation, by severity" icon={I.BarChart3} right={<Legend items={[['Critical', C.bad], ['Major', C.warn], ['Minor', C.minor]]} />}>
-      <Bars data={data} keys={['Critical', 'Major', 'Minor']} colors={[C.bad, C.warn, C.minor]} h={170} />
+      <Bars data={data} keys={['Critical', 'Major', 'Minor']} colors={[C.bad, C.warn, C.minor]} h={h} />
     </Card>
   );
 }

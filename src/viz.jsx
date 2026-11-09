@@ -42,7 +42,7 @@ export function PreventiveCard() {
     ['Spares pre-staged for risk', 6, 'dispatch'],
   ];
   return (
-    <Card title="Prevention in flight" sub="Work scheduled to stop the next outage before a branch notices" right={<Btn size="sm" onClick={() => act.go('predict')}>Watchlist</Btn>}>
+    <Card className="fit-row" title="Prevention in flight" sub="Work scheduled to stop the next outage before a branch notices" right={<Btn size="sm" onClick={() => act.go('predict')}>Watchlist</Btn>}>
       <div className="grid grid-cols-2 gap-px bg-line border border-line rounded-[4px] overflow-hidden mb-3">
         {counts.map(([l, n, m]) => <button key={l} onClick={() => act.go(m)} className="bg-panel px-3 py-2 text-left hover:bg-chip/60"><div className="font-display text-[22px] font-semibold text-ink leading-none">{n}</div><div className="text-[12px] text-ink2 mt-1">{l}</div></button>)}
       </div>
@@ -223,7 +223,7 @@ export function FieldDemandCard() {
   const f = useMemo(() => P.fieldDemand(now, true), [Math.floor(now / 3600000)]);
   return (
     <Card title="Field visits, last and next 7 days" sub="Forecast includes the hail outlook for Texas and Oklahoma (post-storm site checks)">
-      <LineChart labels={f.labels} series={[{ name: 'Visits', data: f.actual, color: C.s1 }, { name: 'Forecast', data: f.fc, color: C.s1, forecastFrom: 7 }]} band={{ lo: f.lo, hi: f.hi, color: C.s1 }} forecastFrom={7} h={180} yMin={0} yFmt={v => Math.round(v)} nowLabel="today" />
+      <LineChart labels={f.labels} series={[{ name: 'Visits', data: f.actual, color: C.s1 }, { name: 'Forecast', data: f.fc, color: C.s1, forecastFrom: 7 }]} band={{ lo: f.lo, hi: f.hi, color: C.s1 }} forecastFrom={7} h={260} yMin={0} yFmt={v => Math.round(v)} nowLabel="today" />
     </Card>
   );
 }
