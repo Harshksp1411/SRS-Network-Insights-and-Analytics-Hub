@@ -20,7 +20,7 @@ export function rollup(rows, n) {
 }
 const monthly = (rows, P) => P.months.map((mo, i) => { const lost = rows.reduce((a, x) => a + x.hrsPer[i], 0), t = rows.reduce((a, x) => a + x.per[i], 0); return { label: mo.m, lost, tickets: t, avail: 1 - lost / Math.max(1, rows.length * HIST.TRADE_H) }; });
 
-export function StoresPerf({ P, s, act, exec }) {
+export function StoresPerf({ P, s, act, exec, noTiles }) {
   const [by, setBy] = useState('region');
   const rows = P.branches, R = rollup(rows, P.n), M = monthly(rows, P);
   const groups = useMemo(() => {
@@ -35,12 +35,12 @@ export function StoresPerf({ P, s, act, exec }) {
   const open = (f, extra = {}) => act.drill({ t: 'storeperf', per: P.n, f, ...extra });
   return (
     <>
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
+      {!noTiles && <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">
         <Stat label={`Store availability, ${P.n} months`} icon={I.Store} onClick={() => open('all')} value={pa(R.avail)} tone={R.avail >= STORE_TARGET ? 'green' : 'amber'} sub={`trading hours the network was there for the store; target ${pa(STORE_TARGET, 1)}`} />
         <Stat label="Store hours lost" icon={I.Clock} onClick={() => open('all', { sort: 'lost' })} value={hrs(R.lost)} tone="amber" sub={`across ${num(R.n)} branches; ${last.lost < first.lost ? 'down' : 'up'} from ${hrs(first.lost)} to ${hrs(last.lost)} a month`} />
         <Stat label={`Branches below ${pa(STORE_TARGET, 1)}`} icon={I.TrendingDown} onClick={() => open('below')} value={num(R.below)} tone={R.below ? 'red' : 'green'} sub="open the list and act on each one" />
         <Stat label="Repeat-problem branches" icon={I.Repeat} onClick={() => open('repeat')} value={num(R.repeat)} tone={R.repeat ? 'amber' : 'green'} sub="same fault three times or more in 90 days" />
-      </div>
+      </div>}
       <div className={cx('grid grid-cols-1 gap-3 mb-3 items-stretch [&>*]:h-full', !exec && 'xl:grid-cols-2')}>
         <Card title={`Store hours lost per branch, by ${by}`} icon={I.MapPin} sub="Worst first. Click one to see its branches." right={<Tabs size="sm" value={by} onChange={setBy} tabs={[{ id: 'region', label: 'Region' }, { id: 'segment', label: 'Business' }, { id: 'brand', label: 'Brand' }]} />}>
           <HBars rows={groups.sort((a, b) => b.lost / b.n - a.lost / a.n).slice(0, by === 'brand' ? 12 : 10).map(g => ({ label: g.k, sub: `${num(g.n)} branches · ${pa(g.avail)} available · ${g.below} below target`, value: g.lost / g.n, color: C.s1, k: g.k }))}

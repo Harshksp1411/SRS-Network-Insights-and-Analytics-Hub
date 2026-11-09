@@ -20,7 +20,9 @@ import { CriticalReport } from './critreport.jsx';
 import { BUWeekly } from './bureport.jsx';
 import { AUD, audOf, AudiencePicker } from './audience.jsx';
 import { CEOReport, CIOReport, OpsMgrReport, LeadReport, BusinessView, REV_HOUR } from './personas.jsx';
-import { StoresPerf, AutomationsCard, DriversCard, AITiles, STORE_TARGET } from './perf.jsx';
+import { ReportBuilder, AskReport } from './reportbuilder.jsx';
+import { StoresPerf, AutomationsCard, DriversCard, STORE_TARGET } from './perf.jsx';
+import { kpisFor, DOMAIN_ORDER, DOMAIN_LABEL, DOMAIN_LINES } from './kpis.js';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
 
 // ───────────────────────── Predictive watchlist ─────────────────────────
@@ -242,7 +244,7 @@ export function SLATracker() {
   const now = useNow();
   const [view, setView] = useState(s.tab.sla && VIEW[s.tab.sla] ? s.tab.sla : 'network');
   const [sel, setSel] = useState(0);
-  const [per, setPer] = useState(6);
+  const per = s.tab.perfPer || 6, setPer = n => act.setTab('perfPer', n);
   const aud = AUD[audOf(s)], exec = aud.depth === 'exec' || aud.depth === 'business', business = aud.depth === 'business';
   const P = useMemo(() => HIST.period(per), [per]);
   const status = m => { if (m.lower) return m.act <= m.esl ? 'Meets ESL' : 'Below target'; if (m.act >= m.esl) return 'Meets ESL'; if (m.msl != null && m.act >= m.msl) return 'Above MSL'; return m.msl == null ? 'Below target' : 'Below MSL'; };
@@ -269,19 +271,9 @@ export function SLATracker() {
   const onSelV = k => { if (!LV[k]) return; setSel(LV[k]._i); if (exec) act.drill({ t: 'metric', i: LV[k]._i, per }); };
   const mv = D.SLA[selV];
   const vMeets = LV.filter(x => status(x) === 'Meets ESL').length, vDipped = dipped.filter(x => VIEW[view].lines(x.m.line));
-  const tileOf = (n, name, label) => { const x = L.find(y => y.n === n && (!name || name.test(y.name))); if (!x) return null; const st = status(x); return <Stat key={label} label={`${label}, ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.indexOf(D.SLA.find(y => y.n === x.n && y.name === x.name)), per })} value={f(x.act, x)} sub={`${x.lower ? '≤ ' : ''}ESL ${f(x.esl, x)}; this month ${f(x.month, x)}`} tone={tone(st)} />; };
-  const head = [
-    <Stat key="meet" label={`Meeting ESL, ${per} months`} icon={I.CheckCircle2} onClick={() => act.drill({ t: 'sla', per })} value={`${vMeets}/${LV.length}`} tone={vMeets >= LV.length * 0.75 ? 'green' : 'amber'} sub={`of the ${LV.length} ${view === "ai" ? "AI and automation" : view === "network" ? "network" : "service"} metrics, on the ${per}-month average`} />,
-    ...(view === 'service' ? [
-      <Stat key="late" label={`Tickets resolved outside SLA, ${per} months`} icon={I.AlarmClock} onClick={() => act.drill({ t: 'incidents', k: 'atRisk' })} value={num(late)} tone="amber" sub={`${pct(late / Math.max(1, P.tickets), 1)} of ${num(P.tickets)} tickets; ${queues.reduce((a, q) => a + q.risk, 0)} open now at breach risk`} />,
-      <Stat key="mttr" label={`Time to restore P1, ${per} months`} icon={I.Timer} onClick={() => act.drill({ t: 'mttr' })} value={`${(P.mttr.P1.reduce((a, v) => a + v, 0) / P.mttr.P1.length).toFixed(1)} h`} sub="target 4 h" tone="green" />,
-      <Stat key="dip" label={`Below MSL, ${per} months`} icon={I.XCircle} onClick={() => act.drill({ t: 'sla', per })} value={vDipped.length} tone={vDipped.length ? 'red' : 'green'} sub={vDipped.length ? 'metrics below MSL in at least one month' : `none in the last ${per} months`} />,
-    ] : view === 'network' ? [
-      <Stat key="av" label={`Critical availability (#29), ${per} months`} icon={I.Activity} onClick={() => act.drill({ t: 'metric', i: D.SLA.findIndex(x => x.n === 29), per })} value={f(avail.act, { fmt: 3 })} sub={`this month ${f(availNow.act, { fmt: 3 })}; MSL 99%, ESL 99.99%`} tone={tone(status(avail))} />,
-      tileOf(32, null, 'Firmware compliance (#32)'), tileOf(33, null, 'Config backup success (#33)'),
-    ] : view === 'ai' ? [
-      ...AITiles({ P, act }), tileOf(38, /noise/, 'Alert noise reduction'),
-    ] : [])].filter(Boolean);
+  const K = useMemo(() => kpisFor(P), [P]);
+  const strip = d => <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{K[d].map(k => <Stat key={k.key} label={k.label} icon={I.Activity} value={k.value} tone={k.tone} sub={k.sub} onClick={() => act.drill(k.drill)} />)}</div>;
+  const Sec = ({ n, children }) => <div className="flex items-center gap-2 mt-4 mb-2"><span className="w-5 h-5 rounded-full bg-chip text-ink2 text-[11px] font-bold grid place-items-center">{n}</span><span className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink3">{children}</span><span className="flex-1 border-t border-line" /></div>;
   return (
     <div>
       <PageHead icon={I.Gauge} title="Performance" right={<><Tabs size="sm" value={per} onChange={setPer} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /><Btn size="sm" kind="primary" icon={I.FileDown} onClick={() => { downloadSlaReport(per, s, healthOf); act.audit(`Downloaded the SLA & KPI report, last ${per} months`, 'sla'); act.toast(`SLA & KPI report, last ${per} months, downloaded`); }}>Download PDF</Btn><Btn size="sm" icon={I.FileCode2} onClick={() => { downloadPage(`srs-performance-${view}-${per}-months.html`, `SRS performance: ${VIEW[view].label}, last ${per} months`); act.toast('Page downloaded as HTML'); }}>Download HTML</Btn><ExportBtn onClick={() => exportCSV(`srs-annexure-b-sla-${per}-months.csv`, L, [{ label: '#', key: 'n' }, { label: 'Service line', key: 'line' }, { label: 'Metric', key: 'name' }, { label: 'Definition', key: 'def' }, { label: 'MSL', get: x => x.msl == null ? '' : x.msl }, { label: 'ESL', key: 'esl' }, { label: `Average, last ${per} months`, get: x => +x.act.toFixed(5) }, { label: 'This month', key: 'month' }, ...P.months.map((mo, i) => ({ label: mo.label, get: x => x.trend[i] })), { label: 'Class', key: 'cls' }, { label: `Status (${per}-month average)`, get: status }])} /></>} />
@@ -292,58 +284,49 @@ export function SLATracker() {
           <div className="flex items-center gap-2"><v.icon size={16} className="text-brand" /><span className="font-bold text-[14px] text-ink flex-1">{v.label}</span><span className={cx('text-[12px] font-bold rounded px-1.5', k === 'stores' ? (storesBelow ? 'bg-warn/15 text-warn' : 'bg-ok/15 text-ok') : met === xs.length ? 'bg-ok/15 text-ok' : 'bg-warn/15 text-warn')}>{k === 'stores' ? `${storesBelow} below target` : `${met}/${xs.length} meet ESL`}</span></div>
           <div className="text-[12px] text-ink2 mt-1 leading-[16px]">{v.sub}</div>
         </button>); })}</div>
-      {view === 'stores' ? <StoresPerf P={P} s={s} act={act} exec={exec} /> : <>
-      <div className="kpi-strip grid grid-cols-2 lg:grid-cols-4 mb-3">{head}</div>
+      <Sec n={1}>Headline KPIs, last {per} months</Sec>
+      {strip(view)}
+      {view === 'stores' ? <><Sec n={2}>Where and when</Sec><StoresPerf P={P} s={s} act={act} exec={exec} noTiles /></> : <>
+      <Sec n={2}>Scorecard</Sec>
       <div className="mb-3"><SLAScorecard sel={LV.findIndex(x => x._i === selV)} onSel={onSelV} list={LV} when={when} /></div>
+      <Sec n={3}>Trend, month by month</Sec>
+      {exec ? <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
+        : <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mb-3">{view === 'network' ? <CalendarHeat P={P} /> : view === 'ai' ? <TicketsAutoCard P={P} /> : <MTTRTrendCard P={P} />}<SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
       {!exec && <>
+      <Sec n={4}>Breakdown</Sec>
+      {view === 'network' && <div className="mb-3"><ErrorBudgets /></div>}
+      {view === 'ai' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><AutomationsCard act={act} s={s} /><DriversCard P={P} act={act} /></div>}
       {view === 'service' && <>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
-      <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
-          <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
-          <div className="flex gap-4 mt-2 text-[12.5px]"><div><div className="text-[20px] font-extrabold text-ink">{q.n}</div><div className="text-ink3">open</div></div><div><div className="text-[20px] font-extrabold text-warn">{q.risk}</div><div className="text-ink3">at risk</div></div><div><div className="text-[20px] font-extrabold text-bad">{q.breached}</div><div className="text-ink3">breached</div></div></div>
-          {q.respRisk > 0 && <div className="text-[11.5px] text-bad mt-1">{q.respRisk} close to missing response</div>}
-          <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{x.c.resLeft < 0 ? 'breached' : dur(x.c.resLeft)}</span></button>)}</div>
-        </div>)}</div>
-      </Card>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><MTTRTrendCard P={P} /><TicketsAutoCard P={P} /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><DriversCard P={P} act={act} /><ProblemBranchesCard P={P} /></div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3"><SLAPriorityCard list={L} when={when} /><CreditHeadroomCard list={LV} when={when} /></div>
+        <Card title="Breach risk by queue (live)" icon={I.AlarmClock} className="mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">{queues.map(q => <div key={q.p} className="border border-line rounded-md p-3">
+            <div className="flex items-center gap-2"><Pri p={q.p} /><span className="text-[12px] text-ink3">{D.slaOf(q.p).resp / MIN} min / {dur(D.slaOf(q.p).res)}</span></div>
+            <div className="flex gap-4 mt-2 text-[12.5px]"><div><div className="text-[20px] font-extrabold text-ink">{q.n}</div><div className="text-ink3">open</div></div><div><div className="text-[20px] font-extrabold text-warn">{q.risk}</div><div className="text-ink3">at risk</div></div><div><div className="text-[20px] font-extrabold text-bad">{q.breached}</div><div className="text-ink3">breached</div></div></div>
+            {q.respRisk > 0 && <div className="text-[11.5px] text-bad mt-1">{q.respRisk} close to missing response</div>}
+            <div className="mt-2 space-y-1">{q.list.filter(x => x.c.used > 0.5).slice(0, 3).map(x => <button key={x.i.id} onClick={() => act.openInc(x.i.id)} className="w-full text-left text-[11.5px] flex gap-1.5 hover:underline"><span className="font-mono text-ink3">{x.i.id}</span><span className={x.c.resLeft < 0 ? 'text-bad' : 'text-warn'}>{Math.round(x.c.used * 100)}% of the clock used</span></button>)}</div>
+          </div>)}</div>
+        </Card>
       </>}
-      {view === 'network' && <>
-                <div className="mb-3"><ErrorBudgets /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><ProblemBranchesCard P={P} /><DriversCard P={P} act={act} /></div>
-      </>}
-      {view === 'ai' && <>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch"><TicketsAutoCard P={P} /><AutomationsCard act={act} s={s} /></div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-start"><DriversCard P={P} act={act} /><MTTRTrendCard P={P} /></div>
-      </>}
-      </>}
-      {exec && <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
-      {!exec && <>
-      {view === 'network' ? <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 mb-3 items-stretch [&>*]:h-full"><CalendarHeat P={P} /><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>
-        : <div className="mb-3"><SLAHeatCard onSel={onSelV} list={LV} months={P.months.map(x => x.m)} /></div>}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3 items-stretch [&>*]:h-full">
+      <Sec n={5}>Detail, one metric at a time</Sec>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
         <SLAProjectionCard m={mv} series={P.sla[selV].series} labels={P.months.map(x => x.m)} />
         {(() => { const x = L.find(y => y.n === mv.n && y.name === mv.name), st = status(x), met = P.sla[selV].series.filter(v => HIST.slaStatusAt(mv, v) === 'Meets ESL').length; return (
           <Card title={`#${mv.n} ${mv.name}`} sub={mv.line.replace('Network ', '')} right={<Badge tone={tone(st)}>{st}</Badge>}>
             <div className="text-[12.5px] text-ink2 mb-3">{mv.def}</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{[['Minimum (MSL)', mv.msl == null ? 'None (KPI)' : f(mv.msl, mv)], ['Expected (ESL)', `${mv.lower ? '≤ ' : ''}${f(mv.esl, mv)}`], [`Average, ${per} months`, f(x.act, mv)], ['This month', f(mv.act, mv)]].map(([k, v]) => <div key={k} className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[17px] font-bold text-ink tabular-nums">{v}</div></div>)}</div>
-            <div className="grid grid-cols-2 gap-2 mt-2 text-[12.5px]"><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Months at ESL</div><div className="text-[17px] font-bold tabular-nums" style={{ color: met === per ? 'rgb(var(--ok))' : 'rgb(var(--warn))' }}>{met} of {per}</div></div><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Class</div><div className="text-[14px] font-bold text-ink">{mv.cls}</div></div></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">{[['Minimum (MSL)', mv.msl == null ? 'None (KPI)' : f(mv.msl, mv)], ['Expected (ESL)', `${mv.lower ? '≤ ' : ''}${f(mv.esl, mv)}`], [`Average, ${per} months`, f(x.act, mv)], ['This month', f(mv.act, mv)]].map(([k, v]) => <div key={k} className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">{k}</div><div className="text-[17px] font-bold tabular-nums text-ink">{v}</div></div>)}</div>
+            <div className="grid grid-cols-2 gap-2 mt-2 text-[12.5px]"><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Months at ESL</div><div className="text-[17px] font-bold tabular-nums" style={{ color: met === per ? 'rgb(var(--ok))' : 'rgb(var(--warn))' }}>{met} of {per}</div></div><div className="border border-line rounded-md px-3 py-2"><div className="text-[11.5px] text-ink3">Class</div><div className="text-[13px] font-semibold text-ink">{mv.cls}</div></div></div>
             <div className="flex gap-2 mt-3"><Btn size="sm" icon={I.Layers} onClick={() => act.drill({ t: 'metric', i: selV, per })}>Open the detail</Btn>{mv.queue && <Btn size="sm" icon={I.Siren} onClick={() => act.drill({ t: 'incidents', k: 'open', pri: mv.queue })}>Open {mv.queue} incidents</Btn>}</div>
           </Card>); })()}
       </div>
-      <div>
-        <Card pad={false}><div className="p-3">{lines.filter(l => VIEW[view].lines(l)).map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
-          <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
-            { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
-            { key: 'name', label: 'Metric', render: x => <div><div className="font-semibold">{x.name}</div><div className="text-[11px] text-ink3">{x.def}</div></div> },
-            { key: 'msl', label: 'MSL', right: true, render: x => f(x.msl, x) }, { key: 'esl', label: 'ESL', right: true, render: x => x.lower ? `≤ ${f(x.esl, x)}` : f(x.esl, x) },
-            { key: 'act', label: `Actual, ${per} mo avg`, right: true, render: x => <div><b>{f(x.act, x)}</b><div className="text-[10.5px] text-ink3">this month {f(x.month, x)}</div></div> },
-            { key: 'trend', label: `${per} mo`, render: x => <Spark data={HIST.SLA12[x.id].series.slice(-per)} w={70} h={20} color={tone(status(x)) === 'green' ? C.ok : C.warn} fill={false} /> },
-            { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
-            { key: 'cls', label: 'Class', render: x => <span className="text-[11px] text-ink3">{x.cls}</span> },
-          ]} /></div>)}</div></Card>
-      </div>
+      <Card pad={false} className="mb-3"><div className="p-3">{lines.filter(l => VIEW[view].lines(l)).map(l => <div key={l} className="mb-3"><div className="text-[12px] font-bold text-ink3 px-2 py-1">{l}</div>
+        <Table dense sortable={false} rows={L.map((x, k) => ({ ...x, id: k })).filter(x => x.line === l)} onRow={x => setSel(x.id)} rowClass={x => x.id === sel ? 'bg-chip' : ''} cols={[
+          { key: 'n', label: '#', render: x => <span className="text-ink3">{x.n}</span> },
+          { key: 'name', label: 'Metric', render: x => <div><div className="font-semibold">{x.name}</div><div className="text-[11px] text-ink3">{x.def}</div></div> },
+          { key: 'msl', label: 'MSL', right: true, render: x => f(x.msl, x) }, { key: 'esl', label: 'ESL', right: true, render: x => x.lower ? `≤ ${f(x.esl, x)}` : f(x.esl, x) },
+          { key: 'act', label: `Actual, ${per} mo avg`, right: true, render: x => <div><b>{f(x.act, x)}</b><div className="text-[10.5px] text-ink3">this month {f(x.month, x)}</div></div> },
+          { key: 'trend', label: `${per} mo`, render: x => <Spark data={HIST.SLA12[x.id].series.slice(-per)} w={70} h={20} color={tone(status(x)) === 'green' ? C.ok : C.warn} fill={false} /> },
+          { key: 'st', label: 'Status', render: x => <Badge tone={tone(status(x))}>{status(x)}</Badge> },
+        ]} /></div>)}</div></Card>
       </>}
       </>}
       </>
@@ -360,16 +343,18 @@ export function Reports() {
   const ref = useRef(null);
   // executive summary for leaders (CEO, CIO): the picture and the key points; full detail adds every table and timeline
   const aud = AUD[audOf(s)];
-  const tab = aud.reports.includes(tab0) ? tab0 : aud.reports[0];
+  const tab = ['perf', ...aud.reports, 'builder'].includes(tab0) ? tab0 : aud.reports[0];
   const brief = (s.tab.reportsLevel || aud.level) === 'exec';
   const [critDays, setCritDays] = useState(30);
   const open = s.incidents.filter(i => i.state !== 'Resolved');
   const res24 = s.resolved.filter(i => i.resolved > now - DAY);
   const titles = { ceo: 'CEO one-pager', cio: 'CIO review', opsmgr: 'Operations manager weekly', lead: 'Network health review', bu: 'BU head weekly', handover: 'Shift handover', daily: 'Daily operations summary', weekly: 'Weekly service review pack', critical: 'Critical incidents (P1 / P2)', biab: 'Branch-in-a-Box onboarding report', audit: 'Audit log' };
   if (['ceo', 'cio'].includes(audOf(s))) titles.bu = 'Executive weekly';
+  titles.perf = 'Performance summary';
+  const perP = s.tab.perfPer || 6;
   const exportHtml = () => { const html = `<!doctype html><html><head><meta charset="utf-8"><title>SRS – ${titles[tab]}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:32px;max-width:960px}h1{color:#762123}h2{border-bottom:2px solid #762123;padding-bottom:4px;margin-top:24px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f3f3f3}.muted{color:#666}</style></head><body>${ref.current.innerHTML}</body></html>`; downloadFile(`srs-${tab}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html'); act.audit(`Exported report: ${titles[tab]}`, tab); act.toast('Report downloaded'); };
   const H = ({ children }) => <h2 className="text-[15px] font-extrabold text-ink border-b-2 border-brand pb-1 mt-5 mb-2">{children}</h2>;
-  const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => <tr key={k}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>)}</tbody></table>;
+  const T = ({ rows, cols }) => <table className="w-full text-[12px] border-collapse"><thead><tr>{cols.map(c => <th key={c[0]} className="text-left border border-line bg-chip px-2 py-1 font-semibold text-ink">{c[0]}</th>)}</tr></thead><tbody>{rows.map((r, k) => { const go = r && typeof r === 'object' ? (r.drill ? () => act.drill(r.drill) : /^INC\d/.test(r.id || '') ? () => act.openInc(r.id) : r.branchId && D.BR[r.branchId] ? () => act.drill({ t: 'branch', id: r.branchId }) : /^CHG\d/.test(r.id || '') ? () => act.drill({ t: 'change', id: r.id }) : null) : null; return <tr key={k} onClick={go || undefined} title={go ? 'Drill down' : undefined} className={go ? 'cursor-pointer hover:bg-chip/60' : ''}>{cols.map(c => <td key={c[0]} className="border border-line px-2 py-1 text-ink align-top">{c[1](r)}</td>)}</tr>; })}</tbody></table>;
   const bl = id => `${D.BR[id].name}, ${D.BR[id].brand}`;
   const PRI_C = { P1: RC.red, P2: RC.amber, P3: RC.blue, P4: RC.grey };
   const allInc = [...s.incidents, ...s.resolved];
@@ -377,16 +362,27 @@ export function Reports() {
   return (
     <div>
       <PageHead icon={I.FileText} title="Reports" sub="Built from live console data. Download as HTML (opens in Word or a browser), CSV, or print to PDF."
-        right={tab !== 'audit' ? <><Btn icon={I.Download} onClick={exportHtml}>Download HTML</Btn><Btn icon={I.Printer} onClick={() => window.print()}>Print / PDF</Btn></> : <ExportBtn onClick={() => exportCSV('srs-audit-log.csv', s.audit, [{ label: 'Time', get: a => dt(a.t) }, { label: 'Who', key: 'who' }, { label: 'What', key: 'what' }, { label: 'Ref', key: 'ref' }])} />} />
+        right={tab === 'builder' ? null : tab !== 'audit' ? <><Btn icon={I.Download} onClick={exportHtml}>Download HTML</Btn><Btn icon={I.Printer} onClick={() => window.print()}>Print / PDF</Btn></> : <ExportBtn onClick={() => exportCSV('srs-audit-log.csv', s.audit, [{ label: 'Time', get: a => dt(a.t) }, { label: 'Who', key: 'who' }, { label: 'What', key: 'what' }, { label: 'Ref', key: 'ref' }])} />} />
       <AudiencePicker s={s} act={act} onPick={k => { act.setTab('reportsLevel', AUD[k].level); if (!AUD[k].reports.includes(tab)) { setTab(AUD[k].reports[0]); act.setTab('reports', AUD[k].reports[0]); } }} />
-      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={aud.reports.map(id => ({ id, label: titles[id] }))} />
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <Tabs value={tab} onChange={t => { setTab(t); act.setTab('reports', t); }} className="mb-3" tabs={[{ id: 'perf', label: 'Performance summary' }, ...aud.reports.map(id => ({ id, label: titles[id] })), { id: 'builder', label: 'Build your own' }]} />
+      {tab === 'builder' ? <ReportBuilder /> : <><div className="flex flex-wrap items-center gap-2 mb-3">
         {tab !== 'ceo' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold" role="group" aria-label="Level of detail">{[['exec', 'Executive summary'], ['full', 'Full detail']].map(([k, l]) => <button key={k} aria-pressed={(brief ? 'exec' : 'full') === k} onClick={() => act.setTab('reportsLevel', k)} className={cx('px-3 py-1.5 rounded', (brief ? 'exec' : 'full') === k ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>{l}</button>)}</div>}
         {tab !== 'ceo' && <span className="text-[12px] text-ink3">{brief ? 'For leaders: the picture and the key points.' : 'Every table and timeline.'}</span>}
+        {tab === 'perf' && <span className="inline-flex items-center gap-2 ml-auto text-[12px] text-ink3">Period, the same as on Performance<Tabs size="sm" value={perP} onChange={n => act.setTab('perfPer', n)} tabs={HIST.PERIODS.map(n => ({ id: n, label: `${n} months` }))} /></span>}
         {tab === 'critical' && <div className="inline-flex rounded-md bg-chip p-0.5 text-[12.5px] font-bold ml-auto" role="group" aria-label="Period">{[7, 30, 90].map(d => <button key={d} aria-pressed={critDays === d} onClick={() => setCritDays(d)} className={cx('px-3 py-1.5 rounded', critDays === d ? 'bg-panel text-ink shadow-sm' : 'text-ink3 hover:text-ink')}>Last {d} days</button>)}</div>}
       </div>
       <div className="bg-panel border border-line rounded-md p-6 print-area" ref={ref}>
         <div className="flex items-start gap-3 border-b border-line pb-3"><div className="flex-1"><h1 className="text-[22px] font-black text-brand dark:text-[#e8a3a5]">SRS Distribution – {titles[tab]}{brief && !['audit', 'ceo'].includes(tab) ? ': executive summary' : ''}</h1><div className="text-[12px] text-ink3">Managed Network Services, operated by Movate, generated {dt(now)} CT by {act.me()}{tab === 'critical' ? ` · last ${critDays} days` : ''}</div></div></div>
+        {tab === 'perf' && (() => { const P = HIST.period(perP), K = kpisFor(P), pc = (v, m) => `${(v * 100).toFixed(m.fmt || (m.esl > 0.999 ? 3 : 1))}%`; return <>
+          <p className="text-[12.5px] text-ink2 mt-2">The same KPIs, in the same order, as the Performance page: last {perP} months, {P.from} to {P.to}. Click any figure or row to drill in.</p>
+          {DOMAIN_ORDER.map((d, i) => <React.Fragment key={d}>
+            <H>{i + 1}. {DOMAIN_LABEL[d]}</H>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">{K[d].map(k => <div key={k.key} title="Drill down" onClick={() => act.drill(k.drill)} className="cursor-pointer border border-line rounded-md px-3 py-2 hover:bg-chip/50"><div className="text-[11.5px] text-ink3">{k.label}</div><div className="text-[20px] font-bold tabular-nums" style={{ color: k.tone === 'green' ? 'rgb(var(--ok))' : k.tone === 'red' ? 'rgb(var(--bad))' : 'rgb(var(--warn))' }}>{k.value}</div><div className="text-[11px] text-ink3">{k.sub}</div></div>)}</div>
+            {d === 'stores'
+              ? <T rows={[...P.branches].sort((a, b) => b.lost - a.lost).slice(0, brief ? 5 : 10).map(x => ({ ...x, branchId: x.b.id }))} cols={[['Branch', x => x.b.name], ['Availability', x => `${(x.avail * 100).toFixed(2)}%`], ['Store hours lost', x => x.lost.toFixed(1)], ['Tickets', x => x.tickets], ['Main cause', x => x.driver]]} />
+              : <T rows={P.sla.map((x, k) => ({ ...x, drill: { t: 'metric', i: k, per: perP } })).filter(x => DOMAIN_LINES[d](x.m.line))} cols={[['#', x => x.m.n], ['Metric', x => x.m.name], ['Expected (ESL)', x => `${x.m.lower ? '≤ ' : ''}${pc(x.m.esl, x.m)}`], [`Average, ${perP} months`, x => pc(x.avg, x.m)], ['Last month', x => pc(x.latest, x.m)], ['Status', x => x.status]]} />}
+          </React.Fragment>)}
+        </>; })()}
         {tab === 'handover' && <>
           <RRow>
             <RDonut title="Open incidents by priority" data={['P1', 'P2', 'P3', 'P4'].map(p => ({ label: p, value: open.filter(i => i.pri === p).length, color: PRI_C[p] }))} center={open.length} sub="open" />
@@ -463,6 +459,7 @@ export function Reports() {
           <T rows={brief ? s.audit.slice(0, 10) : s.audit} cols={[['Time (CT)', a => dt(a.t)], ['Who', a => a.who], ['Action', a => a.what], ['Ref', a => a.ref]]} />
         </>}
       </div>
+      <div className="mt-3"><AskReport tab={tab} /></div></>}
     </div>
   );
 }

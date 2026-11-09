@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import * as I from 'lucide-react';
 import { useApp } from './store.jsx';
 import { useLive } from './live.jsx';
-import { Card, Badge, cx } from './ui.jsx';
+import { Card, Badge, PageHead, cx } from './ui.jsx';
+import { OPSRAMP } from './edition.js';
 import { todayCounts } from './viz2.jsx';
 import { ServiceNowSyncCard } from './stormui.jsx';
 import { IntegrationStudio } from './studio.jsx';
@@ -127,13 +128,18 @@ export function SNow() {
 }
 
 // the AI tabs, shown on the Correlation page
-export const AI_TABS = [{ id: 'copilot', label: 'Operations Copilot' }, { id: 'sources', label: 'Sources and integration' }];
+export const AI_TABS = [{ id: 'copilot', label: 'Operations Copilot' }, ...(OPSRAMP ? [] : [{ id: 'sources', label: 'Sources and integration' }])];
 export function OpsAIContent({ tab }) {
   const { s } = useApp(); const { L } = useLive();
   const tc = todayCounts(L, s);
   return tab === 'sources' ? <Integration tc={tc} /> : tab === 'copilot' ? <OperationsCopilot /> : null;
 }
 // the old page address now opens the Correlation page on its AI tabs
+// Integrations as its own page (the OpsRamp view): the studio, device onboarding and the sources
+export function IntegrationsPage() {
+  const { s } = useApp(); const { L } = useLive();
+  return (<div><PageHead icon={I.Plug} title="Integrations" /><Integration tc={todayCounts(L, s)} /></div>);
+}
 export function OpsAI() {
   const { act } = useApp();
   useEffect(() => { act.setTab('correlation', 'live'); act.go('correlation'); }, []);

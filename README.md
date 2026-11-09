@@ -37,6 +37,19 @@ Branches are numbered 1 to 900 across the estate, with their location in the nam
 
 **SRS sees, Movate acts.** Each role belongs to an organisation. Movate roles (NOC Engineer, Network Engineer L3) carry out actions. SRS roles (StoreOps Lead, Branch Manager, Field Technician, M&A Integration Lead, Security Lead) and the role dashboards see everything live, but every action control is disabled with the reason: acknowledge, assign, priority and state, approve, run, raise, resolve, roll back, restock, re-run, start a project. In its place is *Escalate to Movate*, which records what it is about, the urgency (Normal 4 h, High 30 min, Critical 15 min plus the major incident manager) and the reason. Mova iO routes it to the ticket owner and the Movate engagement lead; the owner acknowledges and Movate replies on the incident. The field technician still records the onsite work in the work pack. Escalations are kept in the browser, so the dashboards and the console share them. Controls marked `op` are the actions (`src/ui.jsx`); the dialog and banner are in `src/escalate.jsx`.
 
+## Performance and Reports, in sync
+
+Both pages take their KPIs from one definition (`src/kpis.js`). Each of the four areas has four KPIs, headline first, in this order:
+
+| Area | KPIs |
+|---|---|
+| Network | critical availability #29, firmware #32, config backup #33, network SLAs at ESL |
+| Stores and branches | store availability, store hours lost, branches below 99.5%, repeat-problem branches |
+| AI and automation | tickets fixed by Mova iO, engineer hours saved, noise reduction, auto-resolution |
+| Services and engagement | service SLAs at ESL, P1 time to restore, tickets outside SLA, SLAs below minimum |
+
+Performance shows each area in the same order: headline KPIs, scorecard, trend, breakdown, then detail. Each card appears once. Reports → *Performance summary* shows the same KPIs in the same order, with the metric table for each area. Both pages share one 3/6/9/12-month period, and every tile and row drills down.
+
 ## OpsRamp view (`opsramp/`)
 
 A fourth link with the same live data in the HPE OpsRamp layout:
