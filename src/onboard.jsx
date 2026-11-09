@@ -82,6 +82,7 @@ export function DeviceOnboarding() {
     const picked = rows.filter(r => sel.has(r.key) && r.status === 'ok');
     if (!picked.length) return;
     act.set(st => ({ onboarded: [...(st.onboarded || []), ...picked.map(r => ({ ip: r.ip, host: r.host, tpl: r.tpl, group: r.group || 'Unassigned', t: Date.now() }))] }));
+    act.addInventory(picked.map(r => ({ id: `ip-${r.ip}`, name: r.host, kind: /AP|Wireless/i.test(r.tpl + r.model) ? 'AP' : /Firewall|Forti|PA-/i.test(r.tpl + r.model) ? 'Firewall' : 'Switch', vendor: r.vendor, model: r.model, ip: r.ip, site: r.group || 'Unassigned', source: mode === 'scan' ? `Discovery scan ${range}` : 'CSV import', template: r.tpl, via: mode === 'scan' ? 'Discovery scan' : 'CSV import', t: Date.now() })));
     act.audit(`Onboarded ${picked.length} devices to OpsRamp monitoring (${mode === 'scan' ? `discovery ${range}` : 'bulk import'})`, 'onboard');
     setDone({ n: picked.length, tpl: new Set(picked.map(r => r.tpl)).size, grp: new Set(picked.map(r => r.group).filter(Boolean)).size, skip: rows.length - picked.length });
     act.toast(`${picked.length} devices now monitored in OpsRamp`);

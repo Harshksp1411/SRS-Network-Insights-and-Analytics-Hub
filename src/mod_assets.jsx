@@ -17,7 +17,8 @@ const fwBadge = d => { const l = fwLevel(d); const crit = d.type === 'SD-WAN'; c
 export function Inventory() {
   const { s, act } = useApp();
   const now = useNow();
-  const [tab, setTab] = useState('devices');
+  const [tab, setTab0] = useState(s.tab.inventory || 'devices');
+  const setTab = t => { setTab0(t); act.setTab('inventory', t); };
   const [q, setQ] = useState('');
   const [type, setType] = useState('All');
   const [model, setModel] = useState('All');
@@ -69,9 +70,9 @@ export function Inventory() {
       </div>
       <div className="mb-3"><DeviceRiskCard /></div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'recon', label: 'Reconciliation' }]} />
+        <Tabs value={tab} onChange={setTab} tabs={[{ id: 'devices', label: 'Devices', count: devRows.length }, { id: 'circuits', label: 'Circuits', count: cirRows.length }, { id: 'onboarded', label: 'Added by onboarding', count: (s.invAdded || []).length }, { id: 'recon', label: 'Reconciliation' }]} />
         <div className="flex-1" />
-        {tab !== 'recon' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
+        {tab !== 'recon' && tab !== 'onboarded' && <SearchBox value={q} onChange={setQ} placeholder={tab === 'devices' ? 'Hostname, serial, branch, firmware' : 'Circuit, carrier ID, branch'} className="w-72" />}
       </div>
       {tab === 'devices' && <Card pad={false}><div className="p-3">
         <div className="flex flex-wrap gap-2 mb-2">
@@ -109,6 +110,11 @@ export function Inventory() {
           { key: 'tickets90', label: 'Tickets 90d', right: true, render: c => <span className={c.tickets90 >= 3 ? 'text-bad font-bold' : ''}>{c.tickets90}</span> },
         ]} />
       </div></Card>}
+      {tab === 'onboarded' && <Card pad={false} title="Added by onboarding" sub={`${(s.invAdded || []).length} resources from the Integration studio, discovery scans and CSV imports · stored in ${s.db.mode === 'cloud' ? 'the cloud database' : 'this browser'}`} right={<div className="flex gap-2"><Btn size="sm" icon={I.Plug} onClick={() => { act.setTab('correlation', 'sources'); act.go('correlation'); }}>Onboard more</Btn><Btn size="sm" icon={I.Database} onClick={() => { act.setTab('cmdb', 'db'); act.go('cmdb'); }}>Database</Btn></div>}>
+        {(s.invAdded || []).length ? <div className="overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3 text-[11.5px]">{['Name', 'Kind', 'Vendor and model', 'IP address', 'Site or account', 'Template', 'Added by', 'When', ''].map(h => <th key={h} className="px-3 py-1.5 font-semibold">{h}</th>)}</tr></thead>
+          <tbody>{s.invAdded.map(r => <tr key={r.id} className="border-b border-line/60 last:border-0"><td className="px-3 py-1.5 font-mono text-ink">{r.name}</td><td className="px-3 py-1.5"><Badge tone="blue">{r.kind}</Badge></td><td className="px-3 py-1.5 text-ink2">{r.vendor} · {r.model}</td><td className="px-3 py-1.5 font-mono text-ink2">{r.ip || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.site}</td><td className="px-3 py-1.5 font-mono text-[11.5px] text-ink2">{r.template || '—'}</td><td className="px-3 py-1.5 text-ink2">{r.via}</td><td className="px-3 py-1.5 text-ink3 whitespace-nowrap">{ago(r.t)}</td><td className="px-3 py-1.5 text-right"><Btn op size="xs" icon={I.Trash2} onClick={() => { act.removeInventory(r.id); act.audit(`Removed ${r.name} from the inventory`, r.id); }}>Remove</Btn></td></tr>)}</tbody></table></div>
+          : <div className="p-6 text-center text-[12.5px] text-ink3">Nothing added yet. Connect a source in the Integration studio, or run a discovery scan, and its devices appear here.</div>}
+      </Card>}
       {tab === 'recon' && <Recon />}
       <Modal open={!!dev} onClose={() => setDev(null)} title={dev && <span className="font-mono">{dev.id}</span>} sub={dev && `${dev.model}, ${dev.type}, ${D.BR[dev.branchId].name}, ${D.BR[dev.branchId].brand}`} wide
         footer={dev && <><Btn op icon={I.DatabaseBackup} disabled={dev.type === 'AP'} onClick={() => retry(dev)}>Back up config now</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open branch</Btn><Btn icon={I.Store} onClick={() => { setDev(null); act.openBranch(dev.branchId); }}>Open in Branch 360</Btn></>}>
