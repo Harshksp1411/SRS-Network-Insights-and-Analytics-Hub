@@ -21,6 +21,7 @@ import { BUWeekly } from './bureport.jsx';
 import { AUD, audOf, AudiencePicker } from './audience.jsx';
 import { CEOReport, CIOReport, OpsMgrReport, LeadReport, BusinessView, REV_HOUR } from './personas.jsx';
 import { ReportBuilder, AskReport } from './reportbuilder.jsx';
+import { BranchRiskCard, IncidentOutlookCard, ComingCard } from './predictmore.jsx';
 import { StoresPerf, AutomationsCard, DriversCard, STORE_TARGET } from './perf.jsx';
 import { kpisFor, DOMAIN_ORDER, DOMAIN_LABEL, DOMAIN_LINES } from './kpis.js';
 import { RiskMatrixCard, ModelAccuracyCard, PreventiveCalendarCard, ForecastMini, ClustersCard, DeflectionCard, AutomationRunsCard, HoursSavedCard, CandidatesCard, SLAProjectionCard } from './viz.jsx';
@@ -48,6 +49,8 @@ export function Predictive() {
         <Stat onClick={() => act.drill({ t: 'predictions' })} label="False positive rate" icon={I.ThumbsDown} value="14%" sub="target ≤ 20%" tone="green" />
       </div>
       <LivePanel kind="predict" className="mb-3 mt-3" />
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-3 mb-3"><BranchRiskCard /><IncidentOutlookCard /></div>
+      <div className="mb-3"><ComingCard /></div>
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] gap-3 mb-3"><RiskMatrixCard onPick={pt => { const el = document.getElementById(pt.id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /><ModelAccuracyCard /></div>
       <div className="mb-3"><AnomaliesCard /></div>
       <div className="mb-3"><PredictionActionsCard list={s.predictions} onPick={id => { const el = document.getElementById(id); el && el.scrollIntoView({ behavior: "smooth", block: "center" }); }} /></div>

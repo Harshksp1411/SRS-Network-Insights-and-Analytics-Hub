@@ -63,13 +63,13 @@ A fourth link with the same live data, laid out like the HPE OpsRamp product.
 
 | Group | Pages |
 |---|---|
-| Dashboards | Network performance |
 | Infrastructure | Resources (devices, circuits, onboarding, CMDB), Integration studio (studio, device onboarding, sources), Policies and rules |
 | Alerts | Alert Browser, Correlation (the OpsQ workflow), Operations Copilot |
 | Insights | Predictive insights |
 | Patch & Vulnerability | Patch and vulnerability |
 | Automation | Process automation, Knowledge base |
 | Reports | Reporting Apps |
+| Dashboards | Network performance (the page it opens on) |
 
 It is built from the same code as the console (edition `opsramp`) and keeps its own saved copy.
 

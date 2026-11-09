@@ -355,13 +355,13 @@ function ConsoleDrill() {
 // ── the OpsRamp view (opsramp/index.html): the same live data in the OpsRamp layout ──
 // a dark top bar with the client and an OpsQL-style search, a slim icon rail with OpsRamp's sections, a breadcrumb
 const OPS_GROUPS = [
-  { g: 'Dashboards', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Network performance' }] },
   { g: 'Infrastructure', icon: I.Server, items: [{ id: 'inventory', label: 'Resources' }, { id: 'integrations', label: 'Integration studio' }, { id: 'policies', label: 'Policies and rules' }] },
   { g: 'Alerts', icon: I.BellRing, items: [{ id: 'incidents', label: 'Alert Browser', badge: s => s.incidents.filter(i => i.state !== 'Resolved').length }, { id: 'correlation', label: 'Correlation' }, { id: 'copilot', label: 'Operations Copilot' }] },
   { g: 'Insights', icon: I.TrendingUp, items: [{ id: 'predict', label: 'Predictive insights' }] },
   { g: 'Patch & Vulnerability', icon: I.ShieldCheck, items: [{ id: 'vuln', label: 'Patch and vulnerability', badge: () => D.DEVICES.filter(d => D.vulnsOf(d).some(a => a.sev === 'Critical')).length }] },
   { g: 'Automation', icon: I.Workflow, items: [{ id: 'catalogue', label: 'Process automation' }, { id: 'knowledge', label: 'Knowledge base' }] },
   { g: 'Reports', icon: I.FileBarChart, items: [{ id: 'reports', label: 'Reporting Apps' }] },
+  { g: 'Dashboards', icon: I.LayoutDashboard, items: [{ id: 'sla', label: 'Network performance' }] },
 ];
 const OPS_NAV = OPS_GROUPS.flatMap(g => g.items.map(x => ({ ...x, group: g.g })));
 function OpsSearch() {
