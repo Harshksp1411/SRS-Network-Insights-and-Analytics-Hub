@@ -52,7 +52,7 @@ export function LiveOps() {
 
 export function Correlation() {
   const { s, act } = useApp(); const { L } = useLive();
-  const tab0 = s.tab.correlation || 'live', tab = ['live', 'sources'].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
+  const tab0 = s.tab.correlation || 'live', tab = ['live', ...AI_TABS.map(t => t.id)].includes(tab0) ? tab0 : 'live', setTab = t => act.setTab('correlation', t);
   const S = L.series; const tc = todayCounts(L, s); const raw = tc.raw; const open = s.incidents.filter(i => i.state !== 'Resolved');
   return (
     <div className="theme-opsramp">

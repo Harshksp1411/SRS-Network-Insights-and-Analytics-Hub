@@ -12,6 +12,7 @@ import { IntegrationStudio } from './studio.jsx';
 import { TicketSimulator } from './snowsim.jsx';
 import { DeviceOnboarding } from './onboard.jsx';
 import { num } from './util.js';
+import { OperationsCopilot } from './copilot.jsx';
 
 const Th = ({ children, r }) => <th className={cx('py-1.5 pr-3 font-semibold text-ink3 text-[11.5px]', r ? 'text-right' : 'text-left')}>{children}</th>;
 
@@ -126,11 +127,11 @@ export function SNow() {
 }
 
 // the AI tabs, shown on the Correlation page
-export const AI_TABS = [{ id: 'sources', label: 'Sources and integration' }];
+export const AI_TABS = [{ id: 'copilot', label: 'Operations Copilot' }, { id: 'sources', label: 'Sources and integration' }];
 export function OpsAIContent({ tab }) {
   const { s } = useApp(); const { L } = useLive();
   const tc = todayCounts(L, s);
-  return tab === 'sources' ? <Integration tc={tc} /> : null;
+  return tab === 'sources' ? <Integration tc={tc} /> : tab === 'copilot' ? <OperationsCopilot /> : null;
 }
 // the old page address now opens the Correlation page on its AI tabs
 export function OpsAI() {
