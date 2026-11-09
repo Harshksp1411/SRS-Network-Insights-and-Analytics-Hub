@@ -1,5 +1,5 @@
-// Correlation page: an alert storm replayed step by step, the dedup and suppression rules with today's counts,
-// and auto-ticketing into ServiceNow (what is created, updated, attached and resolved).
+// Correlation page: the correlation workflow, one use case at a time, with what OpsQ does at each step and the
+// ServiceNow ticket at the end; and the live auto-ticketing log (what is created, updated, attached and resolved).
 import React, { useState, useEffect, useMemo } from 'react';
 import * as I from 'lucide-react';
 import * as D from './data.js';
@@ -7,20 +7,19 @@ import { useApp } from './store.jsx';
 import { useLive } from './live.jsx';
 import { Card, Badge, Btn, Tabs, Logo, SRC_LOGO, Pri, cx } from './ui.jsx';
 import { todayCounts } from './viz2.jsx';
-import { SCENARIOS, STAGES, FATE, RULES, stageCounts } from './storm.js';
+import { SCENARIOS, STAGES, FATE, RULES, stageCounts, OPSQ_MODES, OPSQ_COMPARE } from './storm.js';
 import { num, hhmmss, hhmm } from './util.js';
 
 const Src = ({ src }) => SRC_LOGO[src] ? <Logo k={SRC_LOGO[src]} h={9} /> : <b className="text-[11px] text-brand whitespace-nowrap">{src}</b>;
 const sevDot = s => s === 'Critical' ? 'bg-bad' : s === 'Major' ? 'bg-warn' : s === 'Minor' ? 'bg-info' : 'bg-ink3';
 
 // ── 1. alert storm replay ──
-// what OpsQ does at each step of the storm
-const OPSQ_STEP = { 1: 'flap merging', 2: 'seasonal and learned suppression', 3: 'learned sequence and topology', 4: 'learned first response and routing', 5: 'one ticket, alerts attached' };
 export function AlertStormReplay() {
   const { act } = useApp();
   const [sid, setSid] = useState(SCENARIOS[0].id);
   const [st, setSt] = useState(0);
   const [play, setPlay] = useState(false);
+  const [cmp, setCmp] = useState(false);
   const sc = SCENARIOS.find(x => x.id === sid);
   const cnt = useMemo(() => stageCounts(sc), [sc]);
   useEffect(() => { setSt(0); setPlay(false); }, [sid]);
@@ -29,8 +28,8 @@ export function AlertStormReplay() {
   const upd = sc.ticket.action !== 'Created';
   const gone = r => FATE[r.fate].stage <= st;
   return (
-    <Card title="Alert storm, step by step" sub="Replay a real kind of storm and watch each alarm get merged, held back or turned into one ticket" icon={I.CloudLightning}
-      right={<div className="flex gap-1.5"><Btn size="sm" icon={I.RotateCcw} onClick={() => { setSt(0); setPlay(false); }}>Reset</Btn><Btn size="sm" kind="brand" icon={play ? I.Pause : I.Play} onClick={() => { if (st >= 5) setSt(0); setPlay(v => !v); }}>{play ? 'Pause' : 'Play'}</Btn><Btn size="sm" icon={I.SkipForward} onClick={() => setSt(v => Math.min(5, v + 1))} disabled={st >= 5}>Next step</Btn></div>}>
+    <Card title="Correlation workflow" sub="Pick a use case and step through it: what comes in, what OpsQ does at each step, and the ServiceNow ticket at the end" icon={I.Workflow}
+      right={<div className="flex gap-1.5 flex-wrap"><Btn size="sm" icon={I.Columns2} onClick={() => setCmp(v => !v)}>{cmp ? 'Hide' : 'Compare with'} rule-based tools</Btn><Btn size="sm" icon={I.RotateCcw} onClick={() => { setSt(0); setPlay(false); }}>Reset</Btn><Btn size="sm" kind="brand" icon={play ? I.Pause : I.Play} onClick={() => { if (st >= 5) setSt(0); setPlay(v => !v); }}>{play ? 'Pause' : 'Play'}</Btn><Btn size="sm" icon={I.SkipForward} onClick={() => setSt(v => Math.min(5, v + 1))} disabled={st >= 5}>Next step</Btn></div>}>
       <Tabs size="sm" value={sid} onChange={setSid} className="mb-3" tabs={SCENARIOS.map(x => ({ id: x.id, label: x.name }))} />
       <div className="flex items-start gap-2.5 mb-3 text-[12.5px]"><span className="w-8 h-8 rounded-lg bg-brand/10 text-brand grid place-items-center shrink-0"><Ic size={16} /></span><div className="text-ink2 leading-snug"><span className="text-ink font-semibold">{sc.story}</span> <span className="text-ink3">Over {sc.mins >= 60 ? `${sc.mins / 60} hours` : `${sc.mins} minutes`}.</span></div></div>
       {/* the stage stepper */}
@@ -40,7 +39,7 @@ export function AlertStormReplay() {
           <div className={cx('text-[22px] font-extrabold tabular-nums leading-tight mt-1', i <= st ? 'text-ink' : 'text-ink3/50')}>{i > st ? '—' : i === 5 ? (upd ? `${v} updated` : `${v} ticket`) : num(v)}</div>
           <div className="text-[11px] text-ink3 leading-tight">{i > st ? '\u00a0' : i === 0 ? 'events' : i === 1 || i === 2 ? 'alerts left' : i === 5 ? (upd ? 'no new ticket' : 'in ServiceNow') : sc.incidents ? 'incident' : 'event, no new ticket'}</div>
         </button>); })}</div>
-      <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{OPSQ_STEP[st] && <span className="ml-1.5 inline-flex items-center gap-1 rounded border border-line bg-chip/60 px-1.5 py-[1px] text-[11.5px] text-ink align-middle"><I.Sparkles size={11} /><b>OpsQ</b> {OPSQ_STEP[st]}</span>}{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
+      <div className="text-[12px] text-ink2 mb-2"><b className="text-ink">Step {st + 1}: {STAGES[st].label}.</b> {STAGES[st].short}.{st === 0 && ` ${num(cnt[0])} events from ${new Set(sc.rows.map(r => r.src)).size} tools.`}{st === 1 && ` ${num(cnt[0])} events became ${cnt[1]} alerts.`}{st === 2 && ` ${cnt[1] - cnt[2]} alerts held back, each for a stated reason.`}</div>
       {st <= 2 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.rows.map((r, i) => { const f = FATE[r.fate], out = gone(r); return (
         <div key={i} className={cx('grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[72px_minmax(0,1.1fr)_minmax(0,1.6fr)_56px_minmax(0,1.1fr)] gap-x-2 gap-y-0.5 items-center px-2.5 py-1.5 text-[12px] transition-opacity duration-500', out && 'opacity-45')}>
           <span className="hidden md:block"><Src src={r.src} /></span>
@@ -58,8 +57,54 @@ export function AlertStormReplay() {
       </div>}
       {st === 4 && <div className="border border-line rounded-lg divide-y divide-line/70">{sc.enrich.map(([k, v]) => <div key={k} className="grid grid-cols-[150px_minmax(0,1fr)] gap-3 px-3 py-1.5 text-[12.5px]"><span className="text-ink3">{k}</span><span className="text-ink font-semibold">{v}</span></div>)}</div>}
       {st === 5 && <TicketPreview sc={sc} onOpen={id => act.openInc(id)} />}
+      <OpsQStep sc={sc} st={st} />
+      {cmp && <div className="mt-3 border-t border-line pt-3 overflow-x-auto"><table className="w-full text-[12.5px]"><thead><tr className="border-b border-line text-left text-ink3"><th className="py-1.5 pr-3 font-semibold" /><th className="py-1.5 pr-3 font-semibold">Rule-based event management</th><th className="py-1.5 font-semibold">OpsQ</th></tr></thead>
+        <tbody>{OPSQ_COMPARE.map(([a, b, c]) => <tr key={a} className="border-b border-line/60 last:border-0"><td className="py-1.5 pr-3 font-semibold text-ink whitespace-nowrap">{a}</td><td className="py-1.5 pr-3 text-ink2">{b}</td><td className="py-1.5 text-ink">{c}</td></tr>)}</tbody></table></div>}
     </Card>
   );
+}
+
+const MODE_T = { Off: 'gray', Observed: 'blue', Recommend: 'amber', On: 'green' };
+function OpsQStep({ sc, st }) {
+  const { s, act } = useApp(); const { L } = useLive();
+  const [rules, setRules] = useState(false);
+  const q = sc.opsq; if (!q) return null;
+  const modes = { ...OPSQ_MODES, ...(s.catModes || {}) };
+  const promote = id => { const nx = { Observed: 'Recommend', Recommend: 'On' }[modes[id]]; if (!nx) return; act.set(x => ({ catModes: { ...(x.catModes || {}), [id]: nx } })); act.audit(`OpsQ policy ${id} moved to ${nx}`, id); act.toast(`${id} is now ${nx}`); };
+  const Box = ({ title, right, children }) => <div className="mt-3 border border-line rounded-lg p-3 bg-chip/30"><div className="flex items-center gap-1.5 text-[12px] font-bold text-ink mb-1.5"><I.Sparkles size={13} /><span className="flex-1">OpsQ · {title}</span>{right}</div>{children}</div>;
+  const P = ({ children }) => <p className="text-[12.5px] text-ink2 leading-snug">{children}</p>;
+  if (st === 0) return <Box title={q.in[0]}><P>{q.in[1]}</P></Box>;
+  if (st === 1) return <Box title={q.dedup[0]}><P>{q.dedup[1]}</P></Box>;
+  if (st === 2) return (
+    <Box title="Why each alert is held back" right={<button onClick={() => setRules(v => !v)} className="text-[11.5px] font-semibold text-ink hover:underline">{rules ? 'Hide' : 'All'} suppression rules</button>}>
+      <ul className="space-y-1">{q.suppress.map(([k, v]) => <li key={k} className="flex items-start gap-2 text-[12.5px]"><Badge tone="purple" className="shrink-0">{k}</Badge><span className="text-ink2">{v}</span></li>)}</ul>
+      {rules && <div className="mt-2 border-t border-line pt-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">{RULES.map(r => <div key={r.k} className="text-[12px]"><b className="text-ink">{r.name}.</b> <span className="text-ink2">{r.how}.</span></div>)}</div>}
+    </Box>);
+  if (st === 3) { const [text, seen, gap, conf, pol] = q.seq, m = modes[pol]; return (
+    <Box title="Learned sequence and topology">
+      <div className="flex flex-col md:flex-row md:items-stretch gap-1.5">{q.topo.map(([n, d, t, a], i) => <React.Fragment key={n}>
+        {i > 0 && <div className="hidden md:flex items-center text-ink3"><I.ChevronRight size={15} /></div>}
+        <div className={cx('flex-1 rounded-md border p-2 bg-panel', t === 'bad' ? 'border-bad/50' : 'border-line')}><b className="text-[12px] text-ink block">{n}</b><div className="text-[11.5px] text-ink2 truncate">{d}</div><div className={cx('text-[11.5px] font-semibold', t === 'bad' ? 'text-bad' : t === 'warn' ? 'text-warn' : 'text-ok')}>{a}</div></div>
+      </React.Fragment>)}</div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] border-t border-line pt-2">
+        <span className="flex-1 min-w-[240px] text-ink"><span className="text-ink3">Matched: </span>{text}</span>
+        <span className="text-ink2">seen <b className="text-ink">{num(seen)}</b> times in 90 days · gap {gap} · confidence <b className="text-ink">{Math.round(conf * 100)}%</b></span>
+        <span className="inline-flex items-center gap-1.5"><span className="font-mono text-[11.5px]">{pol}</span><Badge tone={MODE_T[m]}>{m}</Badge>{m !== 'On' && <button onClick={() => promote(pol)} className="text-[11.5px] font-semibold text-ink hover:underline">Promote</button>}</span>
+      </div>
+    </Box>); }
+  if (st === 4) return (
+    <Box title="Learned first response and routing">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[12.5px]">
+        <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">First response</div><b className="text-ink">{q.fr[0]}</b><div className="text-ink2 mt-0.5"><Badge tone={MODE_T[q.fr[1]]}>{q.fr[1]}</Badge> accepted {Math.round(q.fr[2] * 100)}% of the time · {q.fr[3]}</div></div>
+        <div><div className="text-[11px] font-bold uppercase text-ink3 mb-0.5">Routing</div><b className="text-ink">{q.route[0]}</b><div className="text-ink2 mt-0.5">matched the engineer {Math.round(q.route[1] * 100)}% of the time · {q.route[2]}</div></div>
+      </div>
+    </Box>);
+  const tc = todayCounts(L, s);
+  return (
+    <Box title="Ticket in ServiceNow">
+      <P>{q.snow}</P>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">{[['Tickets created today', tc.inc], ['Alerts attached, no new ticket', Math.max(0, tc.corr - tc.inc)], ['Resolved by OpsRamp today', tc.auto ? Math.min(tc.inc, Math.round(tc.inc * 0.4)) : 0]].map(([k, v]) => <div key={k} className="rounded bg-panel border border-line px-2 py-1.5"><div className="text-ink3 text-[11px]">{k}</div><b className="text-ink tabular-nums">{num(v)}</b></div>)}</div>
+    </Box>);
 }
 
 function TicketPreview({ sc, onOpen }) {

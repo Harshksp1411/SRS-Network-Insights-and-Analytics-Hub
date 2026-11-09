@@ -176,3 +176,66 @@ export const RULES = [
   { k: 'info', name: 'Information only', how: 'Failover done, link restored, backup completed: logged and sent to the digest', ex: 'traffic moved to the backup path', share: 0.11 },
   { k: 'upstream', name: 'Upstream already ticketed', how: 'Simplify watches the ISP access links and raises their tickets; Movate takes them as information and adds evidence', ex: 'an access link down at the carrier', share: 0.04 },
 ];
+
+// ── what OpsQ (the OpsRamp AI) does at each step of each use case ──
+// in: anomaly detection on the way in · dedup: merging · suppress: why alerts are held back · seq/topo/mode: how the
+// event is formed · fr/route: first response and routing it learned · snow: how the ticket is handled
+function opsqOf(sc) {
+  const b = sc.b, rows = sc.rows;
+  const nSw = (rows.find(r => /switch/.test(r.msg) && r.devices) || {}).devices || 0, nAp = (rows.find(r => /access point/.test(r.msg) && r.devices) || {}).devices || 0;
+  const n = (rows[0] || {}).devices || 0;
+  const pl = (k, w, ws) => `${k} ${k === 1 ? w : ws}`;
+  return {
+    dark: {
+      in: ['Anomaly detection', `The EdgeConnect heartbeat at ${b.name} slowed to three times its learned normal two minutes before it stopped. The learned-normal model flagged it; a fixed threshold would not have.`],
+      dedup: ['Merging', `Each poll of the same alarm added to one alert, and OpsRamp and Orchestrator reporting the same EdgeConnect were linked as one.`],
+      suppress: [['Topology: parent down', `${pl(nSw, 'switch', 'switches')}, ${pl(nAp, 'access point', 'access points')} and the tunnels sit behind ${b.code}-ec01, so they are held on its alert`], ['Learned sequence', 'Tunnels down right after the EdgeConnect is lost is learned as one event, not a new fault']],
+      seq: ['EdgeConnect lost → tunnels down → switches and APs unreachable, same branch', 38, '30 s', 0.95, 'CP-01'],
+      topo: [['Carrier lines', 'wan1 and wan2', 'ok', 'Up at the modems'], ['SD-WAN appliance', `${b.code}-ec01`, 'bad', 'Not answering'], ['Core switch', `${b.code}-sw01`, 'warn', 'Unreachable'], ['Access layer', `${pl(nSw, 'switch', 'switches')}, ${pl(nAp, 'AP', 'APs')}`, 'warn', 'Unreachable'], ['Tills and ERP', 'Card payments, ERP', 'warn', 'Tests failing']],
+      fr: ['RB-108 EdgeConnect remote recovery', 'Recommend', 0.86, 'an engineer approves, then Mova iO runs it'],
+      route: ['Movate NOC – L2 Network', 0.96, 'SD-WAN events at one open branch'],
+      snow: 'Opened by the OpsRamp escalation policy in 4 seconds; every later alert is added as a work note, so there is one ticket for the branch.',
+    },
+    fibre: {
+      in: ['Anomaly detection', `Loss on ${n} Spectrum lines jumped from a learned normal of 0.1% to 100% inside 40 seconds: a sudden break, not a drift, so no forecast was possible.`],
+      dedup: ['Merging', `Orchestrator and OpsRamp both reported wan1 down on ${n} EdgeConnects; the second report of each was linked to the first.`],
+      suppress: [['Upstream already ticketed', `Simplify raised a ticket for each of the ${n} access links, so OpsRamp adds evidence instead of opening its own`], ['Information only', 'Failover to LTE and the card payment tests on backup go to the digest']],
+      seq: ['Primary down at 3 or more branches, same carrier and region, within 15 minutes', 61, '4 min', 0.96, 'CP-02'],
+      topo: [['Spectrum fibre', 'Dallas segment', 'bad', 'Cut'], ['Access lines', `${n} primaries`, 'warn', 'Down'], ['EdgeConnects', `${n} branches`, 'ok', 'Moved to LTE'], ['Branches', `${n} open`, 'ok', 'Trading on backup']],
+      fr: ['RB-107 StoreOps notify, then watch the LTE data pool', 'On', 0.99, 'runs on its own'],
+      route: ['Simplify (upstream), Movate watches', 0.94, 'access-link faults belong to Simplify'],
+      snow: `No new ticket: OpsRamp updates the ${n} Simplify tickets with the outage evidence and watches the backup lines.`,
+    },
+    firmware: {
+      in: ['Anomaly detection', 'Nothing raised on the way in: the baseline knows the change window, so AP reboots inside it are expected, not unusual.'],
+      dedup: ['Merging', 'Each AP\'s down and up during its reboot were merged into one pair, and repeat polls counted on it.'],
+      suppress: [['Change window', 'Every AP in scope of the change is held during its window and checked 15 minutes after it closes'], ['Learned pattern', 'AP down inside a firmware window, back within 10 minutes: learned from earlier waves']],
+      seq: ['AP down inside a change window → AP up within 10 minutes, same AP', 1840, '6 min', 0.98, 'CP-04'],
+      topo: [['Change', 'CHG0031902', 'ok', 'Window closed'], ['Switch ports', '31 switches', 'ok', 'PoE back'], ['Access points', '94 of 96', 'ok', 'Back on new firmware'], ['Two APs', `${b.code}-ap03, ap05`, 'bad', 'Not back']],
+      fr: ['RB-104 AP reboot from Aruba Central', 'On', 0.92, 'runs on its own: the branch is closed'],
+      route: ['Movate Network SME – L3 (change owner)', 0.97, 'faults after a change go to the change owner'],
+      snow: 'One P4 ticket for the two APs, linked to the change record, so the change review sees it.',
+    },
+    flap: {
+      in: ['Anomaly detection', `Loss on ${b.wan[0]} drifted above its learned normal for three nights before the flaps; the forecast flagged the line two days ago.`],
+      dedup: ['Merging (flaps)', '28 down and up changes in 30 minutes were merged into one flapping alert instead of 28 alarms.'],
+      suppress: [['Seasonal (learned)', 'Switch CPU at 86% during the nightly backup happens every night at 02:00, so it is held back'], ['Cleared by itself', 'The AP reboot came back in 40 seconds, inside the 5-minute hold-down'], ['Information only', 'Traffic moving between wan1 and LTE goes to the digest']],
+      seq: ['wan1 loss above 2% → BFD flap → ERP slower than 1.5 s, same store', 214, '40 s', 0.93, 'CP-03'],
+      topo: [['Carrier line', b.wan[0], 'bad', 'Flapping'], ['EdgeConnect', `${b.code}-ec01`, 'ok', 'Pinned to LTE'], ['Branch LAN', `${b.code}-sw01, ap02`, 'ok', 'Blips cleared'], ['Tills', 'Card payments', 'ok', 'Working on LTE']],
+      fr: ['RB-106 carrier case with the evidence pack', 'Recommend', 0.9, 'an engineer accepts, then it is raised'],
+      route: ['Movate NOC – L2 Network, case to the carrier', 0.95, 'carrier faults at one branch'],
+      snow: 'One P3 ticket on the circuit; the carrier case number is added to it when the case is raised.',
+    },
+  }[sc.id];
+}
+SCENARIOS.forEach(sc => { sc.opsq = opsqOf(sc); });
+export const OPSQ_MODES = { 'CP-01': 'On', 'CP-02': 'Recommend', 'CP-03': 'Observed', 'CP-04': 'On' };
+export const OPSQ_COMPARE = [
+  ['Correlation logic', 'Hand-written rules per device and scenario', 'Learns sequences from history; rules only as an override'],
+  ['Upkeep', 'Rules break when topology or vendors change', 'Keeps learning as stores and devices are added'],
+  ['Something new', 'Missed if no rule exists', 'Caught once it recurs'],
+  ['Noise', 'Static thresholds and filters', 'Dedup, flap merging, seasonal and learned suppression'],
+  ['Root cause', 'Separate tool or by hand', 'Topology points to the likely cause'],
+  ['Routing', 'Static assignment rules', 'Learned routing and priority'],
+  ['Going live', 'Rule goes live; you find out if it is wrong', 'Observed, then Recommend, then On, with a 7-day back-test'],
+];
