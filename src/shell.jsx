@@ -161,6 +161,9 @@ function FilterBar() {
   const inRegion = D.BRANCHES.filter(b => (f.region === 'All' || b.region === f.region) && (f.brand === 'All' || b.brand === f.brand));
   const cityCounts = {}; inRegion.forEach(b => { const k = cityKey(b); cityCounts[k] = (cityCounts[k] || 0) + 1; });
   const cities = Object.keys(cityCounts).sort();
+  // the branch level: every branch in the region and city picked (all 900 with no region or city), named with its location
+  const inCity = inRegion.filter(b => !f.city || f.city === 'All' || cityKey(b) === f.city);
+  if (f.branchId && D.BR[f.branchId] && !inCity.some(b => b.id === f.branchId)) inCity.unshift(D.BR[f.branchId]);
   const pickBranch = id => { if (!id) { setF({ branchId: null }); return; } const b = D.BR[id]; setF({ branchId: id, city: cityKey(b) }); if (s.module === 'overview' || s.module === 'b360') act.set({ module: 'b360', b360: id }); };
   // the device level: with a branch picked, its lines and devices; otherwise device and line sets for the scope
   const devOptions = f.branchId ? [{ value: '', label: `Device: any (${D.devicesOf(f.branchId).length + D.BR[f.branchId].wan.length})` },
@@ -178,7 +181,8 @@ function FilterBar() {
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Building2} value={f.city || 'All'} onChange={v => setF({ city: v, branchId: null })} options={[{ value: 'All', label: `City: all (${cities.length})` }, ...cities.map(c => ({ value: c, label: `${c} (${cityCounts[c]})` }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
-        {f.branchId && <><button onClick={() => pickBranch(null)} title="Clear the branch" className="h-8 px-2.5 rounded-md border border-line bg-chip text-[12.5px] font-semibold text-ink inline-flex items-center gap-1.5"><I.Store size={13} />{D.BR[f.branchId].name}<I.X size={13} className="text-ink3" /></button><I.ChevronRight size={14} className="text-ink3" /></>}
+        <Select icon={I.Store} className="[&_select]:!max-w-[210px]" value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${num(inCity.length)})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
+        <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
         <div className="relative">
           <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-36" />
@@ -192,7 +196,7 @@ function FilterBar() {
       <div className="flex-1" />
       <div className="flex items-center gap-3 text-[12.5px] text-ink2">
         <span className="font-bold text-ink">{f.branchId ? D.BR[f.branchId].name : f.city && f.city !== 'All' ? f.city : f.region !== 'All' ? f.region : 'All branches'}</span>
-        <span>{num(list.length)} branches</span>
+        <span>{num(list.length)} branch{list.length === 1 ? '' : 'es'}</span>
         <span className="flex items-center gap-1"><Dot tone="green" />{num(counts.up)}</span>
         <span className="flex items-center gap-1"><Dot tone="amber" />{counts.degraded}</span>
         <span className="flex items-center gap-1"><Dot tone="red" />{counts.down}</span>
