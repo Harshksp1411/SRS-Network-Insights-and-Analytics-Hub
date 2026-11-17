@@ -140,11 +140,9 @@ function Sidebar() {
 
 function FilterBar() {
   const { s, act } = useApp();
-  const [q, setQ] = useState('');
   const list = filteredBranches(s);
   const counts = { up: 0, degraded: 0, down: 0 }; list.forEach(b => counts[healthOf(s, b)]++);
   const openInc = s.incidents.filter(i => i.state !== 'Resolved' && list.some(b => b.id === i.branchId)).length;
-  const matches = q.length > 1 ? D.BRANCHES.filter(b => `${b.name} ${b.brand} ${b.city} ${b.state} ${b.id}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8) : [];
   const f = s.filters;
   const setF = p => act.set(st => ({ filters: { ...st.filters, ...p } }));
   const bm = s.role === 'bm';
@@ -174,14 +172,6 @@ function FilterBar() {
         <Select icon={I.Store} className="[&_select]:!max-w-[210px]" value={f.branchId || ''} onChange={pickBranch} options={[{ value: '', label: `Branch: any (${num(inCity.length)})` }, ...inCity.map(b => ({ value: b.id, label: b.name }))]} />
         <I.ChevronRight size={14} className="text-ink3" />
         <Select icon={I.Cpu} value="" onChange={pickDevice} options={devOptions} />
-        <div className="relative">
-          <SearchBox value={q} onChange={setQ} placeholder="Find a branch" className="w-36" />
-          {matches.length > 0 && (
-            <div className="absolute top-9 left-0 w-80 bg-panel border border-line rounded-md shadow-xl z-50 py-1">
-              {matches.map(b => <button key={b.id} onClick={() => { act.set(st => ({ filters: { region: 'All', city: cityKey(b), brand: 'All', branchId: b.id } })); act.openBranch(b.id); setQ(''); }} className="w-full text-left px-3 py-1.5 hover:bg-chip text-[12.5px] flex items-center gap-2"><Dot tone={healthTone(healthOf(s, b))} /><span className="font-semibold text-ink">{b.name}</span><span className="text-ink3 truncate">{b.brand}, {b.state}</span><span className="ml-auto text-ink3 text-[11px]">{b.id}</span></button>)}
-            </div>
-          )}
-        </div>
       </>}
       <div className="flex-1" />
       <div className="flex items-center gap-3 text-[12.5px] text-ink2">
